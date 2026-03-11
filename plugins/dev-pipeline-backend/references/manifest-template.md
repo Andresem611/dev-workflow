@@ -3,42 +3,96 @@
 Use this template when creating a new MANIFEST in `dev-pipeline-backend:intake`.
 
 ```markdown
-# DEV MANIFEST — [Feature Name]
+# MANIFEST — [Feature Name]
 
-**Feature:** [description from user]
 **Created:** [today's date]
-**Entry Mode:** [idea | spec | handover | bug]
-**Tier:** [KNOWN | COMBINATION | NOVEL]
-**Current Phase:** INTAKE
-**Status:** In Progress
+**Last Updated:** [today's date]
 
-## Domains
-- [domain tags]
+---
+
+## Feature Metadata
+
+| Field | Value |
+|-------|-------|
+| **Name** | [Feature Name] |
+| **Description** | [description from user] |
+| **Tier** | KNOWN / COMBINATION / NOVEL |
+| **Entry Mode** | idea / spec / handover / bug |
+| **Domains** | [comma-separated: auth, database, payments, students, real-time, external-api, performance, api-design, background-jobs] |
+| **Current Phase** | INTAKE |
+| **Status** | in-progress |
+| **Feature Path** | `docs/[feature-slug]/` |
+
+---
 
 ## Phase Progress
-| # | Phase | Status | Started | Completed | Gate |
-|---|-------|--------|---------|-----------|------|
-| 0 | INTAKE | In Progress | [now] | | Auto |
-| 1 | DISCOVER | Not Started | | | |
-| 2 | PLAN | Not Started | | | |
-| 3 | DOCUMENT | Not Started | | | |
-| 4 | BUILD | Not Started | | | |
-| 5 | VALIDATE | Not Started | | | |
-| 6 | HANDOVER | Not Started | | | |
-| 7 | SHIP | Not Started | | | |
 
-## Decisions
-[None yet — populated during PLAN]
+| Phase | Status | Started | Completed | Gate Result |
+|-------|--------|---------|-----------|-------------|
+| INTAKE | in-progress | [now] | - | - |
+| DISCOVER | not-started | - | - | - |
+| PLAN | not-started | - | - | - |
+| DOCUMENT | not-started | - | - | - |
+| BUILD | not-started | - | - | - |
+| VALIDATE | not-started | - | - | - |
+| HANDOVER | not-started | - | - | - |
+| SHIP | not-started | - | - | - |
 
-## Waves
-[None yet — populated during PLAN]
+---
+
+## Decision Log
+
+Locked during PLAN phase. Each decision records WHY, not just WHAT.
+
+| # | Decision | Choice | Rationale | Alternatives Rejected |
+|---|----------|--------|-----------|----------------------|
+| D01 | [What was decided] | [Chosen approach] | [Why — cite agent evidence with file:line] | [Other options and why they lost] |
+
+---
+
+## Wave Groupings
+
+[Populated during PLAN — waves with task assignments and dependencies]
+
+---
 
 ## Acceptance Criteria
-[None yet — populated during PLAN]
 
-## Artifacts
-- MANIFEST: docs/[feature-slug]/.dev/MANIFEST.md
+[Populated during PLAN — custom criteria for BUILD, VALIDATE, HANDOVER phases]
+
+---
+
+## Artifact Paths
+
+| Artifact | Path | Status |
+|----------|------|--------|
+| MANIFEST | `docs/[feature-slug]/.dev/MANIFEST.md` | created |
+
+---
 
 ## Pause Context
-[Not paused]
+
+_Populated only when status is "paused". Clear this section on resume._
+
+| Field | Value |
+|-------|-------|
+| **Pause Reason** | user-choice / error-escalation / session-limit |
+| **Paused At Phase** | [phase name] |
+| **Paused At Task** | [task ID if in BUILD, otherwise n/a] |
+| **Paused Date** | [date] |
+
+### What Was Done
+- [Completed item 1]
+
+### What Remains
+- [Remaining item 1]
+
+### Blockers
+- [Blocker description, or "None"]
+
+### Resume Instructions
+1. Read this MANIFEST to restore full pipeline context
+2. Read the latest transition file in prompt-transitions/
+3. Read CURRENT_STATUS.md for session-level state
+4. Continue from [exact point]
 ```
