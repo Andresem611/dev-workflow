@@ -29,22 +29,22 @@ Each phase is a plugin skill invoked via colon notation:
 
 ```
 /dev              → This file. Routes to correct phase or resumes.
-/dev intake       → Skill(dev-pipeline:intake)    — Classify, scope, create MANIFEST
-/dev discover     → Skill(dev-pipeline:discover)  — Brainstorm + codebase research + reuse audit
-/dev plan         → Skill(dev-pipeline:plan)      — Architecture decisions + task breakdown
-/dev design       → Skill(dev-pipeline:design)    — UI spec + design system compliance (CONDITIONAL)
-/dev document     → Skill(dev-pipeline:document)  — 5-layer docs + wave execution plans
-/dev build        → Skill(dev-pipeline:build)     — Tier-driven task execution + auto-escalation
-/dev validate     → Skill(dev-pipeline:validate)  — Type-check, lint, QA, domain audits
-/dev ship         → Skill(dev-pipeline:ship)      — Changelog + commit + deployment reminder
-/dev pause        → Skill(dev-pipeline:pause)     — Explicit pause with handoff context
+/dev intake       → Skill(dev-pipeline-frontend:intake)    — Classify, scope, create MANIFEST
+/dev discover     → Skill(dev-pipeline-frontend:discover)  — Brainstorm + codebase research + reuse audit
+/dev plan         → Skill(dev-pipeline-frontend:plan)      — Architecture decisions + task breakdown
+/dev design       → Skill(dev-pipeline-frontend:design)    — UI spec + design system compliance (CONDITIONAL)
+/dev document     → Skill(dev-pipeline-frontend:document)  — 5-layer docs + wave execution plans
+/dev build        → Skill(dev-pipeline-frontend:build)     — Tier-driven task execution + auto-escalation
+/dev validate     → Skill(dev-pipeline-frontend:validate)  — Type-check, lint, QA, domain audits
+/dev ship         → Skill(dev-pipeline-frontend:ship)      — Changelog + commit + deployment reminder
+/dev pause        → Skill(dev-pipeline-frontend:pause)     — Explicit pause with handoff context
 ```
 
 Each phase skill contains its own complete logic. This file is the router only.
 
 **Phase invocation:** When routing to a phase, use the Skill tool:
 ```
-Skill(dev-pipeline:intake)     # Plugin colon notation
+Skill(dev-pipeline-frontend:intake)     # Plugin colon notation
 ```
 
 ---
@@ -85,7 +85,7 @@ INTAKE → DISCOVER → PLAN → DESIGN → DOCUMENT → BUILD → VALIDATE → 
 
 Phase: [NEXT PHASE] — [one-line description]
 
-`dev-pipeline:[next-phase]`
+`dev-pipeline-frontend:[next-phase]`
 
 /clear first → fresh context window
 ```
@@ -167,7 +167,7 @@ Multiple domains can apply to a single feature.
        +-- First phase is always INTAKE (creates MANIFEST)
 
 2. On phase invocation:
-   |-- Use Skill(dev-pipeline:<phase>) to load and execute
+   |-- Use Skill(dev-pipeline-frontend:<phase>) to load and execute
    |-- Read MANIFEST
    |-- Validate prerequisites (previous phase completed or explicitly skipped)
    +-- On phase completion → gate fires → display ▶ Next Up → STOP
