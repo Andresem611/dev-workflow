@@ -186,10 +186,376 @@ function parsePhaseProgress(content) {
 
 // --- Commands (placeholders — implemented in subsequent tasks) ---
 
-function cmdValidateTransition(args) { error("Not implemented yet"); }
-function cmdValidateManifest(args) { error("Not implemented yet"); }
-function cmdCheckpointState(args) { error("Not implemented yet"); }
-function cmdValidateEntry(args) { error("Not implemented yet"); }
+function cmdValidateTransition(args) {
+  const phase = args.positional[0];
+  const featureDir = args.positional[1];
+
+  if (!phase || !featureDir) {
+    error("Usage: validate-transition <phase> <feature-dir> --plugin backend|frontend");
+  }
+
+  const schemas = TRANSITION_SCHEMAS[args.plugin];
+  if (!schemas[phase]) {
+    error(`No transition schema for phase '${phase}' in plugin '${args.plugin}'.`);
+  }
+
+  const resolvedDir = resolvePath(args.cwd, featureDir);
+  const transDir = path.join(resolvedDir, "prompt-transitions");
+
+  const transFiles = args.plugin === "backend"
+    ? BACKEND_TRANSITION_FILES[phase]
+    : FRONTEND_TRANSITION_FILES[phase];
+
+  if (!transFiles) {
+    error(`No transition file mapping for phase '${phase}' in plugin '${args.plugin}'.`);
+  }
+
+  let foundFile = null;
+  let content = null;
+  for (const candidate of transFiles.next) {
+    const fullPath = path.join(transDir, candidate);
+    const fileContent = safeReadFile(fullPath);
+    if (fileContent) {
+      foundFile = candidate;
+      content = fileContent;
+      break;
+    }
+  }
+
+  if (!content) {
+    const tried = transFiles.next.map((f) => `prompt-transitions/${f}`).join(", ");
+    output(
+      { valid: false, phase, plugin: args.plugin, error: "Transition file not found", tried, recovery: `Re-invoke /prompt-generator to create the transition file. Expected one of: ${tried}` },
+      args.raw,
+      `FAIL: Transition file not found. Expected one of: ${tried}`
+    );
+    return;
+  }
+
+  const requiredFields = schemas[phase];
+  const missing = [];
+  const found = [];
+
+  for (const field of requiredFields) {
+    const pattern = FIELD_PATTERNS[field];
+    if (pattern && pattern.test(content)) {
+      found.push(field);
+    } else {
+      missing.push(field);
+    }
+  }
+
+  const valid = missing.length === 0;
+
+  output(
+    {
+      valid,
+      phase,
+      plugin: args.plugin,
+      file: `prompt-transitions/${foundFile}`,
+      total_fields: requiredFields.length,
+      found: found.length,
+      missing_count: missing.length,
+      missing_fields: missing,
+      ...(missing.length > 0 && {
+        recovery: `Re-invoke /prompt-generator with explicit instructions to include: ${missing.join(", ")}`,
+      }),
+    },
+    args.raw,
+    valid
+      ? `PASS: ${foundFile} contains all ${requiredFields.length} required fields`
+      : `FAIL: ${foundFile} missing ${missing.length} fields: ${missing.join(", ")}`
+  );
+}
+function cmdValidateManifest(args) {
+  const featureDir = args.positional[0];
+
+  if (!featureDir) {
+    error("Usage: validate-manifest <feature-dir> --plugin backend|frontend");
+  }
+
+  const resolvedDir = resolvePath(args.cwd, featureDir);
+  const manifestPath = path.join(resolvedDir, ".dev", "MANIFEST.md");
+  const content = safeReadFile(manifestPath);
+
+  if (!content) {
+    if (args.plugin === "frontend") {
+      output(
+        { valid: true, note: "No MANIFEST found — may be bug/issue mode (validation skipped)" },
+        args.raw,
+        "PASS: No MANIFEST (bug mode — validation skipped)"
+      );
+      return;
+    }
+    output(
+      { valid: false, error: "MANIFEST not found", path: manifestPath, recovery: "Create MANIFEST using the manifest-template.md reference" },
+      args.raw,
+      `FAIL: MANIFEST not found at ${manifestPath}`
+    );
+    return;
+  }
+
+  const manifest = parseManifest(content);
+  const phases = parsePhaseProgress(content);
+  const issues = [];
+
+  const requiredKeys = ["current_phase", "status", "tier"];
+  for (const key of requiredKeys) {
+    const found = manifest[key] || manifest[key.replace(/_/g, " ")];
+    if (!found) {
+      issues.push(`Missing metadata field: ${key}`);
+    }
+  }
+
+  if (!manifest.feature && !manifest.name && !manifest.feature_name) {
+    issues.push("Missing metadata field: feature name");
+  }
+
+  const validStatuses = ["in progress", "in-progress", "paused", "complete", "blocked"];
+  const status = (manifest.status || "").toLowerCase();
+  if (status && !validStatuses.includes(status)) {
+    issues.push(`Invalid status: '${manifest.status}'. Expected: ${validStatuses.join(", ")}`);
+  }
+
+  if (phases.length === 0) {
+    issues.push("Phase Progress table not found or empty");
+  }
+
+  if (!/## Artifacts|## Artifact Paths/i.test(content)) {
+    issues.push("Artifacts section not found");
+  }
+
+  if (!/## Decision/i.test(content)) {
+    issues.push("Decisions section not found");
+  }
+
+  const valid = issues.length === 0;
+
+  output(
+    {
+      valid,
+      plugin: args.plugin,
+      manifest_path: manifestPath,
+      parsed_fields: manifest,
+      phase_count: phases.length,
+      issues,
+      ...(issues.length > 0 && {
+        recovery: `Fix the following MANIFEST issues: ${issues.join("; ")}`,
+      }),
+    },
+    args.raw,
+    valid
+      ? `PASS: MANIFEST valid (${Object.keys(manifest).length} fields, ${phases.length} phases)`
+      : `FAIL: MANIFEST has ${issues.length} issues: ${issues.join("; ")}`
+  );
+}
+function cmdCheckpointState(args) {
+  const featureDir = args.positional[0];
+  const scope = args.scope || "wave";
+
+  if (!featureDir) {
+    error("Usage: checkpoint-state <feature-dir> --scope wave|task --plugin backend|frontend");
+  }
+
+  const resolvedDir = resolvePath(args.cwd, featureDir);
+  const issues = [];
+
+  const manifestPath = path.join(resolvedDir, ".dev", "MANIFEST.md");
+  const manifestContent = safeReadFile(manifestPath);
+
+  if (!manifestContent) {
+    issues.push("MANIFEST not found");
+  } else {
+    if (!/build_progress|current_wave/i.test(manifestContent)) {
+      issues.push("MANIFEST missing build_progress or current_wave field");
+    }
+  }
+
+  const statusPath = path.join(resolvedDir, "CURRENT_STATUS.md");
+  const statusContent = safeReadFile(statusPath);
+
+  if (!statusContent) {
+    issues.push("CURRENT_STATUS.md not found");
+  } else {
+    if (scope === "wave" && !/wave/i.test(statusContent)) {
+      issues.push("CURRENT_STATUS.md does not mention current wave");
+    }
+  }
+
+  const implStatusPath = path.join(resolvedDir, "01_IMPLEMENTATION_STATUS.md");
+  if (!fileExists(implStatusPath)) {
+    issues.push("01_IMPLEMENTATION_STATUS.md not found");
+  }
+
+  if (scope === "wave") {
+    try {
+      const { execSync } = require("child_process");
+      const gitStatus = execSync("git status --porcelain", {
+        cwd: args.cwd,
+        encoding: "utf8",
+        timeout: 5000,
+      }).trim();
+
+      const stateFiles = ["MANIFEST.md", "CURRENT_STATUS.md", "01_IMPLEMENTATION_STATUS.md"];
+      const uncommitted = [];
+      for (const line of gitStatus.split("\n")) {
+        if (!line.trim()) continue;
+        for (const sf of stateFiles) {
+          if (line.includes(sf)) {
+            uncommitted.push(sf);
+          }
+        }
+      }
+      if (uncommitted.length > 0) {
+        issues.push(`Uncommitted state files: ${uncommitted.join(", ")} — commit before wave break`);
+      }
+    } catch (_) {}
+  }
+
+  const valid = issues.length === 0;
+
+  output(
+    {
+      valid,
+      scope,
+      plugin: args.plugin,
+      feature_dir: resolvedDir,
+      issues,
+      ...(issues.length > 0 && {
+        recovery: scope === "wave"
+          ? "Before /clear: (1) Update MANIFEST build_progress + current_wave, (2) Update CURRENT_STATUS.md with wave state, (3) Update 01_IMPLEMENTATION_STATUS.md, (4) git add + commit"
+          : "After each task: (1) Update task file with actuals, (2) Update 01_IMPLEMENTATION_STATUS.md",
+      }),
+    },
+    args.raw,
+    valid
+      ? `PASS: ${scope} checkpoint — all state files present and committed`
+      : `FAIL: ${scope} checkpoint — ${issues.length} issues: ${issues.join("; ")}`
+  );
+}
+function cmdValidateEntry(args) {
+  const phase = args.positional[0];
+  const featureDir = args.positional[1];
+
+  if (!phase || !featureDir) {
+    error("Usage: validate-entry <phase> <feature-dir> --plugin backend|frontend [--same-session]");
+  }
+
+  // NOTE: --same-session should be used AFTER updating the MANIFEST phase progress table
+  // (i.e., after the previous phase's GATE updates MANIFEST, not between approval and update)
+
+  const resolvedDir = resolvePath(args.cwd, featureDir);
+  const chain = PHASE_CHAINS[args.plugin];
+  const phaseIndex = chain.indexOf(phase.toLowerCase());
+
+  if (phaseIndex === -1) {
+    error(`Unknown phase '${phase}' for plugin '${args.plugin}'. Valid: ${chain.join(", ")}`);
+  }
+
+  if (phaseIndex === 0) {
+    output(
+      { valid: true, phase, plugin: args.plugin, note: "INTAKE — no prerequisites" },
+      args.raw,
+      "PASS: INTAKE — no prerequisites needed"
+    );
+    return;
+  }
+
+  const issues = [];
+  const warnings = [];
+
+  const manifestPath = path.join(resolvedDir, ".dev", "MANIFEST.md");
+  const manifestContent = safeReadFile(manifestPath);
+
+  if (!manifestContent) {
+    if (args.plugin === "frontend") {
+      warnings.push("No MANIFEST found — if this is a bug/issue, proceed. Otherwise, run INTAKE first.");
+    } else {
+      issues.push("MANIFEST not found — run INTAKE first to create it");
+    }
+  } else {
+    const manifest = parseManifest(manifestContent);
+    const currentPhase = (manifest.current_phase || "").toLowerCase();
+
+    const prevPhase = chain[phaseIndex - 1];
+    if (currentPhase && currentPhase !== phase.toLowerCase() && currentPhase !== prevPhase) {
+      warnings.push(`MANIFEST shows current phase as '${currentPhase}', expected '${phase}' or '${prevPhase}'`);
+    }
+
+    const phases = parsePhaseProgress(manifestContent);
+    const prevPhaseEntry = phases.find((p) => p.name === prevPhase);
+    if (prevPhaseEntry) {
+      const completedStatuses = ["complete", "✅", "done", "approved", "auto", "auto-approved", "skipped"];
+      if (!completedStatuses.some((s) => prevPhaseEntry.status.includes(s))) {
+        issues.push(`Previous phase '${prevPhase}' status is '${prevPhaseEntry.status}' — must be completed before starting '${phase}'`);
+      }
+    }
+  }
+
+  if (!args.sameSession) {
+    const prevPhase = chain[phaseIndex - 1];
+    const transDir = path.join(resolvedDir, "prompt-transitions");
+    const transFiles = args.plugin === "backend"
+      ? (BACKEND_TRANSITION_FILES[prevPhase] || { next: [] })
+      : (FRONTEND_TRANSITION_FILES[prevPhase] || { next: [] });
+
+    let foundTransition = false;
+    for (const candidate of transFiles.next) {
+      if (fileExists(path.join(transDir, candidate))) {
+        foundTransition = true;
+        break;
+      }
+    }
+
+    if (!foundTransition && transFiles.next.length > 0) {
+      const expected = transFiles.next.join(" or ");
+      issues.push(`Transition file from '${prevPhase}' not found. Expected: prompt-transitions/${expected}`);
+      warnings.push(`Recovery: Read MANIFEST + design doc to reconstruct context, or re-run ${prevPhase} TRANSITION section`);
+    }
+  }
+
+  if (phase.toLowerCase() === "build") {
+    const waveDir = args.plugin === "backend"
+      ? path.join(resolvedDir, "tasks")
+      : path.join(resolvedDir, "waves");
+
+    try {
+      const files = fs.readdirSync(waveDir);
+      const wavePlans = files.filter((f) => /wave/i.test(f));
+      if (wavePlans.length === 0) {
+        issues.push("No wave execution plans found — DOCUMENT phase must create these before BUILD");
+      }
+    } catch (_) {
+      issues.push(`Wave plans directory not found at ${waveDir}`);
+    }
+  }
+
+  if (phase.toLowerCase() === "validate") {
+    const implStatus = path.join(resolvedDir, "01_IMPLEMENTATION_STATUS.md");
+    if (!fileExists(implStatus)) {
+      warnings.push("01_IMPLEMENTATION_STATUS.md not found — BUILD should have created this");
+    }
+  }
+
+  const valid = issues.length === 0;
+
+  output(
+    {
+      valid,
+      phase,
+      plugin: args.plugin,
+      issues,
+      warnings,
+      ...(issues.length > 0 && {
+        recovery: issues.map((i) => `Fix: ${i}`).join("\n"),
+      }),
+    },
+    args.raw,
+    valid
+      ? `PASS: Entry to ${phase.toUpperCase()} — all ${warnings.length > 0 ? `prerequisites met (${warnings.length} warnings)` : "prerequisites met"}`
+      : `FAIL: Cannot enter ${phase.toUpperCase()} — ${issues.length} blocking issues: ${issues.join("; ")}`
+  );
+}
 
 // --- CLI Router ---
 
