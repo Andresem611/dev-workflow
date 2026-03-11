@@ -1,5 +1,5 @@
 ---
-name: dev-document
+name: document
 description: Use when /dev pipeline reaches DOCUMENT phase. Writes 5-layer documentation and wave execution plans from PLAN phase outputs. Triggers after G2 approval or DESIGN completion.
 ---
 

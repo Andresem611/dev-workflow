@@ -1,5 +1,5 @@
 ---
-name: dev-plan
+name: plan
 description: Use when /dev:plan is invoked or MANIFEST shows PLAN phase. Handles architecture decisions, task breakdown, and wave grouping with tier-scaled review depth.
 ---
 

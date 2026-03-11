@@ -1,5 +1,5 @@
 ---
-name: dev-discover
+name: discover
 description: Use when /dev:discover is invoked or the pipeline transitions from INTAKE to DISCOVER. Handles brainstorming, codebase research, reuse audit, and boardroom debate for COMBINATION/NOVEL tiers.
 ---
 

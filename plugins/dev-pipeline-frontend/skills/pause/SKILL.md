@@ -1,5 +1,5 @@
 ---
-name: dev-pause
+name: pause
 description: Use when pausing the /dev pipeline at any phase. Captures current state, generates handoff context for resumption, and handles backend dependency pauses. Triggers on /dev:pause, "pause", "stop here", "continue later", or when backend endpoints are missing.
 ---
 

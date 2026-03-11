@@ -1,5 +1,5 @@
 ---
-name: dev-design
+name: design
 description: Use when /dev:design is invoked or MANIFEST shows DESIGN phase. CONDITIONAL — only runs when MANIFEST domains include design-system, responsive, or animation. Handles UI specification and Thoven design system compliance.
 ---
 

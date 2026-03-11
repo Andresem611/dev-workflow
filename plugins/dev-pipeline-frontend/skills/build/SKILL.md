@@ -1,5 +1,5 @@
 ---
-name: dev-build
+name: build
 description: Use when /dev:build is invoked or MANIFEST shows BUILD phase. Executes tier-driven task waves with auto-escalation on errors.
 ---
 

@@ -1,5 +1,5 @@
 ---
-name: dev-ship
+name: ship
 description: Use when the /dev pipeline reaches the SHIP phase. Handles changelog updates, commit creation, and deployment reminders. Absorbs the publish skill entirely. Triggers on /dev:ship or when BUILD+VALIDATE are complete and feature is ready to commit.
 ---
 

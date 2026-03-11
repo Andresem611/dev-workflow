@@ -1,5 +1,5 @@
 ---
-name: dev-intake
+name: intake
 description: Use when starting any new feature, bug fix, or development task through the /dev pipeline. Handles initial classification, scoping, and MANIFEST creation. Triggers on /dev:intake or when /dev router detects no existing MANIFEST.
 ---
 

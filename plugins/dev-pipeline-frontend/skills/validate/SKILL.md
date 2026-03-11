@@ -1,5 +1,5 @@
 ---
-name: dev-validate
+name: validate
 description: Use when /dev pipeline reaches VALIDATE phase. Runs comprehensive validation absorbing verify, manual-qa, accessibility-check, mobile-audit, and post-development audit into three layers (always-run, tier-driven, domain-triggered).
 ---
 
