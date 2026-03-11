@@ -15,6 +15,15 @@ Ground the DISCOVER design in codebase reality. Dispatch domain-triggered agents
 
 ## RESEARCH (Agent Deep-Dive)
 
+### 0. Validate Entry (MANDATORY)
+
+```bash
+node ${PLUGIN_ROOT}/../shared/tools/dev-pipeline-tools.js validate-entry plan docs/[feature] --plugin backend
+```
+
+If FAIL → read error output. Fix missing prerequisites before proceeding.
+If PASS → continue to step 1.
+
 ### 1. Read Context
 
 ```
@@ -245,6 +254,22 @@ On approval:
    - Agent assignment per wave
    - Files to create/modify hints from agent research
 4. End session.
+
+5. **Verify transition (MANDATORY):**
+
+```bash
+node ${PLUGIN_ROOT}/../shared/tools/dev-pipeline-tools.js validate-transition plan docs/[feature] --plugin backend
+```
+
+If FAIL → Re-invoke `/prompt-generator` with the listed missing fields.
+
+6. **Verify MANIFEST (MANDATORY):**
+
+```bash
+node ${PLUGIN_ROOT}/../shared/tools/dev-pipeline-tools.js validate-manifest docs/[feature] --plugin backend
+```
+
+If FAIL → Update MANIFEST before ending session.
 
 ---
 

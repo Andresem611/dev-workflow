@@ -17,6 +17,21 @@ Execute wave execution plans task-by-task. Tier drives execution strategy (seque
 
 Before each wave:
 
+### 0. Validate Entry + Read Context (MANDATORY)
+
+```bash
+node ${PLUGIN_ROOT}/../shared/tools/dev-pipeline-tools.js validate-entry build docs/[feature] --plugin backend
+```
+
+If PASS and this is the FIRST BUILD session (no waves completed yet):
+```
+Read: docs/[feature]/prompt-transitions/build.md
+  → Feature summary, tier, decision log, agent assignments, codebase state assumptions
+  → If file missing: read MANIFEST decisions + design doc to reconstruct context
+```
+
+If resuming after wave break: read MANIFEST + CURRENT_STATUS.md instead.
+
 ### 1. Read Wave Execution Plan
 ```
 Read: docs/[feature]/tasks/WAVE_[N]_PLAN.md
@@ -191,6 +206,14 @@ Next: Wave 4 — [title]
 Save progress and /clear → resume with dev-pipeline-backend:build
 ```
 
+**Before /clear, verify state (MANDATORY):**
+
+```bash
+node ${PLUGIN_ROOT}/../shared/tools/dev-pipeline-tools.js checkpoint-state docs/[feature] --scope wave --plugin backend
+```
+
+If FAIL → fix listed issues before clearing context.
+
 KNOWN tier can continue without wave breaks.
 
 ### Tech Debt Tracking
@@ -292,6 +315,22 @@ On approval:
    - Deviations from plan (for reviewer context)
    - Known tech debt (from BUILD)
 4. End session.
+
+5. **Verify transition (MANDATORY):**
+
+```bash
+node ${PLUGIN_ROOT}/../shared/tools/dev-pipeline-tools.js validate-transition build docs/[feature] --plugin backend
+```
+
+If FAIL → Re-invoke `/prompt-generator` with the listed missing fields.
+
+6. **Verify MANIFEST (MANDATORY):**
+
+```bash
+node ${PLUGIN_ROOT}/../shared/tools/dev-pipeline-tools.js validate-manifest docs/[feature] --plugin backend
+```
+
+If FAIL → Update MANIFEST before ending session.
 
 ---
 

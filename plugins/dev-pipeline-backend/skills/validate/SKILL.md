@@ -15,6 +15,15 @@ Comprehensive verification of the completed build. Run tests, security review (c
 
 ## RESEARCH
 
+### 0. Validate Entry (MANDATORY)
+
+```bash
+node ${PLUGIN_ROOT}/../shared/tools/dev-pipeline-tools.js validate-entry validate docs/[feature] --plugin backend
+```
+
+If FAIL → read error output. Fix missing prerequisites before proceeding.
+If PASS → continue to step 1.
+
 ### 1. Read Context
 ```
 Read: docs/[feature]/.dev/MANIFEST.md → domains, acceptance criteria for VALIDATE
@@ -227,6 +236,22 @@ Contents for either:
 - Changed files list
 - HANDOVER or SHIP acceptance criteria from MANIFEST
 - Any warnings or caveats from validation
+
+5. **Verify transition (MANDATORY):**
+
+```bash
+node ${PLUGIN_ROOT}/../shared/tools/dev-pipeline-tools.js validate-transition validate docs/[feature] --plugin backend
+```
+
+If FAIL → Re-invoke `/prompt-generator` with the listed missing fields.
+
+6. **Verify MANIFEST (MANDATORY):**
+
+```bash
+node ${PLUGIN_ROOT}/../shared/tools/dev-pipeline-tools.js validate-manifest docs/[feature] --plugin backend
+```
+
+If FAIL → Update MANIFEST before ending session.
 
 ---
 

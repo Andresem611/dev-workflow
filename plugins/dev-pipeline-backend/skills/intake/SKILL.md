@@ -191,6 +191,22 @@ End the session after INTAKE completes. The next phase starts in a fresh context
 
 ---
 
+5. **Verify transition (MANDATORY):**
+
+```bash
+node ${PLUGIN_ROOT}/../shared/tools/dev-pipeline-tools.js validate-transition intake docs/[feature] --plugin backend
+```
+
+If FAIL → Re-invoke `/prompt-generator` with the listed missing fields.
+
+6. **Verify MANIFEST (MANDATORY):**
+
+```bash
+node ${PLUGIN_ROOT}/../shared/tools/dev-pipeline-tools.js validate-manifest docs/[feature] --plugin backend
+```
+
+If FAIL → Update MANIFEST before ending session.
+
 ### Prompt Transition Contents
 
 The /prompt-generator output for the next phase MUST include:

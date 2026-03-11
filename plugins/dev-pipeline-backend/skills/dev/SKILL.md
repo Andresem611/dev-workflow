@@ -41,6 +41,13 @@ Search for active MANIFEST:
 **If active MANIFEST found (Status: In Progress or Paused):**
 - Read MANIFEST → get `Current Phase` and `pause_context`
 - Read `docs/[feature]/prompt-transitions/[current_phase].md`
+- If prompt-transition file missing:
+  ```bash
+  node ${PLUGIN_ROOT}/../shared/tools/dev-pipeline-tools.js validate-entry [current_phase] docs/[feature] --plugin backend
+  ```
+  - If FAIL: show issues to user, suggest re-running previous phase's TRANSITION
+  - If PASS with warnings: proceed but warn user about missing context
+  - Read MANIFEST + CURRENT_STATUS.md + design doc as fallback context
 - Present: "You're building **[feature]**, currently at **[phase]**."
 - If paused: show pause context (what was done, what remains, blockers)
 - Suggest: "Next action: [specific next step]"

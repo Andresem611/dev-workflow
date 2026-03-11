@@ -19,6 +19,15 @@ Hand the completed, validated backend to the frontend for implementation. Option
 
 ## RESEARCH
 
+### 0. Validate Entry (MANDATORY)
+
+```bash
+node ${PLUGIN_ROOT}/../shared/tools/dev-pipeline-tools.js validate-entry handover docs/[feature] --plugin backend
+```
+
+If FAIL → read error output. Fix missing prerequisites before proceeding.
+If PASS → continue to step 1.
+
 ### 1. Read Context
 ```
 Read: docs/[feature]/.dev/MANIFEST.md → domains, acceptance criteria for HANDOVER
@@ -140,6 +149,22 @@ On approval:
 2. Save to `docs/[feature]/prompt-transitions/ship.md`
 3. Contents: feature summary, validation status, handover status, changelog hints
 4. End session.
+
+5. **Verify transition (MANDATORY):**
+
+```bash
+node ${PLUGIN_ROOT}/../shared/tools/dev-pipeline-tools.js validate-transition handover docs/[feature] --plugin backend
+```
+
+If FAIL → Re-invoke `/prompt-generator` with the listed missing fields.
+
+6. **Verify MANIFEST (MANDATORY):**
+
+```bash
+node ${PLUGIN_ROOT}/../shared/tools/dev-pipeline-tools.js validate-manifest docs/[feature] --plugin backend
+```
+
+If FAIL → Update MANIFEST before ending session.
 
 ---
 
