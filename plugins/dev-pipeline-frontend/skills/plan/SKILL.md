@@ -13,6 +13,15 @@ Architecture decisions, task breakdown, wave grouping. Absorbs feature-orchestra
 
 ## RESEARCH
 
+### 0. Validate Entry (MANDATORY)
+
+```bash
+node ${PLUGIN_ROOT}/../shared/tools/dev-pipeline-tools.js validate-entry plan docs/[feature] --plugin frontend
+```
+
+If FAIL → read error output. Fix missing prerequisites before proceeding.
+If PASS → continue to step 1.
+
 1. **Read MANIFEST** from `docs/[feature]/.dev/MANIFEST.md` — extract tier, domains, confirmed requirements
 2. **Read transition file** `docs/[feature]/prompt-transitions/discover-to-plan.md` — carry forward DISCOVER outputs
 3. **Dispatch code-architect subagent** for architecture proposal:
@@ -198,6 +207,24 @@ Custom gate criteria defined for: DESIGN / BUILD / VALIDATE
 ```
 
 **Options:** Approve | Revise [specify which decision] | Pause
+
+### Pre-Gate Verification
+
+4. **Verify transition (MANDATORY):**
+
+```bash
+node ${PLUGIN_ROOT}/../shared/tools/dev-pipeline-tools.js validate-transition plan docs/[feature] --plugin frontend
+```
+
+If FAIL → Re-invoke prompt-generator with the listed missing fields.
+
+5. **Verify MANIFEST (MANDATORY):**
+
+```bash
+node ${PLUGIN_ROOT}/../shared/tools/dev-pipeline-tools.js validate-manifest docs/[feature] --plugin frontend
+```
+
+If FAIL → Update MANIFEST before ending session.
 
 ### After G2 Approval
 

@@ -13,6 +13,15 @@ Final phase of the /dev pipeline. Absorbs ALL publish skill logic. Takes a valid
 
 ## Step 1: RESEARCH
 
+### 0. Validate Entry (MANDATORY)
+
+```bash
+node ${PLUGIN_ROOT}/../shared/tools/dev-pipeline-tools.js validate-entry ship docs/[feature] --plugin frontend
+```
+
+If FAIL → read error output. Fix missing prerequisites before proceeding.
+If PASS → continue to step 1.
+
 Gather state before any action.
 
 1. **Read MANIFEST** (`docs/[feature]/.dev/MANIFEST.md`)

@@ -15,6 +15,15 @@ If none of those domains are tagged, skip directly to DOCUMENT phase. Write tran
 
 ### 1. RESEARCH
 
+### 0. Validate Entry (MANDATORY)
+
+```bash
+node ${PLUGIN_ROOT}/../shared/tools/dev-pipeline-tools.js validate-entry design docs/[feature] --plugin frontend
+```
+
+If FAIL → read error output. Fix missing prerequisites before proceeding.
+If PASS → continue to step 1.
+
 Read these files before any design work:
 
 1. **MANIFEST** — `docs/[feature]/.dev/MANIFEST.md` for tier, domains, requirements, architecture decisions
@@ -166,6 +175,24 @@ Present the design spec with all states. Include:
 - Accessibility requirements
 
 **Options: Approve / Revise / Pause**
+
+### Pre-Gate Verification
+
+5. **Verify transition (MANDATORY):**
+
+```bash
+node ${PLUGIN_ROOT}/../shared/tools/dev-pipeline-tools.js validate-transition design docs/[feature] --plugin frontend
+```
+
+If FAIL → Re-invoke prompt-generator with the listed missing fields.
+
+6. **Verify MANIFEST (MANDATORY):**
+
+```bash
+node ${PLUGIN_ROOT}/../shared/tools/dev-pipeline-tools.js validate-manifest docs/[feature] --plugin frontend
+```
+
+If FAIL → Update MANIFEST before ending session.
 
 ### After G3 Approval
 

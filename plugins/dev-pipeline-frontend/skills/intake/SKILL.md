@@ -161,6 +161,24 @@ Options:
 
 Wait for explicit user choice before proceeding.
 
+### Pre-Gate Verification
+
+5. **Verify transition (MANDATORY):**
+
+```bash
+node ${PLUGIN_ROOT}/../shared/tools/dev-pipeline-tools.js validate-transition intake docs/[feature] --plugin frontend
+```
+
+If FAIL → Re-invoke prompt-generator with the listed missing fields.
+
+6. **Verify MANIFEST (MANDATORY):**
+
+```bash
+node ${PLUGIN_ROOT}/../shared/tools/dev-pipeline-tools.js validate-manifest docs/[feature] --plugin frontend
+```
+
+If FAIL → Update MANIFEST before ending session.
+
 ### Routing After Approval
 
 | Entry Mode | Target Phase | Notes |

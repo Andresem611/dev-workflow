@@ -15,6 +15,15 @@ Comprehensive validation gate. Three layers scaled by tier and domains.
 
 ## 1. RESEARCH
 
+### 0. Validate Entry (MANDATORY)
+
+```bash
+node ${PLUGIN_ROOT}/../shared/tools/dev-pipeline-tools.js validate-entry validate docs/[feature] --plugin frontend
+```
+
+If FAIL → read error output. Fix missing prerequisites before proceeding.
+If PASS → continue to step 1.
+
 Read these files before executing anything:
 
 | File | Extract |
@@ -217,6 +226,24 @@ Present to user:
 ```
 
 All Critical failures must be resolved before Approve is offered. Medium/Low failures can be approved with acknowledgment.
+
+### Pre-Gate Verification
+
+4. **Verify transition (MANDATORY):**
+
+```bash
+node ${PLUGIN_ROOT}/../shared/tools/dev-pipeline-tools.js validate-transition validate docs/[feature] --plugin frontend
+```
+
+If FAIL → Re-invoke prompt-generator with the listed missing fields.
+
+5. **Verify MANIFEST (MANDATORY):**
+
+```bash
+node ${PLUGIN_ROOT}/../shared/tools/dev-pipeline-tools.js validate-manifest docs/[feature] --plugin frontend
+```
+
+If FAIL → Update MANIFEST before ending session.
 
 ### After G6 Approval
 

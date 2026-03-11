@@ -13,6 +13,15 @@ Write 5-layer feature documentation and generate wave-level execution plans. Abs
 
 ## 1. RESEARCH
 
+### 0. Validate Entry (MANDATORY)
+
+```bash
+node ${PLUGIN_ROOT}/../shared/tools/dev-pipeline-tools.js validate-entry document docs/[feature] --plugin frontend
+```
+
+If FAIL → read error output. Fix missing prerequisites before proceeding.
+If PASS → continue to step 1.
+
 Read these files before writing anything:
 
 ```
@@ -202,6 +211,24 @@ Ready for execution?
 ```
 
 **Options:** Approve / Revise / Pause
+
+### Pre-Gate Verification
+
+4. **Verify transition (MANDATORY):**
+
+```bash
+node ${PLUGIN_ROOT}/../shared/tools/dev-pipeline-tools.js validate-transition document docs/[feature] --plugin frontend
+```
+
+If FAIL → Re-invoke prompt-generator with the listed missing fields.
+
+5. **Verify MANIFEST (MANDATORY):**
+
+```bash
+node ${PLUGIN_ROOT}/../shared/tools/dev-pipeline-tools.js validate-manifest docs/[feature] --plugin frontend
+```
+
+If FAIL → Update MANIFEST before ending session.
 
 ### After G4 Approval
 

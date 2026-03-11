@@ -13,6 +13,15 @@ Brainstorm requirements at tier-appropriate depth, audit the codebase for reuse,
 
 ## RESEARCH
 
+### 0. Validate Entry (MANDATORY)
+
+```bash
+node ${PLUGIN_ROOT}/../shared/tools/dev-pipeline-tools.js validate-entry discover docs/[feature] --plugin frontend
+```
+
+If FAIL → read error output. Fix missing prerequisites before proceeding.
+If PASS → continue to step 1.
+
 1. **Read MANIFEST** at `docs/[Feature]/.dev/MANIFEST.md` — extract:
    - `tier` (KNOWN / COMBINATION / NOVEL)
    - `domains` (routing, state, forms, api-integration, etc.)
@@ -167,6 +176,24 @@ Present results to user with tiered exit criteria:
 Present via `AskUserQuestion`:
 - question: "DISCOVER complete. [Summary: N requirements confirmed, N reuse/N extend/N new components, key decisions]. Proceed to PLAN?"
 - options: "Approve — proceed to PLAN" | "Revise — [area to revisit]" | "Pause"
+
+### Pre-Gate Verification
+
+4. **Verify transition (MANDATORY):**
+
+```bash
+node ${PLUGIN_ROOT}/../shared/tools/dev-pipeline-tools.js validate-transition discover docs/[feature] --plugin frontend
+```
+
+If FAIL → Re-invoke prompt-generator with the listed missing fields.
+
+5. **Verify MANIFEST (MANDATORY):**
+
+```bash
+node ${PLUGIN_ROOT}/../shared/tools/dev-pipeline-tools.js validate-manifest docs/[feature] --plugin frontend
+```
+
+If FAIL → Update MANIFEST before ending session.
 
 ### After G1 Approval
 

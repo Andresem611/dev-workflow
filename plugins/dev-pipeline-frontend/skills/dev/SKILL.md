@@ -169,6 +169,14 @@ Multiple domains can apply to a single feature.
 2. On phase invocation:
    |-- Use Skill(dev-pipeline-frontend:<phase>) to load and execute
    |-- Read MANIFEST
+   |-- Read prompt-transition file from previous phase
+   |   - If prompt-transition file missing:
+   |     ```bash
+   |     node ${PLUGIN_ROOT}/../shared/tools/dev-pipeline-tools.js validate-entry [current_phase] docs/[feature] --plugin frontend
+   |     ```
+   |     - If FAIL: show issues to user, suggest re-running previous phase's TRANSITION
+   |     - If PASS with warnings: proceed but warn user about missing context
+   |     - Read MANIFEST + CURRENT_STATUS.md + design doc as fallback context
    |-- Validate prerequisites (previous phase completed or explicitly skipped)
    +-- On phase completion → gate fires → display ▶ Next Up → STOP
        (User runs /clear, invokes next phase skill directly)

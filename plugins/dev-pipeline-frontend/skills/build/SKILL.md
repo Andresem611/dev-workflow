@@ -19,6 +19,21 @@ Execute implementation waves from DOCUMENT phase plans. Inner loop per wave: RES
 
 ## 1. RESEARCH (Per Wave)
 
+### 0. Validate Entry + Read Context (MANDATORY)
+
+```bash
+node ${PLUGIN_ROOT}/../shared/tools/dev-pipeline-tools.js validate-entry build docs/[feature] --plugin frontend
+```
+
+If PASS and this is the FIRST BUILD session (no waves completed yet):
+```
+Read: docs/[feature]/prompt-transitions/document-to-build.md
+  → Feature summary, tier, decision log, agent assignments, codebase state assumptions
+  → If file missing: read MANIFEST decisions + design doc to reconstruct context
+```
+
+If resuming after wave break: read MANIFEST + CURRENT_STATUS.md instead.
+
 Read these files before each wave:
 
 1. **MANIFEST** (`docs/[feature]/.dev/MANIFEST.md`) — current wave, completed tasks, tier, domains
@@ -213,6 +228,32 @@ BUILD phases can be long. Recommend session breaks when:
 - **Wave boundary** — natural breakpoint with state saved in MANIFEST
 
 Before breaking: ensure MANIFEST, CURRENT_STATUS.md, and 01_IMPLEMENTATION_STATUS.md are fully updated. The next session resumes from MANIFEST state via `/dev`.
+
+**Before /clear, verify state (MANDATORY):**
+
+```bash
+node ${PLUGIN_ROOT}/../shared/tools/dev-pipeline-tools.js checkpoint-state docs/[feature] --scope wave --plugin frontend
+```
+
+If FAIL → fix listed issues before clearing context.
+
+### Final Wave — Pre-Transition Verification
+
+6. **Verify transition (MANDATORY):**
+
+```bash
+node ${PLUGIN_ROOT}/../shared/tools/dev-pipeline-tools.js validate-transition build docs/[feature] --plugin frontend
+```
+
+If FAIL → Re-invoke prompt-generator with the listed missing fields.
+
+7. **Verify MANIFEST (MANDATORY):**
+
+```bash
+node ${PLUGIN_ROOT}/../shared/tools/dev-pipeline-tools.js validate-manifest docs/[feature] --plugin frontend
+```
+
+If FAIL → Update MANIFEST before ending session.
 
 ### Final Wave → VALIDATE Transition
 
