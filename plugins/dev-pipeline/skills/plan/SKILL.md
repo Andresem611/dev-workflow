@@ -199,33 +199,24 @@ Custom gate criteria defined for: DESIGN / BUILD / VALIDATE
 
 **Options:** Approve | Revise [specify which decision] | Pause
 
-### Session Boundary Protocol (after user approves G2)
+### After G2 Approval
 
-**Session break:** COMBINATION+NOVEL: required. KNOWN: recommended.
+Determine next phase: DESIGN (if design domains tagged) or DOCUMENT (if not).
 
-G2 is the heaviest planning gate. A fresh context window is critical before execution phases.
+Display `▶ Next Up` block and STOP:
 
-After user approves:
+```
+---
+▶ Next Up
 
-1. **Determine next phase:** DESIGN (if design domains tagged) or DOCUMENT (if not).
+Phase: [DESIGN or DOCUMENT] — [description]
 
-2. **Write continuation prompt** to `docs/[Feature]/continuation-prompts/plan-to-[next].md`:
-   ```
-   Resume /dev pipeline for [Feature Name].
-   Read MANIFEST: `docs/[Feature]/.dev/MANIFEST.md`
-   Read transition: `docs/[Feature]/prompt-transitions/plan-to-[next].md`
-   Phase: [DESIGN or DOCUMENT]
-   Invoke: `/dev [design or document]`
-   Key context: Tier=[tier], [N] decisions locked, [N] tasks across [N] waves
-   ```
+`dev-pipeline:[design or document]`
 
-3. **Display the continuation prompt inline** in conversation.
+/clear first → fresh context window
+```
 
-4. **Based on tier:**
-   - **KNOWN:** Display: "PLAN complete. Continuation prompt above. **Recommended:** Run `/clear` first for fresh context. Or say 'continue' to proceed."
-   - **COMBINATION/NOVEL:** Display: "PLAN complete. Continuation prompt above. **Run `/clear` now**, then paste the prompt to start [DESIGN/DOCUMENT] with fresh context." Do NOT offer to continue in same session.
-
-5. **STOP.** Do not invoke the next phase unless KNOWN tier and user explicitly says "continue".
+**STOP.** Do not invoke next phase. Do not offer "continue in same session".
 
 ---
 

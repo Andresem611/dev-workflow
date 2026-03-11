@@ -72,20 +72,7 @@ Add pause context block to MANIFEST (`docs/[feature]/.dev/MANIFEST.md`):
 
 Set MANIFEST status to `"paused"`.
 
-### 2b. Generate Continuation Prompt
-
-Write `docs/[feature]/continuation-prompts/resume-from-pause.md`:
-
-```markdown
-Resume /dev pipeline for [Feature Name].
-Read MANIFEST: `docs/[feature]/.dev/MANIFEST.md`
-Read handoff: `docs/[feature]/prompt-transitions/pause-handoff.md`
-Phase: [PAUSED PHASE]
-Invoke: `/dev [paused-phase]`
-Key context: Tier=[tier], paused at [phase/step], reason=[reason]
-```
-
-### 2d. Generate Pause Handoff File
+### 2b. Generate Pause Handoff File
 
 Create `docs/[feature]/prompt-transitions/pause-handoff.md`:
 
@@ -117,7 +104,7 @@ Create `docs/[feature]/prompt-transitions/pause-handoff.md`:
 - [Blocker description + what resolves it]
 ```
 
-### 2e. Backend Dependency Handoff (if applicable)
+### 2c. Backend Dependency Handoff (if applicable)
 
 When pause reason is `awaiting-backend`, generate an additional file:
 
@@ -167,25 +154,18 @@ Entry mode: backend-handoff → routes to [PLAN | DESIGN | BUILD]
 
 ---
 
-### 2f. Display Continuation Prompt Inline
+### 2d. Display Resume Block Inline
 
-After writing all handoff files, display the continuation prompt from step 2b **inline in the conversation**:
+After writing all handoff files, display inline:
 
 ```
 Pipeline paused for [Feature Name].
 
-**Continuation prompt** (paste this after `/clear`):
-
----
-Resume /dev pipeline for [Feature Name].
-Read MANIFEST: `docs/[feature]/.dev/MANIFEST.md`
+Resume with: `dev-pipeline:[paused-phase]`
+Read MANIFEST first: `docs/[feature]/.dev/MANIFEST.md`
 Read handoff: `docs/[feature]/prompt-transitions/pause-handoff.md`
-Phase: [PAUSED PHASE]
-Invoke: `/dev [paused-phase]`
-Key context: Tier=[tier], paused at [phase/step], reason=[reason]
----
 
-Run `/clear` first, then paste the prompt above to resume.
+/clear first → fresh context window
 ```
 
 **STOP.** Session ends here.

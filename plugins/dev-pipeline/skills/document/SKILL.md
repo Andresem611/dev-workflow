@@ -203,32 +203,23 @@ Ready for execution?
 
 **Options:** Approve / Revise / Pause
 
-### Session Boundary Protocol (after user approves G4)
+### After G4 Approval
 
-**Session break:** COMBINATION+NOVEL: required. KNOWN: never (auto-advance).
+- **KNOWN tier:** Auto-advance — invoke `/dev build` immediately.
+- **COMBINATION/NOVEL tier:** Display `▶ Next Up` block and STOP.
 
-DOCUMENT produces the task files and wave plans that BUILD will execute. A fresh context window before BUILD is critical to avoid carrying planning context into execution.
+```
+---
+▶ Next Up
 
-After user approves (or auto-approve for KNOWN):
+Phase: BUILD — Tier-driven task execution
 
-1. **Write continuation prompt** to `docs/[Feature]/continuation-prompts/document-to-build.md`:
-   ```
-   Resume /dev pipeline for [Feature Name].
-   Read MANIFEST: `docs/[Feature]/.dev/MANIFEST.md`
-   Read transition: `docs/[Feature]/prompt-transitions/document-to-build.md`
-   Read Wave 1: `docs/[Feature]/waves/WAVE_01.md`
-   Phase: BUILD
-   Invoke: `/dev build`
-   Key context: Tier=[tier], [N] tasks across [N] waves, Wave 1 starts with [task list]
-   ```
+`dev-pipeline:build`
 
-2. **Display the continuation prompt inline** in conversation.
+/clear first → fresh context window
+```
 
-3. **Based on tier:**
-   - **KNOWN:** Auto-advance — invoke `/dev build` immediately.
-   - **COMBINATION/NOVEL:** Display: "DOCUMENT complete. Continuation prompt above. **Run `/clear` now**, then paste the prompt to start BUILD with fresh context." Do NOT offer to continue in same session.
-
-4. **STOP.** Do not invoke BUILD unless KNOWN tier.
+**STOP.** Do not invoke BUILD (unless KNOWN tier auto-advance).
 
 ---
 

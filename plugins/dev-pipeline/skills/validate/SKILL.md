@@ -218,27 +218,22 @@ Present to user:
 
 All Critical failures must be resolved before Approve is offered. Medium/Low failures can be approved with acknowledgment.
 
-### Session Boundary Protocol (after user approves G6)
+### After G6 Approval
 
-**Session break:** Recommended for all tiers.
+Display `▶ Next Up` block and STOP:
 
-After user approves:
+```
+---
+▶ Next Up
 
-1. **Write continuation prompt** to `docs/[Feature]/continuation-prompts/validate-to-ship.md`:
-   ```
-   Resume /dev pipeline for [Feature Name].
-   Read MANIFEST: `docs/[Feature]/.dev/MANIFEST.md`
-   Read transition: `docs/[Feature]/prompt-transitions/validate-to-ship.md`
-   Phase: SHIP
-   Invoke: `/dev ship`
-   Key context: Tier=[tier], Validation PASSED, [N] layers checked, ready to commit
-   ```
+Phase: SHIP — Changelog + commit + deployment reminder
 
-2. **Display the continuation prompt inline** in conversation.
+`dev-pipeline:ship`
 
-3. Display: "VALIDATE complete — all checks passed. Continuation prompt above. **Recommended:** Run `/clear` for fresh context before SHIP. Or say 'continue' to proceed."
+/clear first → fresh context window
+```
 
-4. **STOP.** Do not invoke SHIP unless user explicitly says "continue".
+**STOP.** Do not invoke SHIP. Do not offer "continue in same session".
 
 ---
 

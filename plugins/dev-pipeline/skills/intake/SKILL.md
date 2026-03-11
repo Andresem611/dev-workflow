@@ -161,7 +161,7 @@ Options:
 
 Wait for explicit user choice before proceeding.
 
-### Routing After Approval — Session Boundary Protocol
+### Routing After Approval
 
 | Entry Mode | Target Phase | Notes |
 |------------|-------------|-------|
@@ -172,19 +172,22 @@ Wait for explicit user choice before proceeding.
 | Bug/issue | BUILD | Enters via investigate logic |
 | Resume | Recorded phase | From MANIFEST `current_phase` |
 
-**Session break at G0:** Never required (INTAKE is lightweight). Auto-advance for KNOWN. For COMBINATION/NOVEL, after user approves:
+**G0 behavior:**
+- **KNOWN tier:** Auto-advance — invoke next phase immediately (INTAKE is lightweight).
+- **COMBINATION/NOVEL tier:** After user approves, display `▶ Next Up` block and STOP.
 
-1. **Write continuation prompt** to `docs/[Feature]/continuation-prompts/intake-to-[next].md`:
-   ```
-   Resume /dev pipeline for [Feature Name].
-   Read MANIFEST: `docs/[Feature]/.dev/MANIFEST.md`
-   Read transition: `docs/[Feature]/prompt-transitions/intake-to-[next].md`
-   Phase: [NEXT PHASE]
-   Invoke: `/dev [next-phase]`
-   Key context: Tier=[tier], Domains=[list], Entry mode=[mode]
-   ```
-2. **For KNOWN tier:** Auto-advance — invoke next phase immediately (no /clear needed).
-3. **For COMBINATION/NOVEL tier:** Display continuation prompt inline, suggest (but don't require) `/clear` before next phase. Since INTAKE is lightweight, continuing in the same session is acceptable.
+```
+---
+▶ Next Up
+
+Phase: [NEXT PHASE] — [description]
+
+`dev-pipeline:[next-phase]`
+
+/clear first → fresh context window
+```
+
+**STOP.** Do not invoke next phase.
 
 ---
 

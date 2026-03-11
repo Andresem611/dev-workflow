@@ -167,28 +167,22 @@ Present the design spec with all states. Include:
 
 **Options: Approve / Revise / Pause**
 
-### Session Boundary Protocol (after user approves G3)
+### After G3 Approval
 
-**Session break:** Recommended for all tiers.
+Display `▶ Next Up` block and STOP:
 
-After user approves:
+```
+---
+▶ Next Up
 
-1. **Write continuation prompt** to `docs/[Feature]/continuation-prompts/design-to-document.md`:
-   ```
-   Resume /dev pipeline for [Feature Name].
-   Read MANIFEST: `docs/[Feature]/.dev/MANIFEST.md`
-   Read transition: `docs/[Feature]/prompt-transitions/design-to-document.md`
-   Read design spec: `docs/[Feature]/DESIGN_SPEC.md`
-   Phase: DOCUMENT
-   Invoke: `/dev document`
-   Key context: Tier=[tier], Design=[standard/skeuomorphic], [N] components spec'd
-   ```
+Phase: DOCUMENT — 5-layer docs + wave execution plans
 
-2. **Display the continuation prompt inline** in conversation.
+`dev-pipeline:document`
 
-3. Display: "DESIGN complete. Continuation prompt above. **Recommended:** Run `/clear` first for fresh context. Or say 'continue' to proceed in this session."
+/clear first → fresh context window
+```
 
-4. **STOP.** Do not invoke DOCUMENT unless user explicitly says "continue".
+**STOP.** Do not invoke DOCUMENT. Do not offer "continue in same session".
 
 ---
 

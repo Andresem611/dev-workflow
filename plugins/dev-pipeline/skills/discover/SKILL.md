@@ -168,31 +168,22 @@ Present via `AskUserQuestion`:
 - question: "DISCOVER complete. [Summary: N requirements confirmed, N reuse/N extend/N new components, key decisions]. Proceed to PLAN?"
 - options: "Approve — proceed to PLAN" | "Revise — [area to revisit]" | "Pause"
 
-### Session Boundary Protocol (after user approves G1)
+### After G1 Approval
 
-**Session break:** NOVEL: required. COMBINATION: recommended. KNOWN: never.
+Display `▶ Next Up` block and STOP:
 
-After user approves:
+```
+---
+▶ Next Up
 
-1. **Write continuation prompt** to `docs/[Feature]/continuation-prompts/discover-to-plan.md`:
-   ```
-   Resume /dev pipeline for [Feature Name].
-   Read MANIFEST: `docs/[Feature]/.dev/MANIFEST.md`
-   Read transition: `docs/[Feature]/prompt-transitions/discover-to-plan.md`
-   Read reuse audit: `docs/[Feature]/REUSE_AUDIT.md`
-   Phase: PLAN
-   Invoke: `/dev plan`
-   Key context: Tier=[tier], [N] requirements confirmed, [N] reuse/[N] extend/[N] new
-   ```
+Phase: PLAN — Architecture decisions + task breakdown
 
-2. **Display the continuation prompt inline** in conversation.
+`dev-pipeline:plan`
 
-3. **Based on tier:**
-   - **KNOWN:** Auto-advance — invoke `/dev plan` immediately.
-   - **COMBINATION:** Display: "DISCOVER complete. Continuation prompt above. **Recommended:** Run `/clear` first, then paste the prompt for a fresh context window. Or say 'continue' to proceed in this session."
-   - **NOVEL:** Display: "DISCOVER complete. Continuation prompt above. **Run `/clear` now**, then paste the prompt to start PLAN with fresh context." Do NOT offer to continue in same session.
+/clear first → fresh context window
+```
 
-4. **STOP.** Do not invoke the next phase unless KNOWN tier or user explicitly says "continue".
+**STOP.** Do not invoke PLAN. Do not offer "continue in same session".
 
 ---
 

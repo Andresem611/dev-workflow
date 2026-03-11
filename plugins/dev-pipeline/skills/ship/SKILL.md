@@ -169,24 +169,23 @@ EOF
    - Deployment: Pending user Publish in Replit UI
    ```
 
-### Session Boundary Protocol (G7 — Pipeline Complete)
+### Pipeline Complete (G7)
 
-SHIP is the final phase. After commit:
+SHIP is the final phase. After commit, display completion summary:
 
-1. **Display completion summary** inline:
-   ```
-   /dev pipeline COMPLETE for [Feature Name].
+```
+/dev pipeline COMPLETE for [Feature Name].
 
-   Committed: [hash]
-   Status: [STAGED / SHIPPED]
-   Version: [if published]
+Committed: [hash]
+Status: [STAGED / SHIPPED]
+Version: [if published]
 
-   To deploy: Click Publish in Replit Deployments tab.
-   Pipeline artifacts: docs/[Feature]/
-   ```
+To deploy: Click Publish in Replit Deployments tab.
+Pipeline artifacts: docs/[Feature]/
+```
 
-2. **No continuation prompt needed** — pipeline is done.
-3. **If STAGED (not published):** Remind user they can publish later by clicking Publish in Replit UI.
+No `▶ Next Up` block — pipeline is done.
+If STAGED (not published): Remind user they can publish later via Replit UI.
 
 ---
 
