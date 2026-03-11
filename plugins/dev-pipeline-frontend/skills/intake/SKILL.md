@@ -182,7 +182,7 @@ Wait for explicit user choice before proceeding.
 
 Phase: [NEXT PHASE] — [description]
 
-`dev-pipeline:[next-phase]`
+`dev-pipeline-frontend:[next-phase]`
 
 /clear first → fresh context window
 ```

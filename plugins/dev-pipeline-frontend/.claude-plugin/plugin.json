@@ -1,5 +1,5 @@
 {
-  "name": "dev-pipeline",
+  "name": "dev-pipeline-frontend",
   "description": "Frontend development pipeline — phased feature delivery from intake through ship",
   "version": "1.0.0",
   "author": {

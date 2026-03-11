@@ -214,7 +214,7 @@ Ready for execution?
 
 Phase: BUILD — Tier-driven task execution
 
-`dev-pipeline:build`
+`dev-pipeline-frontend:build`
 
 /clear first → fresh context window
 ```

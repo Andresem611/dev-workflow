@@ -224,7 +224,7 @@ After the last wave completes, display `▶ Next Up` block and STOP:
 
 Phase: VALIDATE — Type-check, lint, QA, domain audits
 
-`dev-pipeline:validate`
+`dev-pipeline-frontend:validate`
 
 /clear first → fresh context window
 ```

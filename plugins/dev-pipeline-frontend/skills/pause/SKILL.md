@@ -161,7 +161,7 @@ After writing all handoff files, display inline:
 ```
 Pipeline paused for [Feature Name].
 
-Resume with: `dev-pipeline:[paused-phase]`
+Resume with: `dev-pipeline-frontend:[paused-phase]`
 Read MANIFEST first: `docs/[feature]/.dev/MANIFEST.md`
 Read handoff: `docs/[feature]/prompt-transitions/pause-handoff.md`
 

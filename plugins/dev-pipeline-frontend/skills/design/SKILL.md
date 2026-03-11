@@ -177,7 +177,7 @@ Display `▶ Next Up` block and STOP:
 
 Phase: DOCUMENT — 5-layer docs + wave execution plans
 
-`dev-pipeline:document`
+`dev-pipeline-frontend:document`
 
 /clear first → fresh context window
 ```

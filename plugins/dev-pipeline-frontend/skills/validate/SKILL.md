@@ -228,7 +228,7 @@ Display `▶ Next Up` block and STOP:
 
 Phase: SHIP — Changelog + commit + deployment reminder
 
-`dev-pipeline:ship`
+`dev-pipeline-frontend:ship`
 
 /clear first → fresh context window
 ```

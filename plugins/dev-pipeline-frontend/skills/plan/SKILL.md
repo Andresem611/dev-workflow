@@ -211,7 +211,7 @@ Display `▶ Next Up` block and STOP:
 
 Phase: [DESIGN or DOCUMENT] — [description]
 
-`dev-pipeline:[design or document]`
+`dev-pipeline-frontend:[design or document]`
 
 /clear first → fresh context window
 ```

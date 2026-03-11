@@ -178,7 +178,7 @@ Display `▶ Next Up` block and STOP:
 
 Phase: PLAN — Architecture decisions + task breakdown
 
-`dev-pipeline:plan`
+`dev-pipeline-frontend:plan`
 
 /clear first → fresh context window
 ```
