@@ -1,9 +1,9 @@
 ---
-name: pause
-description: Use when pausing the /dev pipeline at any phase. Captures current state, generates handoff context for resumption, and handles backend dependency pauses. Triggers on dev-pipeline:pause, "pause", "stop here", "continue later", or when backend endpoints are missing.
+name: dev-pause
+description: Use when pausing the /dev pipeline at any phase. Captures current state, generates handoff context for resumption, and handles backend dependency pauses. Triggers on /dev:pause, "pause", "stop here", "continue later", or when backend endpoints are missing.
 ---
 
-# dev-pipeline:pause — Explicit Pause with Handoff
+# /dev:pause — Explicit Pause with Handoff
 
 Can be invoked at ANY point during the /dev pipeline. Captures full context so a future session (or different agent) can resume exactly where work stopped.
 
@@ -72,7 +72,20 @@ Add pause context block to MANIFEST (`docs/[feature]/.dev/MANIFEST.md`):
 
 Set MANIFEST status to `"paused"`.
 
-### 2b. Generate Pause Handoff File
+### 2b. Generate Continuation Prompt
+
+Write `docs/[feature]/continuation-prompts/resume-from-pause.md`:
+
+```markdown
+Resume /dev pipeline for [Feature Name].
+Read MANIFEST: `docs/[feature]/.dev/MANIFEST.md`
+Read handoff: `docs/[feature]/prompt-transitions/pause-handoff.md`
+Phase: [PAUSED PHASE]
+Invoke: `/dev [paused-phase]`
+Key context: Tier=[tier], paused at [phase/step], reason=[reason]
+```
+
+### 2d. Generate Pause Handoff File
 
 Create `docs/[feature]/prompt-transitions/pause-handoff.md`:
 
@@ -104,7 +117,7 @@ Create `docs/[feature]/prompt-transitions/pause-handoff.md`:
 - [Blocker description + what resolves it]
 ```
 
-### 2c. Backend Dependency Handoff (if applicable)
+### 2e. Backend Dependency Handoff (if applicable)
 
 When pause reason is `awaiting-backend`, generate an additional file:
 
@@ -151,6 +164,31 @@ When backend endpoints are deployed to dev server, resume /dev with:
 "Backend is ready for [Feature Name]"
 Entry mode: backend-handoff → routes to [PLAN | DESIGN | BUILD]
 ```
+
+---
+
+### 2f. Display Continuation Prompt Inline
+
+After writing all handoff files, display the continuation prompt from step 2b **inline in the conversation**:
+
+```
+Pipeline paused for [Feature Name].
+
+**Continuation prompt** (paste this after `/clear`):
+
+---
+Resume /dev pipeline for [Feature Name].
+Read MANIFEST: `docs/[feature]/.dev/MANIFEST.md`
+Read handoff: `docs/[feature]/prompt-transitions/pause-handoff.md`
+Phase: [PAUSED PHASE]
+Invoke: `/dev [paused-phase]`
+Key context: Tier=[tier], paused at [phase/step], reason=[reason]
+---
+
+Run `/clear` first, then paste the prompt above to resume.
+```
+
+**STOP.** Session ends here.
 
 ---
 

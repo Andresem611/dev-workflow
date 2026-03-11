@@ -1,9 +1,9 @@
 ---
-name: intake
-description: Use when starting any new feature, bug fix, or development task through the /dev pipeline. Handles initial classification, scoping, and MANIFEST creation. Triggers on dev-pipeline:intake or when /dev router detects no existing MANIFEST.
+name: dev-intake
+description: Use when starting any new feature, bug fix, or development task through the /dev pipeline. Handles initial classification, scoping, and MANIFEST creation. Triggers on /dev:intake or when /dev router detects no existing MANIFEST.
 ---
 
-# dev-pipeline:intake — Entry Phase
+# /dev:intake — Entry Phase
 
 Classifies incoming work, determines complexity tier and domain tags, creates the MANIFEST, and routes to the correct starting phase.
 
@@ -144,7 +144,7 @@ INTAKE is the ONLY phase that can auto-advance. For KNOWN tier:
 Present to user:
 
 ```
-## dev-pipeline:intake — Classification Complete
+## /dev:intake — Classification Complete
 
 **Feature:** [name]
 **Tier:** [KNOWN|COMBINATION|NOVEL] — [justification]
@@ -161,7 +161,7 @@ Options:
 
 Wait for explicit user choice before proceeding.
 
-### Routing After Approval
+### Routing After Approval — Session Boundary Protocol
 
 | Entry Mode | Target Phase | Notes |
 |------------|-------------|-------|
@@ -171,6 +171,20 @@ Wait for explicit user choice before proceeding.
 | Figma/design handoff | DESIGN | Design artifacts provided |
 | Bug/issue | BUILD | Enters via investigate logic |
 | Resume | Recorded phase | From MANIFEST `current_phase` |
+
+**Session break at G0:** Never required (INTAKE is lightweight). Auto-advance for KNOWN. For COMBINATION/NOVEL, after user approves:
+
+1. **Write continuation prompt** to `docs/[Feature]/continuation-prompts/intake-to-[next].md`:
+   ```
+   Resume /dev pipeline for [Feature Name].
+   Read MANIFEST: `docs/[Feature]/.dev/MANIFEST.md`
+   Read transition: `docs/[Feature]/prompt-transitions/intake-to-[next].md`
+   Phase: [NEXT PHASE]
+   Invoke: `/dev [next-phase]`
+   Key context: Tier=[tier], Domains=[list], Entry mode=[mode]
+   ```
+2. **For KNOWN tier:** Auto-advance — invoke next phase immediately (no /clear needed).
+3. **For COMBINATION/NOVEL tier:** Display continuation prompt inline, suggest (but don't require) `/clear` before next phase. Since INTAKE is lightweight, continuing in the same session is acceptable.
 
 ---
 

@@ -1,9 +1,9 @@
 ---
-name: ship
-description: Use when the /dev pipeline reaches the SHIP phase. Handles changelog updates, commit creation, and deployment reminders. Absorbs the publish skill entirely. Triggers on dev-pipeline:ship or when BUILD+VALIDATE are complete and feature is ready to commit.
+name: dev-ship
+description: Use when the /dev pipeline reaches the SHIP phase. Handles changelog updates, commit creation, and deployment reminders. Absorbs the publish skill entirely. Triggers on /dev:ship or when BUILD+VALIDATE are complete and feature is ready to commit.
 ---
 
-# dev-pipeline:ship — Changelog + Commit + Deploy Reminder
+# /dev:ship — Changelog + Commit + Deploy Reminder
 
 Final phase of the /dev pipeline. Absorbs ALL publish skill logic. Takes a validated feature from VALIDATE through changelog, commit, and deployment guidance.
 
@@ -70,7 +70,7 @@ STAGING = Save progress
 Options: Publish / Stage / Pause
 ```
 
-If user chooses **Pause**: invoke `dev-pipeline:pause` and stop.
+If user chooses **Pause**: invoke `/dev:pause` and stop.
 
 ### 2c. Update CHANGELOG.md
 
@@ -168,6 +168,25 @@ EOF
    - Version: [if published]
    - Deployment: Pending user Publish in Replit UI
    ```
+
+### Session Boundary Protocol (G7 — Pipeline Complete)
+
+SHIP is the final phase. After commit:
+
+1. **Display completion summary** inline:
+   ```
+   /dev pipeline COMPLETE for [Feature Name].
+
+   Committed: [hash]
+   Status: [STAGED / SHIPPED]
+   Version: [if published]
+
+   To deploy: Click Publish in Replit Deployments tab.
+   Pipeline artifacts: docs/[Feature]/
+   ```
+
+2. **No continuation prompt needed** — pipeline is done.
+3. **If STAGED (not published):** Remind user they can publish later by clicking Publish in Replit UI.
 
 ---
 

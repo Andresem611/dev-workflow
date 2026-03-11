@@ -1,9 +1,9 @@
 ---
-name: document
+name: dev-document
 description: Use when /dev pipeline reaches DOCUMENT phase. Writes 5-layer documentation and wave execution plans from PLAN phase outputs. Triggers after G2 approval or DESIGN completion.
 ---
 
-# dev-pipeline:document — Documentation & Wave Planning
+# /dev:document — Documentation & Wave Planning
 
 Write 5-layer feature documentation and generate wave-level execution plans. Absorbs feature-orchestrator Phase 4 and writing-plans execution plan generation.
 
@@ -202,6 +202,33 @@ Ready for execution?
 ```
 
 **Options:** Approve / Revise / Pause
+
+### Session Boundary Protocol (after user approves G4)
+
+**Session break:** COMBINATION+NOVEL: required. KNOWN: never (auto-advance).
+
+DOCUMENT produces the task files and wave plans that BUILD will execute. A fresh context window before BUILD is critical to avoid carrying planning context into execution.
+
+After user approves (or auto-approve for KNOWN):
+
+1. **Write continuation prompt** to `docs/[Feature]/continuation-prompts/document-to-build.md`:
+   ```
+   Resume /dev pipeline for [Feature Name].
+   Read MANIFEST: `docs/[Feature]/.dev/MANIFEST.md`
+   Read transition: `docs/[Feature]/prompt-transitions/document-to-build.md`
+   Read Wave 1: `docs/[Feature]/waves/WAVE_01.md`
+   Phase: BUILD
+   Invoke: `/dev build`
+   Key context: Tier=[tier], [N] tasks across [N] waves, Wave 1 starts with [task list]
+   ```
+
+2. **Display the continuation prompt inline** in conversation.
+
+3. **Based on tier:**
+   - **KNOWN:** Auto-advance — invoke `/dev build` immediately.
+   - **COMBINATION/NOVEL:** Display: "DOCUMENT complete. Continuation prompt above. **Run `/clear` now**, then paste the prompt to start BUILD with fresh context." Do NOT offer to continue in same session.
+
+4. **STOP.** Do not invoke BUILD unless KNOWN tier.
 
 ---
 

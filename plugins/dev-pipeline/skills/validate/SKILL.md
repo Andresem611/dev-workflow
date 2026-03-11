@@ -1,9 +1,9 @@
 ---
-name: validate
+name: dev-validate
 description: Use when /dev pipeline reaches VALIDATE phase. Runs comprehensive validation absorbing verify, manual-qa, accessibility-check, mobile-audit, and post-development audit into three layers (always-run, tier-driven, domain-triggered).
 ---
 
-# dev-pipeline:validate
+# /dev:validate
 
 Comprehensive validation gate. Three layers scaled by tier and domains.
 
@@ -217,6 +217,28 @@ Present to user:
 ```
 
 All Critical failures must be resolved before Approve is offered. Medium/Low failures can be approved with acknowledgment.
+
+### Session Boundary Protocol (after user approves G6)
+
+**Session break:** Recommended for all tiers.
+
+After user approves:
+
+1. **Write continuation prompt** to `docs/[Feature]/continuation-prompts/validate-to-ship.md`:
+   ```
+   Resume /dev pipeline for [Feature Name].
+   Read MANIFEST: `docs/[Feature]/.dev/MANIFEST.md`
+   Read transition: `docs/[Feature]/prompt-transitions/validate-to-ship.md`
+   Phase: SHIP
+   Invoke: `/dev ship`
+   Key context: Tier=[tier], Validation PASSED, [N] layers checked, ready to commit
+   ```
+
+2. **Display the continuation prompt inline** in conversation.
+
+3. Display: "VALIDATE complete — all checks passed. Continuation prompt above. **Recommended:** Run `/clear` for fresh context before SHIP. Or say 'continue' to proceed."
+
+4. **STOP.** Do not invoke SHIP unless user explicitly says "continue".
 
 ---
 

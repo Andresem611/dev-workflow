@@ -1,9 +1,9 @@
 ---
-name: discover
-description: Use when dev-pipeline:discover is invoked or the pipeline transitions from INTAKE to DISCOVER. Handles brainstorming, codebase research, reuse audit, and boardroom debate for COMBINATION/NOVEL tiers.
+name: dev-discover
+description: Use when /dev:discover is invoked or the pipeline transitions from INTAKE to DISCOVER. Handles brainstorming, codebase research, reuse audit, and boardroom debate for COMBINATION/NOVEL tiers.
 ---
 
-# dev-pipeline:discover — Brainstorm + Codebase Research
+# /dev:discover — Brainstorm + Codebase Research
 
 Brainstorm requirements at tier-appropriate depth, audit the codebase for reuse, and confirm requirements before planning begins.
 
@@ -167,6 +167,32 @@ Present results to user with tiered exit criteria:
 Present via `AskUserQuestion`:
 - question: "DISCOVER complete. [Summary: N requirements confirmed, N reuse/N extend/N new components, key decisions]. Proceed to PLAN?"
 - options: "Approve — proceed to PLAN" | "Revise — [area to revisit]" | "Pause"
+
+### Session Boundary Protocol (after user approves G1)
+
+**Session break:** NOVEL: required. COMBINATION: recommended. KNOWN: never.
+
+After user approves:
+
+1. **Write continuation prompt** to `docs/[Feature]/continuation-prompts/discover-to-plan.md`:
+   ```
+   Resume /dev pipeline for [Feature Name].
+   Read MANIFEST: `docs/[Feature]/.dev/MANIFEST.md`
+   Read transition: `docs/[Feature]/prompt-transitions/discover-to-plan.md`
+   Read reuse audit: `docs/[Feature]/REUSE_AUDIT.md`
+   Phase: PLAN
+   Invoke: `/dev plan`
+   Key context: Tier=[tier], [N] requirements confirmed, [N] reuse/[N] extend/[N] new
+   ```
+
+2. **Display the continuation prompt inline** in conversation.
+
+3. **Based on tier:**
+   - **KNOWN:** Auto-advance — invoke `/dev plan` immediately.
+   - **COMBINATION:** Display: "DISCOVER complete. Continuation prompt above. **Recommended:** Run `/clear` first, then paste the prompt for a fresh context window. Or say 'continue' to proceed in this session."
+   - **NOVEL:** Display: "DISCOVER complete. Continuation prompt above. **Run `/clear` now**, then paste the prompt to start PLAN with fresh context." Do NOT offer to continue in same session.
+
+4. **STOP.** Do not invoke the next phase unless KNOWN tier or user explicitly says "continue".
 
 ---
 

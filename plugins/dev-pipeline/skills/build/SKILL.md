@@ -1,9 +1,9 @@
 ---
-name: build
-description: Use when dev-pipeline:build is invoked or MANIFEST shows BUILD phase. Executes tier-driven task waves with auto-escalation on errors.
+name: dev-build
+description: Use when /dev:build is invoked or MANIFEST shows BUILD phase. Executes tier-driven task waves with auto-escalation on errors.
 ---
 
-# dev-pipeline:build — Tier-Driven Task Execution
+# /dev:build — Tier-Driven Task Execution
 
 Execute implementation waves from DOCUMENT phase plans. Inner loop per wave: RESEARCH, EXECUTE, DOCUMENT, GATE.
 
@@ -107,7 +107,7 @@ Track strikes PER FEATURE (not per task). After 3 failed fix attempts:
 
 1. **Guide fix manually** — User provides direction, you implement
 2. **Revise plan** — Return to PLAN phase (re-architecture the approach)
-3. **Pause feature entirely** — Invoke dev-pipeline:pause with full context
+3. **Pause feature entirely** — Invoke /dev:pause with full context
 
 Do NOT attempt a 4th fix without explicit user direction.
 
@@ -204,15 +204,61 @@ If MANIFEST domains include `design-system`, check after each wave:
 
 ---
 
-## 7. Session Boundary Recommendations
+## 7. Session Boundary Enforcement
 
-BUILD phases can be long. Recommend session breaks when:
+BUILD phases can be long. Session breaks prevent context rot and compounding errors.
 
-- **3+ waves completed** — context is getting heavy
-- **After a complex escalation** — fresh context prevents compounding errors
-- **Wave boundary** — natural breakpoint with state saved in MANIFEST
+### Per-Wave Continuation Prompts
 
-Before breaking: ensure MANIFEST, CURRENT_STATUS.md, and 01_IMPLEMENTATION_STATUS.md are fully updated. The next session resumes from MANIFEST state via `/dev`.
+After EVERY wave completion (all tiers), generate a continuation prompt:
+
+1. **Write continuation prompt** to `docs/[Feature]/continuation-prompts/build-wave-[N]-to-wave-[N+1].md`:
+   ```
+   Resume /dev pipeline for [Feature Name] — BUILD phase.
+   Read MANIFEST: `docs/[Feature]/.dev/MANIFEST.md`
+   Read next wave: `docs/[Feature]/waves/WAVE_[N+1].md`
+   Read status: `docs/[Feature]/01_IMPLEMENTATION_STATUS.md`
+   Phase: BUILD (Wave [N+1] of [total])
+   Invoke: `/dev build`
+   Key context: Tier=[tier], Wave [N] complete ([tasks]), Wave [N+1] starts with [task list]
+   ```
+
+2. **Display the continuation prompt inline** in conversation.
+
+### When to Break (Tier-Based)
+
+| Condition | KNOWN | COMBINATION | NOVEL |
+|-----------|-------|-------------|-------|
+| Per wave | Never | Recommended | Recommended |
+| Every 3 waves | Recommended | **Required** | **Required** |
+| After complex escalation | Recommended | **Required** | **Required** |
+| Final wave → VALIDATE | Recommended | Recommended | Recommended |
+
+- **Required:** Display: "Wave [N] complete. Continuation prompt above. **Run `/clear` now**, then paste the prompt to continue BUILD." Do NOT offer to continue.
+- **Recommended:** Display: "Wave [N] complete. Continuation prompt above. **Recommended:** Run `/clear` for fresh context. Or say 'continue' to proceed."
+- **Never:** Auto-advance to next wave.
+
+### Final Wave → VALIDATE Transition
+
+After the last wave completes, generate the build-to-validate continuation prompt:
+
+```
+Resume /dev pipeline for [Feature Name].
+Read MANIFEST: `docs/[Feature]/.dev/MANIFEST.md`
+Read transition: `docs/[Feature]/prompt-transitions/build-to-validate.md`
+Phase: VALIDATE
+Invoke: `/dev validate`
+Key context: Tier=[tier], [N] tasks completed across [N] waves, [any deviations]
+```
+
+Display inline, recommend `/clear` before VALIDATE.
+
+### Before ANY Break
+
+Ensure these are fully updated BEFORE displaying the continuation prompt:
+- MANIFEST (task status, wave progress, strike count)
+- CURRENT_STATUS.md
+- 01_IMPLEMENTATION_STATUS.md
 
 ---
 

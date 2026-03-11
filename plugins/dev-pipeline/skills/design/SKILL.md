@@ -1,9 +1,9 @@
 ---
-name: design
-description: Use when dev-pipeline:design is invoked or MANIFEST shows DESIGN phase. CONDITIONAL — only runs when MANIFEST domains include design-system, responsive, or animation. Handles UI specification and Thoven design system compliance.
+name: dev-design
+description: Use when /dev:design is invoked or MANIFEST shows DESIGN phase. CONDITIONAL — only runs when MANIFEST domains include design-system, responsive, or animation. Handles UI specification and Thoven design system compliance.
 ---
 
-# dev-pipeline:design — UI Specification + Design System Compliance
+# /dev:design — UI Specification + Design System Compliance
 
 **Phase 4 of /dev pipeline. CONDITIONAL — only runs when MANIFEST domains include: `design-system`, `responsive`, or `animation`.**
 
@@ -166,6 +166,29 @@ Present the design spec with all states. Include:
 - Accessibility requirements
 
 **Options: Approve / Revise / Pause**
+
+### Session Boundary Protocol (after user approves G3)
+
+**Session break:** Recommended for all tiers.
+
+After user approves:
+
+1. **Write continuation prompt** to `docs/[Feature]/continuation-prompts/design-to-document.md`:
+   ```
+   Resume /dev pipeline for [Feature Name].
+   Read MANIFEST: `docs/[Feature]/.dev/MANIFEST.md`
+   Read transition: `docs/[Feature]/prompt-transitions/design-to-document.md`
+   Read design spec: `docs/[Feature]/DESIGN_SPEC.md`
+   Phase: DOCUMENT
+   Invoke: `/dev document`
+   Key context: Tier=[tier], Design=[standard/skeuomorphic], [N] components spec'd
+   ```
+
+2. **Display the continuation prompt inline** in conversation.
+
+3. Display: "DESIGN complete. Continuation prompt above. **Recommended:** Run `/clear` first for fresh context. Or say 'continue' to proceed in this session."
+
+4. **STOP.** Do not invoke DOCUMENT unless user explicitly says "continue".
 
 ---
 

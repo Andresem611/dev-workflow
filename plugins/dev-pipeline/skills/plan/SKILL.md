@@ -1,9 +1,9 @@
 ---
-name: plan
-description: Use when dev-pipeline:plan is invoked or MANIFEST shows PLAN phase. Handles architecture decisions, task breakdown, and wave grouping with tier-scaled review depth.
+name: dev-plan
+description: Use when /dev:plan is invoked or MANIFEST shows PLAN phase. Handles architecture decisions, task breakdown, and wave grouping with tier-scaled review depth.
 ---
 
-# dev-pipeline:plan — Architecture Decisions + Task Breakdown
+# /dev:plan — Architecture Decisions + Task Breakdown
 
 Architecture decisions, task breakdown, wave grouping. Absorbs feature-orchestrator Phase 3 logic.
 
@@ -152,7 +152,7 @@ If backend detection found MISSING endpoints:
    | /api/v1/bookings | POST | { student_id, slot_id } | { booking: { id, status } } | MISSING |
    ```
 3. Invoke prompt-generator to create backend handoff prompt
-4. Transition to `dev-pipeline:pause` — do NOT proceed to DESIGN/DOCUMENT
+4. Transition to `/dev:pause` — do NOT proceed to DESIGN/DOCUMENT
 
 ---
 
@@ -199,9 +199,33 @@ Custom gate criteria defined for: DESIGN / BUILD / VALIDATE
 
 **Options:** Approve | Revise [specify which decision] | Pause
 
-- **Approve** → advance to DESIGN (if design domains) or DOCUMENT (if not)
-- **Revise** → re-run architecture review on contested decisions only
-- **Pause** → invoke `dev-pipeline:pause`
+### Session Boundary Protocol (after user approves G2)
+
+**Session break:** COMBINATION+NOVEL: required. KNOWN: recommended.
+
+G2 is the heaviest planning gate. A fresh context window is critical before execution phases.
+
+After user approves:
+
+1. **Determine next phase:** DESIGN (if design domains tagged) or DOCUMENT (if not).
+
+2. **Write continuation prompt** to `docs/[Feature]/continuation-prompts/plan-to-[next].md`:
+   ```
+   Resume /dev pipeline for [Feature Name].
+   Read MANIFEST: `docs/[Feature]/.dev/MANIFEST.md`
+   Read transition: `docs/[Feature]/prompt-transitions/plan-to-[next].md`
+   Phase: [DESIGN or DOCUMENT]
+   Invoke: `/dev [design or document]`
+   Key context: Tier=[tier], [N] decisions locked, [N] tasks across [N] waves
+   ```
+
+3. **Display the continuation prompt inline** in conversation.
+
+4. **Based on tier:**
+   - **KNOWN:** Display: "PLAN complete. Continuation prompt above. **Recommended:** Run `/clear` first for fresh context. Or say 'continue' to proceed."
+   - **COMBINATION/NOVEL:** Display: "PLAN complete. Continuation prompt above. **Run `/clear` now**, then paste the prompt to start [DESIGN/DOCUMENT] with fresh context." Do NOT offer to continue in same session.
+
+5. **STOP.** Do not invoke the next phase unless KNOWN tier and user explicitly says "continue".
 
 ---
 
