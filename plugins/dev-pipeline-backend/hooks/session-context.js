@@ -118,16 +118,43 @@ function runSessionContinuity() {
             let featureName = "";
             let currentPhase = "";
             for (const line of content.split("\n")) {
-              const phaseMatch = line.match(/^current_phase:\s*(.+)/i);
-              if (phaseMatch) currentPhase = phaseMatch[1].trim();
-              const nameMatch = line.match(/^(?:feature_name|name|title):\s*(.+)/i);
-              if (nameMatch && !featureName) featureName = nameMatch[1].trim();
+              // Table format: | **Current Phase** | DISCOVER |
+              const tablePhaseMatch = line.match(/\|\s*\*\*Current Phase\*\*\s*\|\s*([^|]+)\|/);
+              if (tablePhaseMatch) currentPhase = tablePhaseMatch[1].trim();
+              // Bold-pair format: **Current Phase:** DISCOVER
+              const boldPhaseMatch = line.match(/\*\*Current Phase:\*\*\s*(.+)/);
+              if (boldPhaseMatch) currentPhase = boldPhaseMatch[1].trim();
+              // Table format: | **Name** | Feature Name |
+              const tableNameMatch = line.match(/\|\s*\*\*(Name|Feature)\*\*\s*\|\s*([^|]+)\|/);
+              if (tableNameMatch && !featureName) featureName = tableNameMatch[2].trim();
+              // Bold-pair format: **Feature:** description
+              const boldNameMatch = line.match(/\*\*Feature:\*\*\s*(.+)/);
+              if (boldNameMatch && !featureName) featureName = boldNameMatch[1].trim();
+              // Legacy frontmatter format as fallback
+              const legacyPhase = line.match(/^current_phase:\s*(.+)/i);
+              if (legacyPhase) currentPhase = legacyPhase[1].trim();
+              const legacyName = line.match(/^(?:feature_name|name|title):\s*(.+)/i);
+              if (legacyName && !featureName) featureName = legacyName[1].trim();
             }
             if (currentPhase) {
               result.pipelines.push({
                 name: featureName || path.basename(path.dirname(path.dirname(mf))),
                 phase: currentPhase,
               });
+              // Validate manifest integrity
+              try {
+                const toolPath = path.join(__dirname, "..", "..", "shared", "tools", "dev-pipeline-tools.js");
+                if (fs.existsSync(toolPath)) {
+                  const featureDir = path.dirname(path.dirname(mf));
+                  const valResult = require("child_process").execSync(
+                    `node "${toolPath}" validate-manifest "${featureDir}" --plugin backend --raw`,
+                    { timeout: 3000, encoding: "utf8", stdio: ["pipe", "pipe", "pipe"] }
+                  ).trim();
+                  if (valResult.startsWith("FAIL")) {
+                    result.pipelines[result.pipelines.length - 1].warning = valResult;
+                  }
+                }
+              } catch (_) {}
             }
           } catch (_) {}
         }
@@ -201,6 +228,9 @@ try {
         lines.push(
           `\u{1F527} Active pipeline: "${p.name}" at ${p.phase} phase`
         );
+        if (p.warning) {
+          lines.push(`  \u26A0\uFE0F  ${p.warning}`);
+        }
       }
     }
   } catch (_) {}
