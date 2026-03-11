@@ -1,11 +1,34 @@
 {
   "name": "dev-pipeline-backend",
   "description": "Backend development pipeline — phased feature delivery from intake through ship for Rails API",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "author": {
     "name": "Thoven",
     "email": "andres@thoven.co"
   },
   "license": "MIT",
-  "keywords": ["development", "pipeline", "backend", "rails", "skills"]
+  "keywords": ["development", "pipeline", "backend", "rails", "skills"],
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node ${CLAUDE_PLUGIN_ROOT}/hooks/doc-staleness-nudge.js"
+          }
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node ${CLAUDE_PLUGIN_ROOT}/hooks/session-context.js"
+          }
+        ]
+      }
+    ]
+  }
 }
