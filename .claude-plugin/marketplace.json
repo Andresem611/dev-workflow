@@ -1,0 +1,23 @@
+{
+  "name": "thoven-dev",
+  "owner": {
+    "name": "Thoven",
+    "email": "andres@thoven.co"
+  },
+  "metadata": {
+    "description": "Thoven development tools — phased frontend feature pipeline"
+  },
+  "plugins": [
+    {
+      "name": "dev-pipeline",
+      "source": "./plugins/dev-pipeline",
+      "description": "Frontend development pipeline — phased feature delivery from intake through ship",
+      "version": "1.0.0",
+      "author": {
+        "name": "Thoven",
+        "email": "andres@thoven.co"
+      },
+      "keywords": ["development", "pipeline", "frontend", "skills"]
+    }
+  ]
+}
