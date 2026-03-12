@@ -1,169 +1,239 @@
 ---
 name: document
-description: Use when /dev pipeline reaches DOCUMENT phase. Writes 5-layer documentation and wave execution plans from PLAN phase outputs. Triggers after G2 approval or DESIGN completion.
+description: Produces all documentation artifacts for a feature — master plan, component architecture, reuse audit, integration guide, task files, wave files, and implementation status. Triggers on /dev:document or when /dev router advances past DESIGN.
 ---
 
 # /dev:document — Documentation & Wave Planning
 
-Write 5-layer feature documentation and generate wave-level execution plans. Absorbs feature-orchestrator Phase 4 and writing-plans execution plan generation.
+Produce all planning documentation needed for BUILD. Dispatches multiple subagents to create 8 doc types, then verifies cohesion before handing off.
 
-## Inner Loop: RESEARCH > EXECUTE > DOCUMENT > GATE
+## Inner Loop: Discuss > Architect > Execute > Review
 
----
-
-## 1. RESEARCH
-
-### 0. Validate Entry (MANDATORY)
-
-```bash
-node ${PLUGIN_ROOT}/../shared/tools/dev-pipeline-tools.js validate-entry document docs/[feature] --plugin frontend
-```
-
-If FAIL → read error output. Fix missing prerequisites before proceeding.
-If PASS → continue to step 1.
-
-Read these files before writing anything:
-
-```
-docs/[Feature]/.dev/MANIFEST.md          → tier, domains, wave groupings, decision log
-docs/[Feature]/prompt-transitions/        → plan-to-document.md OR design-to-document.md
-```
-
-Extract from MANIFEST:
-- **Decision log** (locked decisions with WHY reasoning)
-- **Wave groupings** (task-to-wave assignments from PLAN)
-- **Task list** (ordered, with dependencies)
-- **Tier** (drives documentation depth)
-- **Reuse audit findings** (from DISCOVER)
-- **Architecture decisions** (from PLAN)
-
-If any of these are missing, STOP and return to the phase that should have produced them.
+Reference: `${PLUGIN_ROOT}/../shared/references/inner-loop-reference.md`
 
 ---
 
-## 2. EXECUTE
+## Stage 1: Discuss — Documentation Scope
 
-### 2A. Write 5-Layer Documentation
+### 1.1 Read Context Bridge
 
-All files go to `docs/[Feature_Name]/`. Every file includes:
 ```
-**Procedure:** Follow `FRONTEND_STANDARD_FEATURE_DEVELOPMENT_PROCEDURE.md`
+docs/[Feature]/.dev/design/review-design-compliance.md
 ```
 
-#### Layer 1: 00_MASTER_PLAN.md
-Sections: business requirements, architecture overview (from PLAN decisions), reuse summary (from DISCOVER), design system compliance, task list, success criteria.
+Extract: locked design decisions, component inventory, architecture decisions from PLAN, reuse findings from DISCOVER, task list and wave groupings. If this file does not exist, STOP — DESIGN must complete first.
 
-Include the decision log table:
+### 1.2 Structured Questioning
+
+**Tool:** `AskUserQuestion` for EVERY question. One at a time. No batching.
+
+**WHAT questions:**
+- Which docs need the most detail? Any special documentation needs?
+- What level of detail for task files? (high-level vs step-by-step)
+- Any existing docs to incorporate? How granular should wave planning be?
+
+**HOW meta-questions:**
+- "How many subagents for documentation? Separate agent per doc or batch?"
+- "How should we verify cohesion across docs?"
+- "Want a prompt-engineer for task file quality?"
+- "Full reuse audit scan or rely on DISCOVER findings only?"
+
+No cap on questions. User says "enough" or "move on" to proceed.
+
+### 1.3 Stage Artifact
+
+Write `docs/[Feature]/.dev/document/discuss-documentation-scope.md` — all Q&A, locked decisions, user preferences.
+
+---
+
+## Stage 2: Architect — Documentation Plan
+
+### 2.1 Prompt Generation (MANDATORY)
+
+Use `/prompt-generator` to craft every subagent prompt. No exceptions.
+
+### 2.2 Doc Inventory with Agent Assignments
+
+| Doc | Agent Type | Notes |
+|-----|-----------|-------|
+| `00_MASTER_PLAN.md` | `documentation-engineer` | Executive summary, architecture, phases |
+| `COMPONENT_ARCHITECTURE.md` | `documentation-engineer` | Component hierarchy, state flow, props |
+| `REUSE_AUDIT.md` | `Explore` (subagent_type) | Scan codebase for reuse opportunities |
+| `FRONTEND_INTEGRATION_GUIDE.md` | `documentation-engineer` | API integration, backend deps, auth |
+| `tasks/TASK_01..N.md` | `prompt-engineer` | Task files need good prompts for BUILD |
+| `waves/WAVE_01..N.md` | `documentation-engineer` | Wave execution plans with task assignments |
+| `01_IMPLEMENTATION_STATUS.md` | `documentation-engineer` | Task tracking table |
+| `CURRENT_STATUS.md` | `documentation-engineer` | Quick status reference |
+
+### 2.3 Execution Order
+
+```
+Phase 1 (parallel):  Explore → REUSE_AUDIT.md  |  doc-engineer → 00_MASTER_PLAN.md
+Phase 2 (parallel):  doc-engineer → COMPONENT_ARCHITECTURE.md  |  doc-engineer → INTEGRATION_GUIDE.md
+Phase 3 (sequential): prompt-engineer → tasks/TASK_01..N.md (needs arch + reuse context)
+Phase 4 (sequential): doc-engineer → waves/WAVE_01..N.md, STATUS files
+```
+
+Adjust based on user preferences from Discuss.
+
+### 2.4 Success Criteria
+
+Per-subagent:
+- **Master Plan:** Business requirements, architecture overview, decision log table, task list, success criteria
+- **Component Arch:** Component tree with exact file paths, TS props interfaces, state flow, data flow diagram
+- **Reuse Audit:** Four tables — Reuse As-Is, Can Extend, Not Suitable, New Code Required (with justification)
+- **Integration Guide:** API endpoints with types, auth patterns, error handling, backend dependencies
+- **Task Files:** Duration 30min-2.5hr, wave assignment, dependencies, exact file paths, acceptance criteria, TDD steps
+- **Wave Plans:** Task assignments, strategy, duration, completion criteria, wave dependencies
+- **Status Files:** All tasks listed "Not Started" with wave and duration
+
+Overall: every PLAN requirement has a task, every task in exactly one wave, cross-references consistent, no task outside 20min-2.5hr range.
+
+### 2.5 Stage Artifact
+
+Write `docs/[Feature]/.dev/document/architect-documentation-plan.md` — full inventory, execution order, success criteria, escalation rules, subagent prompts.
+
+---
+
+## Stage 3: Execute — Produce All Docs
+
+### 3.1 Dispatch Rules
+
+**MANDATORY:** Dispatch subagents via Agent tool. Orchestrator NEVER writes docs inline.
+
+For each subagent: dispatch with crafted prompt, collect results, check against success criteria, log pass/fail. If a subagent fails: log failure, continue with remaining agents, surface in Review.
+
+### 3.2 Output Files
+
+All docs go to `docs/[Feature]/`:
+
+```
+docs/[Feature]/
+├── 00_MASTER_PLAN.md              ← architecture, requirements, decision log
+├── COMPONENT_ARCHITECTURE.md      ← tree, props, state flow, data flow
+├── REUSE_AUDIT.md                 ← reuse/extend/new tables
+├── FRONTEND_INTEGRATION_GUIDE.md  ← API, auth, errors, backend deps
+├── 01_IMPLEMENTATION_STATUS.md    ← tracking table, all "Not Started"
+├── CURRENT_STATUS.md              ← quick status snapshot
+├── tasks/
+│   └── TASK_01_xxx.md .. TASK_NN_xxx.md
+└── waves/
+    └── WAVE_01.md .. WAVE_NN.md
+```
+
+### 3.3 Task File Structure
+
 ```markdown
-| Decision | Choice | Rationale | Alternatives Considered |
-|----------|--------|-----------|------------------------|
-```
+# Task NN: [Name]
+**Duration:** [30min-2.5hr]  **Wave:** [N]  **Dependencies:** [Task IDs or "None"]
 
-#### Layer 2: REUSE_AUDIT.md
-Populated from DISCOVER findings. Tables: Can Reuse As-Is, Can Extend, Similar But Not Suitable, New Code Required (with justification).
+## Files
+- **Create:** `exact/path/file.tsx`
+- **Modify:** `exact/path/existing.tsx` (lines ~XX-YY)
+- **Test:** `__tests__/exact/path/test.tsx`
+- **Reuse:** `components/ui/existing.tsx` (from REUSE_AUDIT)
 
-#### Layer 3: COMPONENT_ARCHITECTURE.md
-Component tree with exact file paths, props interfaces (TypeScript), state flow (Context/Redux/local), data flow diagram (API > hook > component > UI).
-
-Skip for KNOWN tier single-component features.
-
-#### Layer 4: Task Files (tasks/TASK_01..N.md)
-
-Each task file contains:
-```markdown
-# Task XX: [Name]
-**Duration:** [30min-2.5hr]
-**Wave:** [N]
-**Dependencies:** [Task IDs]
-**Decision Context:** [WHY from decision log that drives this task]
-
-**Files:**
-- Create: `exact/path/file.tsx`
-- Modify: `exact/path/existing.tsx` (lines ~XX-YY)
-- Test: `__tests__/exact/path/test.tsx`
-- Reuse: `components/ui/existing.tsx` (from REUSE_AUDIT)
-
-**Acceptance Criteria:**
-- [ ] [Specific, testable]
+## Acceptance Criteria
+- [ ] [Specific, testable criterion]
 - [ ] TypeScript strict passes
 - [ ] Component < 300 lines
 
-**Steps (TDD):**
-1. Write failing test → 2. Verify failure → 3. Implement → 4. Verify pass → 5. Commit
+## Implementation Steps (TDD)
+1. Write failing test → 2. Verify failure → 3. Implement → 4. Verify pass → 5. Refactor → 6. Commit
 ```
 
-**Decision log embedding rule:** Every task MUST reference the specific decision(s) from the PLAN decision log that drive it. This is the "Decision Context" field. If a task has no decision context, it lacks justification.
+**Sizing:** >2.5hr split, <20min combine. Sweet spot 30min-2.5hr.
 
-#### Layer 5: Tracking Files
-
-**01_IMPLEMENTATION_STATUS.md** — All tasks "Not Started" with estimated durations and wave assignments.
-
-**CURRENT_STATUS.md** — Phase: Documentation Complete, Blockers: None, Next Steps: Wave 1 execution.
-
-**FRONTEND_INTEGRATION_GUIDE.md** — Stub with section headers: Quick Start, Feature Flag, API Module, Types, Components, Error Handling, Testing, Architecture Notes.
-
-### 2B. Task Sizing Rules
-
-| Rule | Action |
-|------|--------|
-| Task > 2.5hr | Split into subtasks |
-| Task < 20min | Combine with adjacent task |
-| Target sweet spot | 30min - 2.5hr |
-| Every task | Exact file paths (create, modify, test, reuse) |
-| Every task | TDD steps where applicable |
-| Dependencies | Map via wave ordering (Types > Components > Pages > Tests > Polish) |
-
-Category guidelines:
-- UI Component: 30min-2hr
-- Container/Page: 1-2.5hr
-- Custom Hook: 15min-1hr (combine if <20min)
-- API Integration: 30min-1.5hr
-- State Management: 30min-1.5hr
-- Testing: 1-2hr
-
-### 2C. Generate Wave-Level Execution Plans
-
-Group tasks into waves based on PLAN phase wave groupings. Each wave plan follows this format:
+### 3.4 Wave File Structure
 
 ```markdown
-## Wave [N]: [Name]
-**Tasks:** TASK_01, TASK_02, TASK_03
-**Strategy:** [sequential | parallel-subagents | expert-reviewed]
-**Estimated Duration:** [total hours]
+# Wave N: [Name]
+**Tasks:** TASK_01, TASK_02  **Strategy:** [sequential | parallel-subagents]  **Duration:** [hours]
 
-### Subagent Assignments
-| Task | Agent Type | Model | Key Instruction |
-|------|-----------|-------|-----------------|
-| TASK_01 | frontend-developer | sonnet | [specific directive] |
-| TASK_02 | frontend-developer | sonnet | [specific directive] |
+## Subagent Assignments
+| Task | Agent Type | Key Instruction |
+|------|-----------|-----------------|
 
-### Completion Criteria
+## Completion Criteria
 - [ ] All task acceptance criteria met
-- [ ] Type-check passes: `npm run type-check`
-- [ ] Lint passes: `npm run lint`
+- [ ] `npm run type-check` passes
+- [ ] `npm run lint` passes
 - [ ] No regressions in existing tests
-- [ ] IMPLEMENTATION_STATUS.md updated
 
-### Decision Context for This Wave
-[Relevant decision log entries that inform this wave's approach]
-
-### Wave Dependencies
+## Dependencies
 - **Requires:** [Previous wave(s) or "None"]
 - **Unlocks:** [Next wave(s)]
 ```
 
-**Strategy by tier:**
-- KNOWN: All waves sequential, solo execution
-- COMBINATION: Parallel subagents within waves
-- NOVEL: Expert-reviewed (subagents + reviewer per wave)
+### 3.5 Stage Artifact
 
-**Wave plan location:** `docs/[Feature]/waves/WAVE_01.md` through `WAVE_N.md`
+Write `docs/[Feature]/.dev/document/execute-docs-manifest.md` — lists ALL files produced:
+
+```markdown
+## Files Produced
+| # | File | Path | Summary |
+|---|------|------|---------|
+| 1 | Master Plan | docs/[Feature]/00_MASTER_PLAN.md | [1-line] |
+| 2 | Component Arch | docs/[Feature]/COMPONENT_ARCHITECTURE.md | [1-line] |
+| ... | ... | ... | ... |
+
+## Subagent Results
+| Agent | Doc(s) Produced | Status | Deviations |
+|-------|----------------|--------|------------|
+
+## Totals
+- **Tasks:** [N]  **Waves:** [N]  **Estimated hours:** [X]
+```
 
 ---
 
-## 3. DOCUMENT
+## Stage 4: Review — Documentation Quality
 
-Update MANIFEST with:
+### 4.1 Cohesion Check
+
+- Master plan task list matches actual task files (count, names, order)
+- Every task references a valid wave; every wave references only existing tasks
+- Reuse audit findings reflected in task file "Reuse" fields
+- Integration guide endpoints match what task files reference
+- Component architecture paths match task file "Create" paths
+
+### 4.2 Task Coverage
+
+- Map every PLAN requirement to one or more task files
+- Flag requirements with no corresponding task
+- Flag tasks with no traceable requirement
+
+### 4.3 Wave Plan Completeness
+
+- Every task in exactly one wave
+- Dependencies form a valid DAG (no cycles)
+- Each wave has completion criteria
+- Durations within sizing rules
+
+### 4.4 Integration Guide Verification
+
+- API calls documented with request/response types
+- Auth patterns specified
+- Error handling defined
+- Backend dependencies listed with status
+
+### 4.5 Surface Gaps
+
+Use `AskUserQuestion` to present findings:
+
+```
+Documentation review found [N] issues:
+1. [Issue] — [critical/warning/info]
+...
+Options: Retry Execute | Back to Architect | Back to Discuss | Accept
+```
+
+User decides. No auto-looping (D08).
+
+### 4.6 MANIFEST Update
+
+On acceptance, update MANIFEST:
+
 ```yaml
 phase: DOCUMENT
 status: complete
@@ -171,82 +241,97 @@ artifacts:
   master_plan: docs/[Feature]/00_MASTER_PLAN.md
   reuse_audit: docs/[Feature]/REUSE_AUDIT.md
   component_arch: docs/[Feature]/COMPONENT_ARCHITECTURE.md
-  tasks: docs/[Feature]/tasks/  # [N] task files
-  waves: docs/[Feature]/waves/  # [N] wave plans
+  integration_guide: docs/[Feature]/FRONTEND_INTEGRATION_GUIDE.md
+  tasks: docs/[Feature]/tasks/
+  waves: docs/[Feature]/waves/
   status_tracker: docs/[Feature]/01_IMPLEMENTATION_STATUS.md
   current_status: docs/[Feature]/CURRENT_STATUS.md
-  integration_guide: docs/[Feature]/FRONTEND_INTEGRATION_GUIDE.md
 task_count: [N]
 wave_count: [N]
-total_estimated_hours: [N]
+total_estimated_hours: [X]
 ```
 
-Generate transition file: `docs/[Feature]/prompt-transitions/document-to-build.md`
+### 4.7 Stage Artifact
 
-Transition file contents:
-- Feature summary + tier
-- Task count and wave count
-- Wave execution order with strategies
-- First wave details (tasks, agents, criteria)
-- Decision log entries relevant to Wave 1
-- File paths for all documentation artifacts
+Write `docs/[Feature]/.dev/document/review-documentation-quality.md` — bridges to BUILD:
+
+```markdown
+## Documentation Review Summary
+**Verdict:** [Pass / Pass with warnings / Fail]
+**Tasks:** [N] across [N] waves  **Estimated hours:** [X]
+
+## Cohesion Check
+| Check | Status | Notes |
+|-------|--------|-------|
+| Master plan <> task files | Pass/Fail | |
+| Task files <> wave plans | Pass/Fail | |
+| Reuse audit <> task files | Pass/Fail | |
+| Integration guide <> tasks | Pass/Fail | |
+| Component arch <> task files | Pass/Fail | |
+
+## Task Coverage
+- Requirements covered: [N/N]
+- Gaps: [list or "None"]
+
+## Warnings for BUILD
+- [Caveats, known gaps, areas needing attention]
+
+## Recommended BUILD Focus
+- Wave 1 tasks: [list]
+- Wave 1 strategy: [sequential/parallel]
+- Key risk areas: [list]
+```
 
 ---
 
-## 4. GATE: G4
-
-**Auto-approve** for KNOWN tier. **Mandatory user approval** for COMBINATION and NOVEL.
-
-Present to user:
-```
-Planning complete: [N] tasks across [N] waves ([X] estimated hours).
-Docs saved to docs/[Feature]/.
-
-Wave breakdown:
-  Wave 1: [tasks] ([strategy])
-  Wave 2: [tasks] ([strategy])
-  ...
-
-Ready for execution?
-```
-
-**Options:** Approve / Revise / Pause
-
-### Pre-Gate Verification
-
-4. **Verify transition (MANDATORY):**
+## Tool Integration
 
 ```bash
-node ${PLUGIN_ROOT}/../shared/tools/dev-pipeline-tools.js validate-transition document docs/[feature] --plugin frontend
-```
+# Before any stage
+node ${PLUGIN_ROOT}/../shared/tools/dev-pipeline-tools.js validate-stage-entry document <stage> docs/[feature] --plugin frontend
 
-If FAIL → Re-invoke prompt-generator with the listed missing fields.
+# After any stage
+node ${PLUGIN_ROOT}/../shared/tools/dev-pipeline-tools.js validate-stage-output document <stage> docs/[feature] --plugin frontend
 
-5. **Verify MANIFEST (MANDATORY):**
-
-```bash
+# After MANIFEST changes
 node ${PLUGIN_ROOT}/../shared/tools/dev-pipeline-tools.js validate-manifest docs/[feature] --plugin frontend
 ```
 
-If FAIL → Update MANIFEST before ending session.
+---
 
-### After G4 Approval
+## After Review Acceptance
 
-- **KNOWN tier:** Auto-advance — invoke `/dev build` immediately.
-- **COMBINATION/NOVEL tier:** Display `▶ Next Up` block and STOP.
+Present summary, then display:
 
 ```
 ---
-▶ Next Up
 
-Phase: BUILD — Tier-driven task execution
+### Next Up
 
+Phase: BUILD — Wave-by-wave task execution
 `dev-pipeline-frontend:build`
 
-/clear first → fresh context window
+/clear first — fresh context window
 ```
 
-**STOP.** Do not invoke BUILD (unless KNOWN tier auto-advance).
+State persists to disk (MANIFEST + stage artifacts). Nothing is lost on `/clear`.
+
+**STOP.** Do not invoke BUILD.
+
+---
+
+## Output Doc Inventory
+
+| Doc | Purpose | Agent |
+|-----|---------|-------|
+| 00_MASTER_PLAN.md | Executive summary, architecture, phase overview | documentation-engineer |
+| COMPONENT_ARCHITECTURE.md | Component hierarchy, state flow, props/interfaces | documentation-engineer |
+| REUSE_AUDIT.md | Existing components to reuse vs build new | Explore |
+| FRONTEND_INTEGRATION_GUIDE.md | API integration, backend deps, auth | documentation-engineer |
+| tasks/TASK_NN_xxx.md | Individual task specs with acceptance criteria | prompt-engineer |
+| waves/WAVE_NN.md | Wave execution plans with task assignments | documentation-engineer |
+| 01_IMPLEMENTATION_STATUS.md | Task tracking table | documentation-engineer |
+| CURRENT_STATUS.md | Quick status reference | documentation-engineer |
 
 ---
 
@@ -254,31 +339,12 @@ Phase: BUILD — Tier-driven task execution
 
 | Mistake | Fix |
 |---------|-----|
-| Tasks missing exact file paths | Go back, add create/modify/test/reuse paths to every task |
-| Tasks > 2.5hr | Split immediately. No exceptions. |
-| Tasks < 20min | Combine with adjacent task in same wave |
-| Decision log not embedded in tasks | Add "Decision Context" field to every task file |
-| Wave plans missing completion criteria | Every wave needs type-check + lint + acceptance criteria |
-| Skipping REUSE_AUDIT.md | Mandatory. Populate from DISCOVER findings even if nothing reusable found |
-| No TDD steps in task files | Add failing test > verify > implement > verify > commit |
-| COMPONENT_ARCHITECTURE.md has vague paths | Use exact file paths, not "a component for X" |
-| Wave strategy wrong for tier | KNOWN=sequential, COMBINATION=parallel, NOVEL=expert-reviewed |
-| Transition file missing wave 1 details | BUILD phase needs wave 1 specifics to start immediately |
-| MANIFEST not updated with artifact paths | BUILD phase reads MANIFEST to find docs. Missing paths = lost context |
-
----
-
-## Quick Reference
-
-| Artifact | Location | Key Content |
-|----------|----------|-------------|
-| Master Plan | `docs/[F]/00_MASTER_PLAN.md` | Requirements, architecture, reuse, tasks |
-| Reuse Audit | `docs/[F]/REUSE_AUDIT.md` | What to reuse/extend/create |
-| Component Arch | `docs/[F]/COMPONENT_ARCHITECTURE.md` | Tree, props, state, data flow |
-| Task Files | `docs/[F]/tasks/TASK_XX.md` | 30min-2.5hr units with TDD steps |
-| Wave Plans | `docs/[F]/waves/WAVE_XX.md` | Agent assignments + completion criteria |
-| Status | `docs/[F]/01_IMPLEMENTATION_STATUS.md` | All tasks "Not Started" |
-| Current Status | `docs/[F]/CURRENT_STATUS.md` | Snapshot for session continuity |
-| Integration Guide | `docs/[F]/FRONTEND_INTEGRATION_GUIDE.md` | Stub for dev usage docs |
-| Transition | `docs/[F]/prompt-transitions/document-to-build.md` | Bridge to BUILD phase |
-| MANIFEST | `docs/[F]/.dev/MANIFEST.md` | Updated with all artifact paths |
+| Writing docs inline instead of dispatching | Execute MUST dispatch subagents |
+| Tasks missing exact file paths | Every task needs create/modify/test/reuse paths |
+| Tasks outside 20min-2.5hr range | Split if too large, combine if too small |
+| Reuse audit skipped | Mandatory — dispatch Explore agent |
+| Cross-references broken | Review cohesion check catches this |
+| Wave plans missing completion criteria | Every wave needs type-check + lint + acceptance |
+| Task files lack TDD steps | Add: failing test > verify > implement > verify > commit |
+| execute-docs-manifest.md incomplete | Must list ALL files with paths and summaries |
+| Review auto-loops on failure | Surface to user — user decides next action |

@@ -2,9 +2,17 @@
 
 Standard checklists used by `/dev:validate`. Domain-triggered checklists only run when the corresponding domain tag is in the MANIFEST.
 
+## Contents
+- [Always-Run Checks](#always-run-checks-all-features)
+- [Validation Gates](#validation-gates)
+  - [Judge Scoring](#judge-scoring-user-opt-in)
+  - [Debate Mode](#debate-mode-on-request)
+- [Domain-Triggered Checklists](#domain-triggered-checklists)
+- [Post-Development Audit](#post-development-audit-absorbed-from-post_development_audit_template)
+
 ---
 
-## Always-Run Checks (All Tiers)
+## Always-Run Checks (All Features)
 
 ### 1. Type-Check + Lint
 ```bash
@@ -63,9 +71,9 @@ curl -s -H "Authorization: Bearer $TOKEN" "$API_BASE_URL/api/v1/endpoint" | pyth
 
 ---
 
-## Tier-Driven Checks
+## Validation Gates
 
-### Judge Scoring (COMBINATION + NOVEL)
+### Judge Scoring (User Opt-In)
 
 5-criterion rubric. **Default score is 2.** Justify any score above 2.
 
@@ -81,7 +89,7 @@ curl -s -H "Authorization: Bearer $TOKEN" "$API_BASE_URL/api/v1/endpoint" | pyth
 - Weighted total < 4.0 → FAIL (list specific issues)
 - After 3 failed attempts → escalate to user (matches BUILD 3-strikes rule)
 
-### Debate Mode (NOVEL only)
+### Debate Mode (On Request)
 
 3 independent judges evaluate in parallel:
 - Judge 1: Focus on CORRECTNESS and edge cases

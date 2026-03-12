@@ -1,357 +1,473 @@
 ---
 name: build
-description: Use when executing approved wave execution plans to build a feature with tier-driven subagent dispatch and auto-escalation. Triggers on dev-pipeline-backend:build or pipeline advancement past DOCUMENT.
+description: Executes implementation tasks wave-by-wave for a backend feature. Runs the 4-stage inner loop per wave with backend-specific agents, RSpec verification, and dual-database migration handling. Triggers on dev-pipeline-backend:build or when /dev router advances past DOCUMENT.
 ---
 
-# dev-pipeline-backend:build — Execute the Plan
+# /dev:build — Wave-by-Wave Implementation
 
-## Purpose
+Execute implementation tasks wave by wave. Each wave runs its own full 4-stage inner loop: Discuss, Architect, Execute, Review. Subagents are dispatched for every task — the orchestrator never builds inline.
 
-Execute wave execution plans task-by-task. Tier drives execution strategy (sequential, wave-parallel, or expert-team waves). Auto-escalate failures through self-fix → /investigate → 3-strikes pause.
+## Inner Loop (Per Wave)
 
-## Phase Pattern: RESEARCH > EXECUTE (per wave) > DOCUMENT (per task) > GATE
+```
+For each wave (wave-01, wave-02, ..., wave-NN):
+
+  ┌─► Discuss → Architect → Execute → Review ─┐
+  │                                             │
+  │   checkpoint-state, optional /clear         │
+  │                                             │
+  └──────── next wave ◄────────────────────────┘
+
+After final wave: Review bridges to VALIDATE
+```
+
+The inner loop runs ONCE PER WAVE, not once for the entire phase. This is decision D14 from the inner loop reference. Each wave gets its own subdirectory under `.dev/build/wave-NN/`.
 
 ---
 
-## RESEARCH (Per Wave)
+## Stage 1: Discuss — Implementation Path (Per Wave)
 
-Before each wave:
+**MANDATORY: Load Requirements Context**
 
-### 0. Validate Entry + Read Context (MANDATORY)
+Before starting any wave, load `requirements.md` from the feature docs directory. This is the hard contract defining "done" — every build task must work toward satisfying these requirements. Pass relevant requirement IDs to build agents so they know what they're building toward.
+
+### Entry Validation
 
 ```bash
-node ${PLUGIN_ROOT}/../shared/tools/dev-pipeline-tools.js validate-entry build docs/[feature] --plugin backend
+node ${PLUGIN_ROOT}/../shared/tools/dev-pipeline-tools.js validate-stage-entry build discuss <feature-dir> --plugin backend --wave N
 ```
 
-If PASS and this is the FIRST BUILD session (no waves completed yet):
+If FAIL, fix missing prerequisites before proceeding.
+
+### Context Reading
+
+**First wave only:** Read `.dev/document/review-documentation-quality.md` (context bridge from DOCUMENT). If missing, read MANIFEST + wave plans to reconstruct context.
+
+**All waves:** Read before starting each wave.
+
+| File | Extract |
+|------|---------|
+| `.dev/MANIFEST.md` | Current wave, completed tasks, domains, decision log |
+| `waves/WAVE_NN.md` | Tasks, agent assignments, dependencies, completion criteria |
+| `01_IMPLEMENTATION_STATUS.md` | What is already done |
+| Previous wave's `review-code-quality.md` | Issues, deviations, lessons (skip for wave-01) |
+
+### Questioning
+
+Use `AskUserQuestion` for every question. One question at a time. No cap — user says "enough" to proceed.
+
+**WHAT questions** — the work itself:
+
+- Implementation approach for the tasks in this wave
+- Test strategy (TDD strict, tests after, skip for now)
+- Migration strategy (data backfills, zero-downtime concerns)
+- Service layer design (new services vs extending existing ones)
+- Known gotchas from previous waves or codebase
+
+**HOW meta-questions** — execution strategy:
+
+- "Parallel or sequential agents for this wave?"
+- "Code review between individual tasks or end of wave?"
+- "TDD strict or flexible for this wave?"
+- "Session break after this wave or continue?"
+- "Security review needed for this wave? (recommended if auth/payments touched)"
+
+**Optional research pre-step:** User can request codebase exploration before continuing. Dispatch an Explore agent, then resume questioning with findings.
+
+### Artifact
+
 ```
-Read: docs/[feature]/prompt-transitions/build.md
-  → Feature summary, tier, decision log, agent assignments, codebase state assumptions
-  → If file missing: read MANIFEST decisions + design doc to reconstruct context
+.dev/build/wave-NN/discuss-implementation-path.md
 ```
 
-If resuming after wave break: read MANIFEST + CURRENT_STATUS.md instead.
+Captures: all Q&A, locked decisions for this wave, execution preferences.
 
-### 1. Read Wave Execution Plan
+```bash
+node ${PLUGIN_ROOT}/../shared/tools/dev-pipeline-tools.js validate-stage-output build discuss <feature-dir> --plugin backend --wave N
 ```
-Read: docs/[feature]/tasks/WAVE_[N]_PLAN.md
-  → Tasks, agents, steps, completion criteria
-```
-
-### 2. Read MANIFEST
-```
-Read: docs/[feature]/.dev/MANIFEST.md
-  → Current wave, build progress, acceptance criteria
-```
-
-### 3. Verify Previous Wave (if not Wave 1)
-- Run `bundle exec rspec` — confirm tests still pass
-- Check previous wave's completion criteria are met
-- Verify no regressions from previous wave's changes
-
-### 4. Check Codebase State
-- Verify assumptions from PLAN still hold (files exist, no conflicting changes)
-- Read task files for this wave
 
 ---
 
-## EXECUTE (Tier-Driven)
+## Stage 2: Architect — Subagent Prompts (Per Wave)
 
-**Default execution strategy:** COMBINATION (wave-based parallel). Override based on MANIFEST tier:
+### Entry Validation
 
-### KNOWN Tier — Sequential Execution
-
-```
-Task 1 → single subagent → /verify (quick) →
-Task 2 → single subagent → /verify (quick) →
-Task N → single subagent → /verify (quick) → wave done
+```bash
+node ${PLUGIN_ROOT}/../shared/tools/dev-pipeline-tools.js validate-stage-entry build architect <feature-dir> --plugin backend --wave N
 ```
 
-One task at a time. Simple, predictable.
+### Prompt Crafting (MANDATORY)
 
-### COMBINATION Tier — Wave-Based Parallel
+Use `/prompt-generator` to craft EVERY subagent prompt. No exceptions. Prompt quality determines build quality.
+
+For each task in this wave, define:
+
+| Field | Description |
+|-------|-------------|
+| **Agent type** | From BUILD Agent Map (see below) |
+| **Prompt** | Crafted via `/prompt-generator` |
+| **File paths** | Exact files to create/modify/test |
+| **Codebase context block** | Relevant architecture, patterns, existing code references |
+| **Success criteria** | What the subagent output must contain and pass |
+| **Escalation rules** | What happens if the task fails |
+
+### Execution Plan
+
+Define execution order based on Discuss decisions: **parallel** (independent tasks in a single message), **sequential** (dependent tasks wait for predecessors), or **hybrid**.
+
+### Codebase Context Block
+
+Every subagent prompt MUST include: architecture decisions from MANIFEST, relevant file paths and patterns, backend coding rules (service layer in `app/services/`, dual auth system, `archived_at` soft deletes, UUID primary keys), and Thoven-specific constraints if applicable.
+
+### Migration Planning
+
+For waves with migration tasks: integrate `/safe-migrate` into the subagent prompt, define dual-database execution order (dev first, then production), specify rollback strategy, and flag zero-downtime concerns.
+
+### Security Planning
+
+When MANIFEST domains include `auth`, `payments`, `student_data`, or `coppa`: add `security-engineer` dispatch, include `/security-review` in auth-touching task prompts, and define security acceptance criteria (no mass assignment, proper authorization, COPPA compliance).
+
+### Artifact
 
 ```
-Wave 1: [Task 1, Task 2, Task 3] → parallel subagents → /verify wave →
-Wave 2: [Task 4, Task 5]         → parallel subagents → /verify wave →
-Wave N: ...                       → done
+.dev/build/wave-NN/architect-subagent-prompts.md
 ```
 
-Use `superpowers:dispatching-parallel-agents` for parallel dispatch within waves.
+Contains: all subagent assignments, prompts, execution order, success criteria, escalation rules.
 
-### NOVEL Tier — Expert-Team Wave Execution
-
-```
-Wave 1: [tasks] → /expert-team Execution mode → /verify wave + code review →
-Wave 2: [tasks] → /expert-team Execution mode → /verify wave + code review →
-Wave N: → done
+```bash
+node ${PLUGIN_ROOT}/../shared/tools/dev-pipeline-tools.js validate-stage-output build architect <feature-dir> --plugin backend --wave N
 ```
 
-Expert-team provides senior-level implementation with built-in review.
+---
 
-### Per-Task Execution Pattern
+## Stage 3: Execute — Build Tasks (Per Wave)
 
-For each task, regardless of tier:
+### Entry Validation
 
-**1. Read task context:**
-```
-Read: docs/[feature]/tasks/TASK_[XX]_[name].md
-  → Implementation details, decision references, files to create/modify
+```bash
+node ${PLUGIN_ROOT}/../shared/tools/dev-pipeline-tools.js validate-stage-entry build execute <feature-dir> --plugin backend --wave N
 ```
 
-**2. Dispatch subagent with task-specific prompt:**
-```
-subagent:
-  subagent_type: [from wave execution plan — e.g., "rails-expert"]
-  description: "Execute TASK_[XX]: [name]"
-  prompt: |
-    Execute this task from the [feature] feature:
+**MANDATORY: Pass must_haves to Build Agents**
 
-    TASK: [task description from task file]
-    DECISION REFERENCES: [D01, D03 — include full reasoning]
-    FILES TO CREATE: [list]
-    FILES TO MODIFY: [list]
-    COMPLETION CRITERIA: [from task file]
+When crafting the subagent prompt for Execute, include:
+1. The `must_haves` block from the current wave file (truths, artifacts, key_links)
+2. The requirement IDs this wave covers (from traceability table in requirements.md)
+3. This instruction: "Your implementation is verified against these must_haves. Stubs, placeholders, and TODO comments will be flagged as failures. Every truth must be demonstrably true in the code you write. RSpec specs must exist for every testable requirement."
 
-    APPROACH:
-    - Follow test-driven development (write test first, then implementation)
-    - Use existing codebase patterns (check app/services/, app/models/, app/controllers/)
-    - Reference decision log for architectural choices
+### Dispatch Rules
 
-    CODEBASE CONTEXT:
-    [Standard Thoven context block — see references/codebase-context-block.md for the standard Thoven context block]
+**MANDATORY:** Dispatch subagents for every task. The orchestrator NEVER executes work inline (decision D03).
 
-    When done, update the task file with "What Was Actually Implemented" section.
-```
+For each task: dispatch via Agent tool, wait for completion, check against success criteria, log result (pass/fail, files changed, deviations).
 
-**3. Auto-invoke tools based on task type:**
+**Parallel dispatch:** If Architect marked tasks as independent, dispatch ALL in a SINGLE message using multiple Agent tool calls.
+
+**Failure handling:** Log the failure, continue dispatching remaining tasks, surface ALL failures in Review. Retries happen after Review via 3-strike escalation.
+
+### Auto-Invoke Tools by Task Type
 
 | Task Type | Auto-Invoke | When |
 |-----------|-------------|------|
 | Migration | `/safe-migrate` | BEFORE running migration |
-| Model/Service/Controller | `superpowers:test-driven-development` | Test first, implement second |
-| Email/Mailer | `/email` | Mailer creation |
-| Background Job | Check `BACKGROUND_JOBS.md` | Job conventions |
+| Mailer | `/email` | Mailer creation or modification |
+| Background Job | Read `.claude/docs/BACKGROUND_JOBS.md` | Job conventions and queue assignment |
+| Auth/Security | `/security-review` | Tasks touching authentication or authorization |
 
-**4. Review execution checkpoints:**
-- Use `superpowers:executing-plans` for review checkpoints during wave execution
-- Compare actual progress against wave execution plan expectations
+### Migration Execution (Dual Database)
 
-**5. Verify task:**
-- Run `/verify` (quick mode) after each task
-- If tests fail → enter error handling (below)
-
-### Error Handling — Auto-Escalation
-
-```
-Subagent executes task
-  │
-  ├─ Tests pass? → Continue to next task
-  │
-  └─ Tests fail?
-     │
-     ├─ Simple error (typo, import, syntax, missing require)?
-     │   → Subagent self-fixes (1 retry max)
-     │   → Run tests again
-     │   → If pass: continue
-     │   → If fail: escalate
-     │
-     └─ Complex error (logic, integration, state, race condition)?
-         → Auto-invoke /investigate
-         │   - Bug type: classify per /investigate table
-         │   - Launch appropriate agents
-         │   - Wait for diagnostic report
-         │   - Implement approved fix
-         │
-         ├─ /investigate fixes it
-         │   → Resume BUILD from current task
-         │
-         └─ 3 strikes (3 failed fix attempts across this task)?
-             → dev-pipeline-backend:pause
-             → Surface to user:
-               "BUILD blocked on TASK_[XX]: [error summary]"
-               "Investigated 3 times, likely architectural"
-               Options:
-                 1. Review & guide fix manually
-                 2. Revise plan (go back to dev-pipeline-backend:plan)
-                 3. Pause feature entirely
-```
-
-### Between Waves
-
-After all tasks in a wave complete:
-
-1. Run `/verify` (standard mode — tests + docs sync)
-2. Check wave completion criteria from wave execution plan
-3. Update `01_IMPLEMENTATION_STATUS.md`
-4. Update MANIFEST progress:
-   ```
-   build_progress: "Wave 2 of 3 complete"
-   current_wave: 3
-   tests_passing: true
-   ```
-
-### Wave Breaks (COMBINATION / NOVEL Tier)
-
-For COMBINATION and NOVEL tier features, take a wave break after every 3 waves:
-
-```
---- Wave Break ---
-
-Waves 1-3 complete. Pausing for context refresh.
-
-Completed: [summary of waves 1-3]
-Next: Wave 4 — [title]
-
-Save progress and /clear → resume with dev-pipeline-backend:build
-```
-
-**Before /clear, verify state (MANDATORY):**
+When a task includes database migrations, always migrate dev first, then production:
 
 ```bash
-node ${PLUGIN_ROOT}/../shared/tools/dev-pipeline-tools.js checkpoint-state docs/[feature] --scope wave --plugin backend
+rails db:migrate                          # Development (helium)
+rails db:migrate:status                   # Verify dev
+RAILS_ENV=production rails db:migrate    # Production (Neon)
+RAILS_ENV=production rails db:migrate:status  # Verify production
 ```
 
-If FAIL → fix listed issues before clearing context.
+Both databases MUST be in sync before marking the task complete. If production migration fails, log the failure and surface in Review — do NOT rollback without user approval.
 
-KNOWN tier can continue without wave breaks.
+### Result Recording
 
-### Tech Debt Tracking
+For each completed subagent, record: files created/modified (exact paths), test results, migration status (both databases), deviations from plan, escalations triggered.
 
-When any task reveals technical debt during development:
-- Invoke `/tech-debt` to log the debt with context
-- Note the tech debt item in the task file's "What Was Actually Implemented" section
-- Track count for the gate report
-
-### End of BUILD (All Waves Complete)
-
-1. Run `/verify` (full mode — tests + docs sync + stub check)
-2. Launch `code-simplifier` agent to review ALL changed files
-3. Update task actuals in each task file
-4. Check custom BUILD acceptance criteria from MANIFEST
-
----
-
-## DOCUMENT (Auto-Update After Each Task)
-
-After EVERY task completion, update these files:
-
-### 1. Task File
-```markdown
-## Status: ✅ Complete
-## Actual Duration: [X hours]
-
-## What Was Actually Implemented
-- [What the subagent actually built]
-- [Any deviations from plan and why]
-- [Files created/modified with brief description]
-```
-
-### 2. Implementation Status (`01_IMPLEMENTATION_STATUS.md`)
-Update the status table row for this task.
-
-### 3. MANIFEST
-```
-build_progress: "TASK_[XX] complete, [Y] of [Z] tasks done"
-current_wave: [N]
-tests_passing: [true/false]
-```
-
-### 4. CURRENT_STATUS.md
-```
-Current phase: BUILD
-Last completed: TASK_[XX] — [name]
-Next: TASK_[YY] — [name]
-Blockers: [none or description]
-```
-
----
-
-## GATE
-
-After all waves complete and end-of-BUILD checks pass:
+### Artifact
 
 ```
-PHASE GATE: BUILD
-
-Tasks Completed: [X] of [Y]
-Waves Completed: [N] of [M]
-Test Results: [XXX examples, 0 failures]
-Code Simplifier: [findings summary or "No issues"]
-
-BUILD Acceptance Criteria:
-  ✅ [criterion 1]
-  ✅ [criterion 2]
-  ✅ [criterion 3]
-  [or ❌ with explanation]
-
-Deviations from Plan:
-  - [Any changes made during BUILD with reasoning]
-
-Tech Debt Logged: [count] items (if any)
-
-Next phase: VALIDATE
-
-Options:
-  1. Approve → advance to VALIDATE
-  2. Revise → address issues
-  3. Pause → dev-pipeline-backend:pause
+.dev/build/wave-NN/execute-build-results.md
 ```
 
----
-
-## TRANSITION
-
-On approval:
-
-1. Invoke `/prompt-generator` → create VALIDATE phase prompt
-2. Save to `docs/[feature]/prompt-transitions/validate.md`
-3. Contents MUST include:
-   - Feature summary and what was built
-   - All changed files (from task actuals)
-   - Test results
-   - VALIDATE acceptance criteria from MANIFEST
-   - Domains touched (for conditional security review)
-   - Deviations from plan (for reviewer context)
-   - Known tech debt (from BUILD)
-4. End session.
-
-5. **Verify transition (MANDATORY):**
+Contains: per-task results, files changed, migration status, deviations, failures.
 
 ```bash
-node ${PLUGIN_ROOT}/../shared/tools/dev-pipeline-tools.js validate-transition build docs/[feature] --plugin backend
+node ${PLUGIN_ROOT}/../shared/tools/dev-pipeline-tools.js validate-stage-output build execute <feature-dir> --plugin backend --wave N
 ```
-
-If FAIL → Re-invoke `/prompt-generator` with the listed missing fields.
-
-6. **Verify MANIFEST (MANDATORY):**
-
-```bash
-node ${PLUGIN_ROOT}/../shared/tools/dev-pipeline-tools.js validate-manifest docs/[feature] --plugin backend
-```
-
-If FAIL → Update MANIFEST before ending session.
 
 ---
 
-▶ Next Up
+## Stage 4: Review — Code Quality (Per Wave)
 
-Phase: VALIDATE — Verify everything before ship
+### Entry Validation
+
+```bash
+node ${PLUGIN_ROOT}/../shared/tools/dev-pipeline-tools.js validate-stage-entry build review <feature-dir> --plugin backend --wave N
+```
+
+### Mandatory Checks (Every Wave)
+
+These run regardless of user preferences from Discuss:
+
+```bash
+bundle exec rspec
+```
+
+RSpec MUST pass. If it fails, treat as a simple error — self-fix with one retry before escalating.
+
+### Migration Verification (When Applicable)
+
+If this wave included migrations, verify both databases show all migrations as "up". Any discrepancy is a blocking issue.
+
+### Validation Tool
+
+```bash
+node ${PLUGIN_ROOT}/../shared/tools/dev-pipeline-tools.js validate-stage-output build review <feature-dir> --plugin backend --wave N
+```
+
+### Optional Checks (User Decides in Discuss)
+
+Based on HOW answers from Discuss, optionally run:
+
+| Check | Agent | When |
+|-------|-------|------|
+| Code review | `code-reviewer` | User opted for end-of-wave review |
+| Security audit | `security-engineer` | MANIFEST domains include `auth`, `payments`, `student_data`, `coppa` |
+| N+1 query check | `performance-engineer` | Wave added new Active Record queries or associations |
+| Test coverage assessment | `rails-expert` | User opted for coverage check |
+
+### N+1 Query Prevention
+
+Review ALL new controller actions and service methods for N+1 queries: missing `includes`/`eager_load`/`preload`, queries inside loops, scopes without eager loading. Any N+1 found is a blocking issue.
+
+### Verification Checklist
+
+Verify every wave: files match Architect plan, all tasks completed or failures logged, RSpec passes, no N+1 queries in new code, migrations applied on both databases, deviations documented.
+
+**must_haves Verification (MANDATORY):**
+
+- [ ] Wave's `must_haves` truths are satisfied by the implementation
+- [ ] All artifacts listed in must_haves exist and are substantive (not stubs)
+- [ ] Key links in must_haves are wired (controller→service→model connections verified)
+- [ ] RSpec specs exist for testable requirements in this wave
+- [ ] Requirement IDs for this wave are on track to be satisfied
+
+### Surfacing Gaps
+
+Use `AskUserQuestion` to present: task summary, failures/deviations, RSpec results, migration verification results, optional check results, recommendations for next wave.
+
+### User Decision (No Auto-Looping — D08)
+
+User picks one:
+
+| Option | When to Use |
+|--------|-------------|
+| **Accept wave** | All checks pass, output is satisfactory |
+| **Retry Execute** | Re-dispatch failed tasks with adjusted prompts |
+| **Back to Architect** | Redesign subagent prompts for this wave |
+| **Back to Discuss** | Revisit implementation approach for this wave |
+
+### Artifact
+
+```
+.dev/build/wave-NN/review-code-quality.md
+```
+
+Contains: check results, verdicts, deviations, user decision. For the final wave, this artifact IS the context bridge to VALIDATE.
+
+---
+
+## Between Waves
+
+After a wave is accepted and before starting the next:
+
+### 1. Checkpoint State (MANDATORY)
+
+```bash
+node ${PLUGIN_ROOT}/../shared/tools/dev-pipeline-tools.js checkpoint-state <feature-dir> --scope wave --plugin backend
+```
+
+If FAIL, fix listed issues before proceeding.
+
+### 2. Update Tracking Files
+
+| File | Update |
+|------|--------|
+| **MANIFEST** | `current_wave`, `build_progress`, task completion status, strike count |
+| **01_IMPLEMENTATION_STATUS.md** | Mark completed tasks, note deviations |
+| **CURRENT_STATUS.md** | Current wave, what is done, what remains |
+
+### 3. Session Break (Recommended)
+
+Recommend `/clear` between waves for fresh context (especially after 3+ waves or complex escalations). Next session resumes from MANIFEST via `/dev`.
+
+---
+
+## After Final Wave
+
+When the last wave's Review is accepted:
+
+### 1. Final Checkpoint
+
+```bash
+node ${PLUGIN_ROOT}/../shared/tools/dev-pipeline-tools.js checkpoint-state <feature-dir> --scope phase --plugin backend
+```
+
+### 2. Validate MANIFEST
+
+```bash
+node ${PLUGIN_ROOT}/../shared/tools/dev-pipeline-tools.js validate-manifest <feature-dir> --plugin backend
+```
+
+If FAIL, update MANIFEST before ending.
+
+### 3. Context Bridge
+
+The final wave's `review-code-quality.md` serves as the context bridge to VALIDATE. It must contain: summary of all waves, cumulative deviations, files created/modified, migration history (both databases), outstanding issues, and recommended validation focus areas.
+
+### 4. Transition
+
+Display and STOP:
+
+```
+---
+
+### Next Up
+
+Phase: VALIDATE — RSpec full suite, security audit, domain checks
 
 `dev-pipeline-backend:validate`
 
-/clear first → fresh context window
+/clear first -> fresh context window
+```
+
+State persists to disk (MANIFEST + stage artifacts). Nothing is lost on `/clear`.
+
+**STOP.** Do not invoke VALIDATE.
+
+---
+
+## BUILD Agent Map
+
+| Task Type | Agent | Skills |
+|-----------|-------|--------|
+| Models/migrations | `master-backend-ai-rails` | `/safe-migrate` |
+| Controllers/routes | `rails-expert` | -- |
+| Services | `rails-expert` or `backend-service-developer` | -- |
+| Auth/security | `security-engineer` | `/security-review` |
+| Background jobs | `rails-expert` | -- |
+| Mailers | `rails-expert` | `/email` |
+| API design | `api-designer` | -- |
+| Tests (RSpec) | `rails-expert` or `test-automator` | -- |
+| Complex bugs | `bug-hunter` | `/investigate` |
+| Performance | `performance-engineer` | -- |
+
+Select agent during Architect based on task type. When a task spans multiple types, use the primary type's agent and include secondary concerns in the prompt.
+
+---
+
+## Error Escalation (3-Strike Rule)
+
+Track strikes PER FEATURE, not per task. Strikes persist across waves.
+
+```
+Task fails in Review
+  |
+  +-- Strike 1: Retry with adjusted prompt
+  |     Adjust the subagent prompt based on failure analysis.
+  |     Dispatch same agent type with refined instructions.
+  |
+  +-- Strike 2: Dispatch bug-hunter for investigation
+  |     Agent: bug-hunter
+  |     Prompt: Include exact error, files changed, task context.
+  |     Synthesize findings, apply fix with different strategy.
+  |
+  +-- Strike 3: STOP. Present all 3 attempts and why each failed.
+        Offer options to user:
+          1. Guide fix manually — user provides direction
+          2. Revise plan — return to PLAN phase
+          3. Pause feature entirely — invoke /dev:pause
+```
+
+Do NOT attempt a 4th fix without explicit user direction. Each retry MUST use a different strategy.
+
+### Investigation Prompt Template (Strike 2)
+
+```
+Investigate BUILD failure in Thoven backend:
+TASK: [task name]  ERROR: [exact output]  FILES CHANGED: [list]
+PREVIOUS ATTEMPT: [what was tried in strike 1 and why it failed]
+
+1. Root cause with file:line references
+2. New code vs pre-existing issue
+3. Two fix approaches with trade-offs — recommend one
+
+CODEBASE: Rails 7.2.2 API-only, PostgreSQL/UUIDs, dual auth, service layer, Solid Queue, RSpec
+```
+
+---
+
+## Directory Structure
+
+```
+docs/[Feature]/.dev/build/
+├── wave-01/
+│   ├── discuss-implementation-path.md
+│   ├── architect-subagent-prompts.md
+│   ├── execute-build-results.md
+│   └── review-code-quality.md
+├── wave-02/
+│   └── ...
+└── wave-NN/
+    └── ...
+```
 
 ---
 
 ## Common Mistakes
 
-| Mistake | Fix |
-|---------|-----|
-| Skipping TDD for "simple" tasks | ALL model/service/controller tasks use TDD |
-| Running migration without /safe-migrate | EVERY migration goes through /safe-migrate |
-| Not updating docs after each task | Auto-update is MANDATORY — 4 files per task |
-| Retrying failed task more than once before escalating | 1 self-fix retry, then /investigate |
-| Using expert-team for KNOWN/COMBINATION tier | Expert-team execution only for NOVEL tier |
-| Skipping between-wave verification | ALWAYS run /verify between waves |
-| Ignoring code-simplifier findings | Review and address before gate |
+| Mistake | Prevention |
+|---------|------------|
+| Running inner loop once for all waves | Inner loop runs PER WAVE — each wave gets Discuss/Architect/Execute/Review |
+| Executing tasks inline instead of dispatching | MUST dispatch subagents for every task — orchestrator never builds |
+| Skipping RSpec in Review | MANDATORY for every wave, regardless of user preferences |
+| Running migration on one database only | ALWAYS run on both helium (dev) and Neon (production) |
+| Not running `/safe-migrate` before migrations | EVERY migration goes through `/safe-migrate` first |
+| Not checkpointing between waves | Always run `checkpoint-state` before `/clear` or starting next wave |
+| Skipping `/prompt-generator` in Architect | MANDATORY for every subagent prompt — no shortcuts |
+| Repeating same fix strategy on strike 2-3 | Each retry must use a DIFFERENT approach |
+| Continuing after 3 strikes | STOP and present options — likely an architectural issue |
+| Not updating tracking files between waves | Update MANIFEST, IMPLEMENTATION_STATUS, CURRENT_STATUS after every wave |
+| Forgetting previous wave context | Read prior wave's `review-code-quality.md` in Discuss |
+| Final wave missing bridge content | Last review must contain cumulative summary for VALIDATE |
+| Introducing N+1 queries | Check every new AR query for eager loading in Review |
+| Skipping security check on auth/payments | Dispatch `security-engineer` whenever sensitive domains are touched |
+
+---
+
+## Quick Reference
+
+| Item | Location / Value |
+|------|-----------------|
+| Wave artifacts | `.dev/build/wave-NN/{discuss,architect,execute,review}-*.md` |
+| Entry validation | `validate-stage-entry build discuss <dir> --plugin backend --wave N` |
+| Output validation | `validate-stage-output build review <dir> --plugin backend --wave N` |
+| Checkpoint | `checkpoint-state <dir> --scope wave --plugin backend` |
+| Context bridge IN | `.dev/document/review-documentation-quality.md` (first wave only) |
+| Context bridge OUT | Final wave's `.dev/build/wave-NN/review-code-quality.md` |
+| Strike tracking | Per feature, persists across waves, resets never |
+| Agent selection | BUILD Agent Map table above |
+| Prompt crafting | `/prompt-generator` — mandatory for every subagent |
+| RSpec command | `bundle exec rspec` — mandatory every wave |
+| Dev migration | `rails db:migrate` |
+| Prod migration | `RAILS_ENV=production rails db:migrate` |
+| Next phase | VALIDATE (`dev-pipeline-backend:validate`) |

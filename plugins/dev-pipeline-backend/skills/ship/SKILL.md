@@ -1,164 +1,269 @@
 ---
 name: ship
-description: Use when shipping a validated feature to production via the /publish workflow. Final phase of the dev-pipeline-backend pipeline. Triggers on dev-pipeline-backend:ship or pipeline advancement past VALIDATE or HANDOVER.
+description: Ships a validated backend feature — handles changelog, commit, dual-database migration verification, and deployment reminders. Terminal phase. Triggers on dev-pipeline-backend:ship or when /dev router advances past VALIDATE.
 ---
 
-# dev-pipeline-backend:ship — Publish to Production
+# /dev:ship — Changelog + Commit + Deploy Reminder
 
-## Purpose
+Terminal phase of the /dev pipeline. Takes a validated backend feature through changelog update, commit creation, dual-database verification, and deployment guidance. Pipeline is COMPLETE after SHIP — there is no next phase.
 
-Ship the validated feature to production. Invokes `/publish` skill for the full publish workflow. Updates MANIFEST to mark feature as complete.
-
-## Phase Pattern: RESEARCH > EXECUTE > DOCUMENT > GATE
+## Inner Loop: Discuss > Architect > Execute > Review
 
 ---
 
-## RESEARCH
+## Stage 1: Discuss — Release Scope
 
-### 0. Validate Entry (MANDATORY)
+**Tool:** `validate-stage-entry ship discuss <feature-dir> --plugin backend`
+
+### Context Bridge
+
+Read `.dev/validate/review-ship-readiness.md` for validation results and caveats.
+
+### WHAT Questions (AskUserQuestion, one at a time)
+
+- Publish to production or staging only?
+- Version bump type: major, minor, or patch?
+- Any last-minute file exclusions?
+- Did this feature include database migrations?
+- Are there new environment variables required for production?
+- Deployment notes or special instructions (e.g., migration order, downtime window)?
+
+### HOW Meta-Questions
+
+- "Full changelog review or quick summary?"
+- "Want to review all staged files before commit?"
+- "Full dual-DB verification or quick migration status check?"
+
+No cap on questions. User says "enough" or "move on" to proceed.
+
+### Artifact: `.dev/ship/discuss-release-scope.md`
+
+All Q&A, locked decisions (publish vs staging, version bump, exclusions, migration status, env vars), user preferences.
+
+**Tool:** `validate-stage-output ship discuss <feature-dir> --plugin backend`
+
+---
+
+## Stage 2: Architect — Release Plan
+
+**MANDATORY:** Use `/prompt-generator` to craft the subagent prompt.
+
+### Define the Release Plan
+
+1. **Changelog entries** — categorized: Added, Changed, Fixed, Breaking Changes
+2. **Files to stage** — `git add -A` per solo dev convention
+3. **Commit message draft** — project convention:
+
+```
+<Title: Brief description>
+
+<Body: What changed and why>
+
+- Change 1
+- Change 2
+
+Publication Status: Published - YYYY-MM-DD HH:MM UTC  (or "Not Published")
+
+🤖 Generated with [Claude Code](https://claude.com/claude-code)
+Co-Authored-By: Claude <noreply@anthropic.com>
+```
+
+4. **Dual-database verification plan** — migration deployment order, sync checks
+5. **Environment variable checklist** — new vars needed, where to set them
+6. **Deployment checklist** — post-deploy verification steps
+7. **Security scan plan** — check for secrets, credentials, API keys before staging
+
+### Subagent Assignment
+
+| Field | Value |
+|-------|-------|
+| **Agent type** | Release executor |
+| **Prompt** | Crafted via `/prompt-generator` |
+| **Success criteria** | CHANGELOG updated, commit created, git status clean, no secrets staged, migrations verified on both DBs, env vars confirmed |
+| **Input context** | discuss-release-scope.md, MANIFEST.md, CHANGELOG.md, git diff |
+| **Execution order** | Sequential: security scan > dual-DB verify > env vars check > changelog > stage > commit > verify |
+
+### Artifact: `.dev/ship/architect-release-plan.md`
+
+Changelog entries, commit message draft, staging plan, dual-DB verification plan, env var checklist, deployment checklist, subagent prompt.
+
+**Tool:** `validate-stage-output ship architect <feature-dir> --plugin backend`
+
+---
+
+## Stage 3: Execute — Release Output
+
+**MANDATORY:** Dispatch subagent. Orchestrator NEVER executes inline.
+
+### 3a. Security Scan
+
+Before staging, check all changed files for `.env` files, API keys, tokens, credentials, private keys, or database passwords. If secrets found: STOP and surface to user.
+
+### 3b. Dual-Database Migration Verification
+
+If the feature includes migrations, verify both environments are in sync:
 
 ```bash
-node ${PLUGIN_ROOT}/../shared/tools/dev-pipeline-tools.js validate-entry ship docs/[feature] --plugin backend
+# Check development DB (helium)
+rails db:migrate:status
+
+# Check production DB (Neon)
+RAILS_ENV=production rails db:migrate:status
 ```
 
-If FAIL → read error output. Fix missing prerequisites before proceeding.
-If PASS → continue to step 1.
+**Both must show `up` for all feature migrations.** If any migration shows `down` in either environment: STOP and surface to user. Run `/safe-migrate` before continuing.
 
-### 1. Read Context
-```
-Read: docs/[feature]/.dev/MANIFEST.md → verify all prior phases complete
-Read: docs/[feature]/prompt-transitions/ship.md → context from VALIDATE/HANDOVER
-Read: CHANGELOG.md → check unreleased section
-```
+**If schema drift detected between environments:** STOP. Sync schemas before proceeding.
 
-### 2. Pre-Ship Verification
+### 3c. Environment Variable Verification
 
-Confirm all prerequisites:
-- [ ] VALIDATE phase gate approved
-- [ ] HANDOVER phase gate approved (if applicable, skip if backend-only)
-- [ ] All MANIFEST acceptance criteria met (BUILD, VALIDATE, HANDOVER)
-- [ ] Tests passing (`bundle exec rspec`)
-- [ ] No uncommitted changes related to the feature
+If the feature requires new environment variables, confirm each var is set in the production environment with correct, non-empty values. Document which vars were added and their purpose.
 
-### 3. Migration Sync Check
+### 3d. Update CHANGELOG.md
 
-If feature included migrations:
+**STAGING:** Add entries under `## [Unreleased] - Not Published`
+**PUBLISH:** Rename `[Unreleased]` to versioned heading `## [X.Y.Z] - YYYY-MM-DD - Published`, move entries under it.
+
+### 3e. Stage and Commit
+
 ```bash
-# Verify both environments have the migration
-bundle exec rails db:migrate:status
-RAILS_ENV=production bundle exec rails db:migrate:status
+git add -A
+
+git commit -m "$(cat <<'EOF'
+<Title: Brief description>
+
+<Body: What changed and why>
+
+- Change 1
+- Change 2
+
+Publication Status: Published - YYYY-MM-DD HH:MM UTC
+
+🤖 Generated with [Claude Code](https://claude.com/claude-code)
+Co-Authored-By: Claude <noreply@anthropic.com>
+EOF
+)"
 ```
 
-**If migration not applied in both environments:** STOP. Run `/safe-migrate` first.
+For staging commits, use `Publication Status: Not Published`.
 
-### 4. Schema Drift Check
+**NEVER amend previous commits. Always create NEW commits.**
 
-Verify local schema matches production to prevent Replit from generating destructive DDL:
-```bash
-# Compare latest migration version between local and production
-LOCAL_LATEST=$(psql "$DATABASE_URL" -t -c "SELECT version FROM schema_migrations ORDER BY version DESC LIMIT 1;" 2>/dev/null | tr -d ' ')
-PROD_LATEST=$(RAILS_ENV=production rails runner "puts ActiveRecord::Base.connection.execute('SELECT version FROM schema_migrations ORDER BY version DESC LIMIT 1').first['version']" 2>/dev/null | grep -E '^[0-9]+$')
+### 3f. Verify
 
-if [ "$LOCAL_LATEST" != "$PROD_LATEST" ]; then
-  echo "SCHEMA DRIFT DETECTED — run rails db:migrate locally before shipping"
-fi
-```
+Run `git status` and `git log --oneline -1` to confirm clean tree and commit hash.
 
-**If drift detected:** STOP. Sync schemas before proceeding.
+### Artifact: `.dev/ship/execute-release-output.md`
+
+Commit hash, changelog entry text, git status output, security scan results, dual-DB migration status (both environments), env var verification results, deployment notes.
+
+**Tool:** `validate-stage-output ship execute <feature-dir> --plugin backend`
 
 ---
 
-## EXECUTE
+## Stage 4: Review — Release Confirmation
 
-### Invoke /publish
+Check Execute output against Architect's success criteria with evidence-based pass/fail.
 
-Invoke the `/publish` skill, which handles:
-1. Find last published commit
-2. List all unpublished commits
-3. Verify CHANGELOG completeness
-4. **GATE:** User confirms changelog
-5. Determine version bump (ask user: patch/minor/major)
-6. Update CHANGELOG.md
-7. Run test suite
-8. Create publish commit
-9. Remind to deploy via Replit UI
+### Verification Checklist
 
-**Let /publish run its full workflow.** It has its own gates and checks.
+| Criterion | Evidence |
+|-----------|----------|
+| Commit exists | `git log --oneline -1` shows expected hash |
+| Changelog accurate | Diff matches planned entries |
+| No secrets staged | Security scan passed |
+| Git status clean | Working tree clean |
+| Commit format correct | Co-Authored-By present, Publication Status matches decision |
+| Migrations synced | Both dev and production show `up` for all feature migrations |
+| Env vars set | All required variables confirmed in production |
+
+### Present to User
+
+```
+Commit: <hash>
+Status: PUBLISHED / STAGED
+Version: <X.Y.Z if published>
+Changelog: <summary of entries>
+Migrations: Synced (dev + production) / No migrations
+Env Vars: All set / None required
+```
+
+### User Decision (AskUserQuestion)
+
+"Confirm deployment? Options: Confirm / Revise / Rollback"
+
+| Option | Action |
+|--------|--------|
+| **Confirm** | Update MANIFEST to COMPLETE, pipeline done |
+| **Revise** | Back to Architect — adjust changelog, commit, or verification |
+| **Rollback** | `git reset HEAD~1` — back to Discuss |
+
+### On Confirmation
+
+Update MANIFEST to COMPLETE with commit hash and version. Display deployment reminder.
+
+### Artifact: `.dev/ship/review-release-confirmation.md`
+
+Verification results, user decision, final commit hash, migration sync status, pipeline completion status.
+
+**Tool:** `validate-stage-output ship review <feature-dir> --plugin backend`
 
 ---
 
-## DOCUMENT
+## Deployment Reminder
 
-### 1. Final MANIFEST Update
+```
+## Deployment Reminder
 
-```markdown
-**Status:** Complete
-
-## Phase Progress
-| 7 | SHIP | ✅ | [started] | [now] | Approved |
-
-## Ship Details
-- Version: [X.Y.Z]
-- Published: [YYYY-MM-DD HH:MM UTC]
-- Changelog entry: [summary]
+- [ ] Verify migrations applied in production (`RAILS_ENV=production rails db:migrate:status`)
+- [ ] Confirm environment variables set in production
+- [ ] Check deployment logs for errors
+- [ ] Verify Solid Queue workers restarted (if job changes)
+- [ ] Smoke test critical API endpoints
+- [ ] Monitor error tracking for new issues
+- [ ] Verify at https://thoven.co/health after publishing
+- [ ] Update MANIFEST status to COMPLETE
 ```
 
-### 2. Update CURRENT_STATUS.md
-
-```markdown
-# [Feature Name] — COMPLETE
-
-**Status:** Feature Complete — Shipped
-**Version:** [X.Y.Z]
-**Published:** [date]
-
-All phases completed. See MANIFEST for full history.
-```
-
-### 3. Update 01_IMPLEMENTATION_STATUS.md
-
-Mark all tasks as complete with final status.
+For Replit-hosted projects: `git push` does NOT deploy. User must click **Publish** in the Replit Deployments tab.
 
 ---
 
-## GATE
+## Pipeline Complete
 
-`/publish` has its own approval gate (changelog completeness). After publish commit is created:
+After confirmation, display:
 
 ```
-PHASE GATE: SHIP
+/dev pipeline COMPLETE for [Feature Name].
 
-Feature: [name] — COMPLETE
-Version: [X.Y.Z]
-Publish Commit: [hash]
+Committed: [hash]
+Status: [STAGED / PUBLISHED]
+Version: [X.Y.Z if published]
+Migrations: [Synced / No migrations]
 
-Pipeline Summary:
-  INTAKE:    ✅ [date]
-  DISCOVER:  ✅ [date]
-  PLAN:      ✅ [date]
-  DOCUMENT:  ✅ [date]
-  BUILD:     ✅ [date]
-  VALIDATE:  ✅ [date]
-  HANDOVER:  ✅ [date] (or N/A)
-  SHIP:      ✅ [now]
-
-⚠️  NEXT STEP: Click "Publish" in the Replit UI to deploy.
-
-Remember:
-- git push does NOT deploy — it only backs up to GitHub
-- The Replit UI "Publish" button builds a new container
-- Verify at https://thoven.co/health after publishing
+Pipeline artifacts: docs/[Feature]/.dev/
 ```
 
-Pipeline complete. Feature shipped.
+**There is no "Next Up" block. The pipeline is done.**
+
+If STAGED: remind user they can publish later via the deployment UI.
 
 ---
 
-## Common Mistakes
+## Rules (Non-Negotiable)
 
-| Mistake | Fix |
-|---------|-----|
-| Shipping without VALIDATE approved | ALL prior gates must be approved |
-| Migrations not synced between environments | Check BOTH local and production before ship |
-| Telling user "it's deployed" | Only Replit UI deploys. Git push = backup only. |
-| Skipping /publish's own gates | Let /publish run completely — don't shortcut |
+- SHIP is the TERMINAL phase — no next phase, no "Next Up" block
+- MANIFEST updated to COMPLETE on successful confirmation
+- NEVER commit secrets — security scan is mandatory
+- NEVER amend previous commits — always create NEW commits
+- ALWAYS use HEREDOC for commit messages
+- ALWAYS include `Co-Authored-By: Claude <noreply@anthropic.com>`
+- ALWAYS update CHANGELOG.md before committing
+- ALWAYS verify migrations on BOTH databases before shipping
+- ALWAYS check environment variables are set in production
+- ALWAYS remind user about deployment after commit
+- Commit message follows project convention from CLAUDE.md
+- `git add -A` per solo developer convention
+- AskUserQuestion for every question — one at a time, no batching
+- Subagent dispatch in Execute — orchestrator never executes inline
+- `/prompt-generator` in Architect — mandatory

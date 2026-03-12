@@ -5,140 +5,102 @@ const fs = require("fs");
 const path = require("path");
 
 // --- Output Helpers (GSD pattern) ---
-
 function output(result, raw, rawValue) {
-  if (raw) {
-    process.stdout.write(String(rawValue));
-  } else {
-    process.stdout.write(JSON.stringify(result, null, 2) + "\n");
-  }
+  if (raw) process.stdout.write(String(rawValue));
+  else process.stdout.write(JSON.stringify(result, null, 2) + "\n");
   process.exit(0);
 }
-
-function error(msg) {
-  process.stderr.write(`ERROR: ${msg}\n`);
-  process.exit(1);
-}
+function error(msg) { process.stderr.write(`ERROR: ${msg}\n`); process.exit(1); }
 
 // --- File Utilities ---
+function safeReadFile(fp) { try { return fs.readFileSync(fp, "utf8"); } catch (_) { return null; } }
+function resolvePath(cwd, fp) { return path.isAbsolute(fp) ? fp : path.join(cwd, fp); }
+function fileExists(fp) { try { return fs.statSync(fp).isFile(); } catch (_) { return false; } }
+function dirExists(dp) { try { return fs.statSync(dp).isDirectory(); } catch (_) { return false; } }
 
-function safeReadFile(filePath) {
+function findArtifact(dirPath, prefix) {
   try {
-    return fs.readFileSync(filePath, "utf8");
-  } catch (_) {
-    return null;
-  }
+    const m = fs.readdirSync(dirPath).filter((f) => f.startsWith(prefix) && f.endsWith(".md"));
+    return m.length > 0 ? { name: m[0], path: path.join(dirPath, m[0]) } : null;
+  } catch (_) { return null; }
 }
 
-function resolvePath(cwd, filePath) {
-  return path.isAbsolute(filePath) ? filePath : path.join(cwd, filePath);
-}
-
-function fileExists(filePath) {
-  try {
-    return fs.statSync(filePath).isFile();
-  } catch (_) {
-    return false;
-  }
-}
-
-// --- Schema Definitions ---
-
-const BACKEND_TRANSITION_FILES = {
-  intake: { next: ["discover.md", "plan.md", "build.md", "handover.md"] },
-  discover: { next: ["plan.md"] },
-  plan: { next: ["document.md"] },
-  document: { next: ["build.md"] },
-  build: { next: ["validate.md"] },
-  validate: { next: ["handover.md", "ship.md"] },
-  handover: { next: ["ship.md"] },
-};
-
-const FRONTEND_TRANSITION_FILES = {
-  intake: { next: ["intake-to-discover.md", "intake-to-plan.md", "intake-to-design.md", "intake-to-build.md"] },
-  discover: { next: ["discover-to-plan.md"] },
-  plan: { next: ["plan-to-design.md", "plan-to-document.md"] },
-  design: { next: ["design-to-document.md"] },
-  document: { next: ["document-to-build.md"] },
-  build: { next: ["build-to-validate.md"] },
-  validate: { next: ["validate-to-ship.md"] },
-};
-
-const FIELD_PATTERNS = {
-  // Heading-anchored patterns (^#+ or key:) for collision-prone fields
-  feature_summary: /^#+\s*feature\s+summary|^feature[\s_]*name:|^##\s*summary/im,
-  tier: /^#+\s*tier|^\*?\*?tier\*?\*?[:\s]+\*?\*?(KNOWN|COMBINATION|NOVEL)/im,
-  domain_tags: /^#+\s*domain|^domains?:/im,
-  entry_mode: /^#+\s*entry\s+mode|^entry[\s_]*mode:/im,
-  manifest_path: /^#+\s*manifest|manifest[\s_]*path:|MANIFEST\.md/im,
-  specs_refs: /^#+\s*spec|^#+\s*reference|specs?[\s_]*(provided|attached)/im,
-  next_phase_instructions: /^#+\s*instruction|^#+\s*next\s+phase|instructions?\s+for\s+(the\s+)?next/im,
-  design_decisions: /^#+\s*design\s+decision|^#+\s*approach|approved\s+design/im,
-  models_identified: /^#+\s*model|models?\s+(and\s+)?domains?\s+identified/im,
-  open_questions: /^#+\s*open\s+question|questions?\s+for\s+(PLAN|research)/im,
-  agent_assignments: /^#+\s*agent|agents?\s+to\s+dispatch|agent[\s_]*assign/im,
-  reference_paths: /^#+\s*reference\s+path|^#+\s*artifact|reference[\s_]*paths?:/im,
-  decision_log: /^#+\s*decision\s+log|^#+\s*decisions?\b|D0[1-9]/im,
-  wave_groupings: /^#+\s*wave\s+group|^#+\s*wave\s+[0-9]|wave[\s_]*grouping/im,
-  acceptance_criteria: /^#+\s*acceptance\s+criteria|acceptance[\s_]*criteria/im,
-  design_doc_path: /^#+\s*design\s+doc|design[\s_]*doc[\s_]*path/im,
-  files_hints: /files?\s+to\s+(create|modify)|file[\s_]*hint/im,
-  wave_plan_paths: /wave[\s_]*(execution\s+)?plan[\s_]*path|WAVE_\d+/im,
-  task_paths: /task[\s_]*path|task[\s_]*file|TASK_\d+/im,
-  codebase_assumptions: /codebase[\s_]*state|codebase[\s_]*assumption/im,
-  changed_files: /^#+\s*changed?\s+files?|files?\s+(changed|modified)/im,
-  test_results: /^#+\s*test\s+result|test[\s_]*results?:/im,
-  domains_touched: /^#+\s*domain.*touch|domains?\s+touched/im,
-  deviations: /^#+\s*deviation|deviations?\s+from\s+plan/im,
-  tech_debt: /^#+\s*tech[\s_]*debt|known[\s_]*tech[\s_]*debt/im,
-  validation_results: /^#+\s*validation\s+result|validation[\s_]*results?:/im,
-  warnings: /^#+\s*warning|^#+\s*caveat|warnings?\s+or\s+caveats?/im,
-  validation_status: /^#+\s*validation\s+status|validation[\s_]*status:/im,
-  handover_status: /^#+\s*handover\s+status|handover[\s_]*status:/im,
-  changelog_hints: /^#+\s*changelog|changelog[\s_]*hint/im,
-  reuse_findings: /^#+\s*reuse|reuse[\s_]*(audit|finding)/im,
-  dedup_decision: /^#+\s*dedup|deduplication[\s_]*decision/im,
-  component_inventory: /^#+\s*component\s+inventory|component[\s_]*inventory/im,
-  responsive_behavior: /^#+\s*responsive|responsive[\s_]*behavior/im,
-  accessibility_requirements: /^#+\s*accessib|accessibility[\s_]*requirement/im,
-  design_system_compliance: /^#+\s*design\s+system|design[\s_]*system[\s_]*compliance/im,
-};
-
-const TRANSITION_SCHEMAS = {
-  backend: {
-    intake: ["feature_summary", "tier", "domain_tags", "entry_mode", "manifest_path", "next_phase_instructions"],
-    discover: ["feature_summary", "design_decisions", "models_identified", "open_questions", "agent_assignments", "reference_paths", "tier"],
-    plan: ["feature_summary", "decision_log", "wave_groupings", "acceptance_criteria", "design_doc_path", "manifest_path", "agent_assignments", "files_hints"],
-    document: ["feature_summary", "tier", "wave_plan_paths", "task_paths", "decision_log", "acceptance_criteria", "agent_assignments", "codebase_assumptions", "reference_paths"],
-    build: ["feature_summary", "changed_files", "test_results", "acceptance_criteria", "domains_touched", "deviations", "tech_debt"],
-    validate: ["feature_summary", "validation_results", "changed_files", "acceptance_criteria", "warnings"],
-    handover: ["feature_summary", "validation_status", "handover_status", "changelog_hints"],
-  },
-  frontend: {
-    intake: ["feature_summary", "tier", "domain_tags", "entry_mode", "manifest_path", "next_phase_instructions"],
-    discover: ["feature_summary", "design_decisions", "models_identified", "open_questions", "agent_assignments", "reference_paths", "tier", "reuse_findings"],
-    plan: ["feature_summary", "decision_log", "wave_groupings", "acceptance_criteria", "design_doc_path", "manifest_path", "agent_assignments", "files_hints"],
-    design: ["feature_summary", "dedup_decision", "component_inventory", "responsive_behavior", "accessibility_requirements", "design_system_compliance"],
-    document: ["feature_summary", "tier", "wave_plan_paths", "task_paths", "decision_log", "acceptance_criteria", "agent_assignments", "codebase_assumptions", "reference_paths"],
-    build: ["feature_summary", "changed_files", "test_results", "acceptance_criteria", "domains_touched", "deviations", "tech_debt"],
-    validate: ["feature_summary", "validation_results", "changed_files", "acceptance_criteria", "warnings"],
-  },
-};
-
+// --- Phase Chains & Schemas ---
 const PHASE_CHAINS = {
-  backend: ["intake", "discover", "plan", "document", "build", "validate", "handover", "ship"],
+  backend: ["intake", "discover", "plan", "document", "build", "validate", "ship"],
   frontend: ["intake", "discover", "plan", "design", "document", "build", "validate", "ship"],
 };
 
-// --- MANIFEST Parsing ---
+const STAGES = ["discuss", "architect", "execute", "review"];
+const STAGE_ARTIFACTS = {
+  intake: {
+    discuss: "discuss-classification",
+    architect: "architect-manifest-plan",
+    execute: "execute-manifest-created",
+    review: "review-classification-confirmed",
+  },
+  discover: {
+    discuss: { frontend: "discuss-ui-requirements", backend: "discuss-feature-requirements" },
+    architect: "architect-exploration-plan",
+    execute: "execute-design-doc",
+    review: "review-design-approval",
+  },
+  plan: {
+    discuss: "discuss-architecture-direction",
+    architect: "architect-decision-framework",
+    execute: "execute-locked-decisions",
+    review: "review-plan-approval",
+  },
+  design: {
+    discuss: "discuss-visual-direction",
+    architect: "architect-design-plan",
+    execute: "execute-design-spec",
+    review: "review-design-compliance",
+  },
+  document: {
+    discuss: "discuss-documentation-scope",
+    architect: "architect-documentation-plan",
+    execute: "execute-docs-manifest",
+    review: "review-documentation-quality",
+  },
+  build: {
+    discuss: "discuss-implementation-path",
+    architect: "architect-subagent-prompts",
+    execute: "execute-build-results",
+    review: "review-code-quality",
+  },
+  validate: {
+    discuss: "discuss-validation-strategy",
+    architect: "architect-validation-plan",
+    execute: "execute-validation-results",
+    review: "review-ship-readiness",
+  },
+  ship: {
+    discuss: "discuss-release-scope",
+    architect: "architect-release-plan",
+    execute: "execute-release-output",
+    review: "review-release-confirmation",
+  },
+};
 
+// --- Field Patterns ---
+const ARCHITECT_FIELDS = {
+  subagent: /\b(subagent|agent\s+assign|agent\s+dispatch|agent\s+prompt)/im,
+  success_criteria: /\b(success\s+criteria|acceptance\s+criteria|definition\s+of\s+done)/im,
+  execution_order: /\b(execution\s+order|execution\s+plan|execution\s+sequence|step\s+order)/im,
+};
+
+const REVIEW_FIELDS = {
+  verdict: /\b(verdict|pass|fail|approved|rejected|ship\s+ready|not\s+ready)/im,
+};
+
+// --- MANIFEST Parsing ---
 function parseManifestTable(content) {
   const result = {};
   const tableRegex = /\|\s*\*\*(\w[\w\s]*)\*\*\s*\|\s*([^|]*)\|/g;
   let match;
   while ((match = tableRegex.exec(content)) !== null) {
-    const key = match[1].trim().toLowerCase().replace(/\s+/g, "_");
-    result[key] = match[2].trim();
+    result[match[1].trim().toLowerCase().replace(/\s+/g, "_")] = match[2].trim();
   }
   return result;
 }
@@ -148,14 +110,12 @@ function parseManifestBoldPairs(content) {
   const boldRegex = /\*\*(\w[\w\s]*):\*\*\s*(.+)/g;
   let match;
   while ((match = boldRegex.exec(content)) !== null) {
-    const key = match[1].trim().toLowerCase().replace(/\s+/g, "_");
-    result[key] = match[2].trim();
+    result[match[1].trim().toLowerCase().replace(/\s+/g, "_")] = match[2].trim();
   }
   return result;
 }
 
 function parseManifest(content) {
-  // Try table format first (frontend), fall back to bold-pair (backend)
   const tableResult = parseManifestTable(content);
   if (Object.keys(tableResult).length >= 3) return tableResult;
   return parseManifestBoldPairs(content);
@@ -166,107 +126,384 @@ function parsePhaseProgress(content) {
   const rowRegex = /\|\s*\d+\s*\|\s*(\w+)\s*\|\s*([^|]+)\|/g;
   let match;
   while ((match = rowRegex.exec(content)) !== null) {
-    phases.push({
-      name: match[1].trim().toLowerCase(),
-      status: match[2].trim().toLowerCase(),
-    });
+    phases.push({ name: match[1].trim().toLowerCase(), status: match[2].trim().toLowerCase() });
   }
-  // Also handle format without phase number column (case-insensitive status)
   if (phases.length === 0) {
     const altRegex = /\|\s*([A-Z]+)\s*\|\s*(not[- ]started|in[- ]progress|complete|skipped|n\/a)\s*\|/gi;
     while ((match = altRegex.exec(content)) !== null) {
-      phases.push({
-        name: match[1].trim().toLowerCase(),
-        status: match[2].trim().toLowerCase().replace(/\s+/g, "-"),
-      });
+      phases.push({ name: match[1].trim().toLowerCase(), status: match[2].trim().toLowerCase().replace(/\s+/g, "-") });
     }
   }
   return phases;
 }
 
-// --- Commands (placeholders — implemented in subsequent tasks) ---
+// --- Helpers ---
+function getArtifactPrefix(phase, stage, plugin) {
+  const entry = STAGE_ARTIFACTS[phase];
+  if (!entry) return null;
+  const stageEntry = entry[stage];
+  if (!stageEntry) return null;
+  if (typeof stageEntry === "object" && stageEntry.frontend) {
+    return stageEntry[plugin] || stageEntry.backend;
+  }
+  return stageEntry;
+}
 
-function cmdValidateTransition(args) {
-  const phase = args.positional[0];
-  const featureDir = args.positional[1];
+function getPhaseDir(resolvedDir, phase, wave) {
+  if (phase === "build" && wave) {
+    return path.join(resolvedDir, ".dev", "build", `wave-${String(wave).padStart(2, "0")}`);
+  }
+  return path.join(resolvedDir, ".dev", phase);
+}
 
-  if (!phase || !featureDir) {
-    error("Usage: validate-transition <phase> <feature-dir> --plugin backend|frontend");
+function getPrevPhase(phase, plugin) {
+  const chain = PHASE_CHAINS[plugin];
+  const idx = chain.indexOf(phase);
+  return idx > 0 ? chain[idx - 1] : null;
+}
+
+function extractFilePaths(content) {
+  const paths = [];
+  const regex = /(?:^|\s)((?:\.\/|\.\.\/|\/)?(?:[\w._-]+\/)*[\w._-]+\.[\w]+)/gm;
+  let m;
+  while ((m = regex.exec(content)) !== null) {
+    const p = m[1].trim();
+    if (p.length > 3 && !p.startsWith("http")) paths.push(p);
+  }
+  return [...new Set(paths)];
+}
+
+function isPhaseComplete(phases, phaseName) {
+  const entry = phases.find((p) => p.name === phaseName);
+  if (!entry) return false;
+  const done = ["complete", "done", "approved", "skipped", "auto", "auto-approved"];
+  return done.some((s) => entry.status.includes(s)) || entry.status.includes("\u2705");
+}
+
+function baseResult(phase, stage, plugin) {
+  return { valid: false, phase, stage, plugin, issues: [], warnings: [] };
+}
+
+// --- Command: validate-stage-entry ---
+function cmdValidateStageEntry(args) {
+  const phase = (args.positional[0] || "").toLowerCase();
+  const stage = (args.positional[1] || "").toLowerCase();
+  const featureDir = args.positional[2];
+
+  if (!phase || !stage || !featureDir) {
+    error("Usage: validate-stage-entry <phase> <stage> <feature-dir> --plugin backend|frontend [--wave N]");
   }
 
-  const schemas = TRANSITION_SCHEMAS[args.plugin];
-  if (!schemas[phase]) {
-    error(`No transition schema for phase '${phase}' in plugin '${args.plugin}'.`);
-  }
-
+  const plugin = args.plugin;
+  const chain = PHASE_CHAINS[plugin];
   const resolvedDir = resolvePath(args.cwd, featureDir);
-  const transDir = path.join(resolvedDir, "prompt-transitions");
+  const res = baseResult(phase, stage, plugin);
 
-  const transFiles = args.plugin === "backend"
-    ? BACKEND_TRANSITION_FILES[phase]
-    : FRONTEND_TRANSITION_FILES[phase];
-
-  if (!transFiles) {
-    error(`No transition file mapping for phase '${phase}' in plugin '${args.plugin}'.`);
+  if (!STAGES.includes(stage)) {
+    error(`Unknown stage '${stage}'. Valid: ${STAGES.join(", ")}`);
+  }
+  // PAUSE bypass
+  if (phase === "pause") {
+    output({ valid: true, phase, stage, plugin, note: "PAUSE is operational -- no stage validation", issues: [], warnings: [] },
+      args.raw, "PASS: PAUSE is operational -- no stage validation");
+    return;
+  }
+  if (!chain.includes(phase)) {
+    error(`Unknown phase '${phase}' for plugin '${plugin}'. Valid: ${chain.join(", ")}`);
   }
 
-  let foundFile = null;
-  let content = null;
-  for (const candidate of transFiles.next) {
-    const fullPath = path.join(transDir, candidate);
-    const fileContent = safeReadFile(fullPath);
-    if (fileContent) {
-      foundFile = candidate;
-      content = fileContent;
-      break;
+  const phaseDir = getPhaseDir(resolvedDir, phase, args.wave);
+  const manifestPath = path.join(resolvedDir, ".dev", "MANIFEST.md");
+  const manifestContent = safeReadFile(manifestPath);
+
+  if (stage === "discuss") {
+    // Entry to Discuss (start of a phase)
+    if (phase === "intake") {
+      // INTAKE: MANIFEST may not exist yet (first phase)
+      if (manifestContent) {
+        const manifest = parseManifest(manifestContent);
+        const phases = parsePhaseProgress(manifestContent);
+        if (isPhaseComplete(phases, "intake")) {
+          res.issues.push("INTAKE phase is already marked complete in MANIFEST. Cannot re-enter.");
+        }
+      }
+      // No previous phase review needed for intake
+    } else {
+      // Non-intake: MANIFEST must exist
+      if (!manifestContent) {
+        res.issues.push(`MANIFEST.md not found at ${manifestPath}. Run INTAKE phase first.`);
+      } else {
+        const phases = parsePhaseProgress(manifestContent);
+        if (isPhaseComplete(phases, phase)) {
+          res.issues.push(`Phase '${phase}' is already marked complete in MANIFEST.`);
+        }
+        // Previous phase review bridge must exist
+        const prevPhase = getPrevPhase(phase, plugin);
+        if (prevPhase) {
+          const prevDir = getPhaseDir(resolvedDir, prevPhase, args.wave);
+          const reviewPrefix = getArtifactPrefix(prevPhase, "review", plugin);
+          const found = reviewPrefix ? findArtifact(prevDir, reviewPrefix) : null;
+          if (!found) {
+            res.issues.push(`Review artifact from previous phase '${prevPhase}' not found in .dev/${prevPhase}/. Expected: ${reviewPrefix}-*.md`);
+            res.recovery = `Complete the Review stage of the '${prevPhase}' phase before entering '${phase}'.`;
+          }
+        }
+      }
+    }
+    // BUILD wave directory check
+    if (phase === "build") {
+      if (!dirExists(phaseDir)) {
+        res.warnings.push(`Wave directory not found at ${phaseDir}. It should be created before executing build artifacts.`);
+      }
+    }
+  } else if (stage === "architect") {
+    // Discuss artifact must exist
+    const prefix = getArtifactPrefix(phase, "discuss", plugin);
+    const found = findArtifact(phaseDir, prefix);
+    if (!found) {
+      res.issues.push(`Discuss artifact not found in ${phaseDir}. Expected file starting with '${prefix}'. Complete the Discuss stage first.`);
+    }
+  } else if (stage === "execute") {
+    // Architect artifact must exist with required sections
+    const prefix = getArtifactPrefix(phase, "architect", plugin);
+    const found = findArtifact(phaseDir, prefix);
+    if (!found) {
+      res.issues.push(`Architect artifact not found in ${phaseDir}. Expected file starting with '${prefix}'. Complete the Architect stage first.`);
+    } else {
+      const content = safeReadFile(found.path) || "";
+      for (const [field, pattern] of Object.entries(ARCHITECT_FIELDS)) {
+        if (!pattern.test(content)) {
+          res.issues.push(`Architect artifact '${found.name}' is missing required section: ${field.replace(/_/g, " ")}.`);
+        }
+      }
+    }
+  } else if (stage === "review") {
+    // Execute artifact must exist, referenced files must exist on disk
+    const prefix = getArtifactPrefix(phase, "execute", plugin);
+    const found = findArtifact(phaseDir, prefix);
+    if (!found) {
+      res.issues.push(`Execute artifact not found in ${phaseDir}. Expected file starting with '${prefix}'. Complete the Execute stage first.`);
+    } else {
+      const content = safeReadFile(found.path) || "";
+      const refs = extractFilePaths(content);
+      const missing = refs.filter((r) => {
+        const abs = path.isAbsolute(r) ? r : path.resolve(resolvedDir, r);
+        return !fileExists(abs) && !dirExists(abs);
+      });
+      if (missing.length > 0 && missing.length <= 10) {
+        res.warnings.push(`Execute artifact references ${missing.length} path(s) not found on disk: ${missing.slice(0, 5).join(", ")}${missing.length > 5 ? "..." : ""}`);
+      }
     }
   }
 
-  if (!content) {
-    const tried = transFiles.next.map((f) => `prompt-transitions/${f}`).join(", ");
-    output(
-      { valid: false, phase, plugin: args.plugin, error: "Transition file not found", tried, recovery: `Re-invoke /prompt-generator to create the transition file. Expected one of: ${tried}` },
-      args.raw,
-      `FAIL: Transition file not found. Expected one of: ${tried}`
-    );
+  res.valid = res.issues.length === 0;
+  if (res.issues.length > 0 && !res.recovery) {
+    res.recovery = res.issues.map((i) => `Fix: ${i}`).join("\n");
+  }
+
+  output(res, args.raw,
+    res.valid
+      ? `PASS: Entry to ${phase}/${stage} -- all prerequisites met${res.warnings.length > 0 ? ` (${res.warnings.length} warnings)` : ""}`
+      : `FAIL: Cannot enter ${phase}/${stage} -- ${res.issues.length} blocking issues: ${res.issues.join("; ")}`
+  );
+}
+
+// --- Command: validate-stage-output ---
+function cmdValidateStageOutput(args) {
+  const phase = (args.positional[0] || "").toLowerCase();
+  const stage = (args.positional[1] || "").toLowerCase();
+  const featureDir = args.positional[2];
+
+  if (!phase || !stage || !featureDir) {
+    error("Usage: validate-stage-output <phase> <stage> <feature-dir> --plugin backend|frontend [--wave N]");
+  }
+
+  const plugin = args.plugin;
+  const chain = PHASE_CHAINS[plugin];
+  const resolvedDir = resolvePath(args.cwd, featureDir);
+  const res = baseResult(phase, stage, plugin);
+
+  if (!STAGES.includes(stage)) {
+    error(`Unknown stage '${stage}'. Valid: ${STAGES.join(", ")}`);
+  }
+  // PAUSE bypass
+  if (phase === "pause") {
+    output({ valid: true, phase, stage, plugin, note: "PAUSE is operational -- no stage validation", issues: [], warnings: [] },
+      args.raw, "PASS: PAUSE is operational -- no stage validation");
+    return;
+  }
+  if (!chain.includes(phase)) {
+    error(`Unknown phase '${phase}' for plugin '${plugin}'. Valid: ${chain.join(", ")}`);
+  }
+
+  const phaseDir = getPhaseDir(resolvedDir, phase, args.wave);
+  const prefix = getArtifactPrefix(phase, stage, plugin);
+
+  if (!prefix) {
+    error(`No artifact schema defined for ${phase}/${stage} in plugin '${plugin}'.`);
+  }
+
+  const found = findArtifact(phaseDir, prefix);
+
+  if (!found) {
+    res.issues.push(`Stage artifact not found in ${phaseDir}. Expected file starting with '${prefix}'.`);
+    res.recovery = `Create the ${stage} artifact for the ${phase} phase: ${prefix}.md in .dev/${phase}/`;
+    res.valid = false;
+    output(res, args.raw, `FAIL: ${stage} output missing for ${phase}: expected ${prefix}*.md`);
     return;
   }
 
-  const requiredFields = schemas[phase];
-  const missing = [];
-  const found = [];
+  res.artifact = found.name;
+  const content = safeReadFile(found.path) || "";
 
-  for (const field of requiredFields) {
-    const pattern = FIELD_PATTERNS[field];
-    if (pattern && pattern.test(content)) {
-      found.push(field);
+  if (stage === "discuss") {
+    // Discuss artifacts should have substantive content
+    if (content.trim().split("\n").length < 5) {
+      res.warnings.push(`Discuss artifact '${found.name}' appears thin (fewer than 5 lines).`);
+    }
+  } else if (stage === "architect") {
+    for (const [field, pattern] of Object.entries(ARCHITECT_FIELDS)) {
+      if (!pattern.test(content)) {
+        res.issues.push(`Architect artifact '${found.name}' missing required section: ${field.replace(/_/g, " ")}.`);
+      }
+    }
+  } else if (stage === "execute") {
+    const refs = extractFilePaths(content);
+    if (refs.length === 0) {
+      res.warnings.push(`Execute artifact '${found.name}' does not reference any file paths. Expected artifact references.`);
     } else {
-      missing.push(field);
+      const missing = refs.filter((r) => {
+        const abs = path.isAbsolute(r) ? r : path.resolve(resolvedDir, r);
+        return !fileExists(abs) && !dirExists(abs);
+      });
+      if (missing.length > 0) {
+        res.warnings.push(`Execute artifact references ${missing.length} missing path(s): ${missing.slice(0, 5).join(", ")}${missing.length > 5 ? "..." : ""}`);
+      }
+    }
+  } else if (stage === "review") {
+    // Review must contain verdict
+    if (!REVIEW_FIELDS.verdict.test(content)) {
+      res.issues.push(`Review artifact '${found.name}' missing verdict/pass-fail section.`);
+    }
+    // Check MANIFEST updated
+    const manifestPath = path.join(resolvedDir, ".dev", "MANIFEST.md");
+    const manifestContent = safeReadFile(manifestPath);
+    if (manifestContent) {
+      const phases = parsePhaseProgress(manifestContent);
+      const phaseEntry = phases.find((p) => p.name === phase);
+      if (phaseEntry) {
+        const inProgress = ["in-progress", "in progress", "active"];
+        if (inProgress.some((s) => phaseEntry.status.includes(s))) {
+          res.warnings.push(`MANIFEST still shows phase '${phase}' as in-progress. Update phase status after review.`);
+        }
+      }
     }
   }
 
-  const valid = missing.length === 0;
+  res.valid = res.issues.length === 0;
+  if (res.issues.length > 0) {
+    res.recovery = res.issues.map((i) => `Fix: ${i}`).join("\n");
+  }
 
-  output(
-    {
-      valid,
-      phase,
-      plugin: args.plugin,
-      file: `prompt-transitions/${foundFile}`,
-      total_fields: requiredFields.length,
-      found: found.length,
-      missing_count: missing.length,
-      missing_fields: missing,
-      ...(missing.length > 0 && {
-        recovery: `Re-invoke /prompt-generator with explicit instructions to include: ${missing.join(", ")}`,
-      }),
-    },
-    args.raw,
-    valid
-      ? `PASS: ${foundFile} contains all ${requiredFields.length} required fields`
-      : `FAIL: ${foundFile} missing ${missing.length} fields: ${missing.join(", ")}`
+  output(res, args.raw,
+    res.valid
+      ? `PASS: ${stage} output for ${phase} validated${res.warnings.length > 0 ? ` (${res.warnings.length} warnings)` : ""}`
+      : `FAIL: ${stage} output for ${phase} has ${res.issues.length} issues: ${res.issues.join("; ")}`
   );
 }
+
+// --- Command: checkpoint-state ---
+function cmdCheckpointState(args) {
+  const featureDir = args.positional[0];
+  const scope = args.scope || "wave";
+
+  if (!featureDir) {
+    error("Usage: checkpoint-state <feature-dir> --scope wave|phase --plugin backend|frontend");
+  }
+
+  const plugin = args.plugin;
+  const resolvedDir = resolvePath(args.cwd, featureDir);
+  const res = { valid: false, scope, plugin, feature_dir: resolvedDir, issues: [], warnings: [] };
+
+  // MANIFEST must exist with current phase/stage
+  const manifestPath = path.join(resolvedDir, ".dev", "MANIFEST.md");
+  const manifestContent = safeReadFile(manifestPath);
+
+  if (!manifestContent) {
+    res.issues.push(`MANIFEST.md not found at ${manifestPath}.`);
+  } else {
+    const manifest = parseManifest(manifestContent);
+    if (!manifest.current_phase) {
+      res.issues.push("MANIFEST missing current_phase field.");
+    }
+    if (!/current.?stage|stage/i.test(manifestContent) && !manifest.current_stage) {
+      res.warnings.push("MANIFEST does not indicate current stage within the phase.");
+    }
+  }
+
+  // CURRENT_STATUS.md must exist
+  const statusPath = path.join(resolvedDir, "CURRENT_STATUS.md");
+  if (!fileExists(statusPath)) {
+    res.issues.push(`CURRENT_STATUS.md not found at ${statusPath}.`);
+  }
+
+  // Scope-specific checks
+  if (scope === "wave") {
+    // Check wave directories exist for current wave
+    const buildDir = path.join(resolvedDir, ".dev", "build");
+    if (dirExists(buildDir)) {
+      try {
+        const waveDirs = fs.readdirSync(buildDir).filter((d) => /^wave-\d+$/.test(d));
+        if (waveDirs.length === 0) {
+          res.warnings.push("No wave-NN directories found in .dev/build/.");
+        }
+      } catch (_) {
+        res.warnings.push("Could not read .dev/build/ directory.");
+      }
+    } else {
+      res.warnings.push(".dev/build/ directory does not exist.");
+    }
+  }
+
+  // Check for uncommitted state files
+  try {
+    const { execSync } = require("child_process");
+    const gitStatus = execSync("git status --porcelain", {
+      cwd: resolvedDir,
+      encoding: "utf8",
+      timeout: 5000,
+    }).trim();
+
+    if (gitStatus) {
+      const stateFiles = ["MANIFEST.md", "CURRENT_STATUS.md"];
+      const uncommitted = [];
+      for (const line of gitStatus.split("\n")) {
+        if (!line.trim()) continue;
+        for (const sf of stateFiles) {
+          if (line.includes(sf)) uncommitted.push(sf);
+        }
+      }
+      if (uncommitted.length > 0) {
+        res.warnings.push(`Uncommitted state files: ${uncommitted.join(", ")}. Commit before session break.`);
+      }
+    }
+  } catch (_) {
+    res.warnings.push("Could not check git status for uncommitted files.");
+  }
+
+  res.valid = res.issues.length === 0;
+  if (res.issues.length > 0) {
+    res.recovery = `Before session break: ${res.issues.map((i) => `(1) ${i}`).join(" ")} Then commit all state files.`;
+  }
+
+  output(res, args.raw,
+    res.valid
+      ? `PASS: ${scope} checkpoint -- state files present${res.warnings.length > 0 ? ` (${res.warnings.length} warnings)` : ""}`
+      : `FAIL: ${scope} checkpoint -- ${res.issues.length} issues: ${res.issues.join("; ")}`
+  );
+}
+
+// --- Command: validate-manifest ---
 function cmdValidateManifest(args) {
   const featureDir = args.positional[0];
 
@@ -274,301 +511,121 @@ function cmdValidateManifest(args) {
     error("Usage: validate-manifest <feature-dir> --plugin backend|frontend");
   }
 
+  const plugin = args.plugin;
+  const chain = PHASE_CHAINS[plugin];
   const resolvedDir = resolvePath(args.cwd, featureDir);
   const manifestPath = path.join(resolvedDir, ".dev", "MANIFEST.md");
   const content = safeReadFile(manifestPath);
+  const res = { valid: false, plugin, manifest_path: manifestPath, issues: [], warnings: [] };
 
   if (!content) {
-    if (args.plugin === "frontend") {
-      output(
-        { valid: true, note: "No MANIFEST found — may be bug/issue mode (validation skipped)" },
-        args.raw,
-        "PASS: No MANIFEST (bug mode — validation skipped)"
-      );
-      return;
-    }
-    output(
-      { valid: false, error: "MANIFEST not found", path: manifestPath, recovery: "Create MANIFEST using the manifest-template.md reference" },
-      args.raw,
-      `FAIL: MANIFEST not found at ${manifestPath}`
-    );
+    res.issues.push(`MANIFEST.md not found at ${manifestPath}.`);
+    res.recovery = "Create MANIFEST.md during the INTAKE phase.";
+    output(res, args.raw, `FAIL: MANIFEST not found at ${manifestPath}`);
     return;
   }
 
   const manifest = parseManifest(content);
-  const phases = parsePhaseProgress(content);
-  const issues = [];
 
-  const requiredKeys = ["current_phase", "status", "tier"];
-  for (const key of requiredKeys) {
-    const found = manifest[key] || manifest[key.replace(/_/g, " ")];
-    if (!found) {
-      issues.push(`Missing metadata field: ${key}`);
-    }
-  }
-
+  // Required metadata (NO tier field)
   if (!manifest.feature && !manifest.name && !manifest.feature_name) {
-    issues.push("Missing metadata field: feature name");
+    res.issues.push("Missing required metadata: feature name.");
+  }
+  if (!manifest.current_phase) {
+    res.issues.push("Missing required metadata: current_phase.");
+  }
+  if (!manifest.status) {
+    res.issues.push("Missing required metadata: status.");
   }
 
-  const validStatuses = ["in progress", "in-progress", "paused", "complete", "blocked"];
+  const validStatuses = ["in progress", "in-progress", "paused", "complete", "blocked", "not started", "not-started"];
   const status = (manifest.status || "").toLowerCase();
   if (status && !validStatuses.includes(status)) {
-    issues.push(`Invalid status: '${manifest.status}'. Expected: ${validStatuses.join(", ")}`);
+    res.issues.push(`Invalid status: '${manifest.status}'. Expected one of: ${validStatuses.join(", ")}.`);
   }
 
+  // Phase progress table
+  const phases = parsePhaseProgress(content);
   if (phases.length === 0) {
-    issues.push("Phase Progress table not found or empty");
+    res.issues.push("Phase progress table not found or empty in MANIFEST.");
   }
 
-  if (!/## Artifacts|## Artifact Paths/i.test(content)) {
-    issues.push("Artifacts section not found");
+  // Artifacts section
+  if (!/## Artifacts?|## Artifact Paths?/i.test(content)) {
+    res.issues.push("Artifacts section not found in MANIFEST.");
   }
 
-  if (!/## Decision/i.test(content)) {
-    issues.push("Decisions section not found");
-  }
+  // Cross-reference phase statuses against actual .dev/<phase>/ artifacts
+  for (const phaseEntry of phases) {
+    const phaseName = phaseEntry.name;
+    if (!chain.includes(phaseName)) continue;
 
-  const valid = issues.length === 0;
+    const phaseDir = path.join(resolvedDir, ".dev", phaseName);
+    const isComplete = isPhaseComplete([phaseEntry], phaseName);
 
-  output(
-    {
-      valid,
-      plugin: args.plugin,
-      manifest_path: manifestPath,
-      parsed_fields: manifest,
-      phase_count: phases.length,
-      issues,
-      ...(issues.length > 0 && {
-        recovery: `Fix the following MANIFEST issues: ${issues.join("; ")}`,
-      }),
-    },
-    args.raw,
-    valid
-      ? `PASS: MANIFEST valid (${Object.keys(manifest).length} fields, ${phases.length} phases)`
-      : `FAIL: MANIFEST has ${issues.length} issues: ${issues.join("; ")}`
-  );
-}
-function cmdCheckpointState(args) {
-  const featureDir = args.positional[0];
-  const scope = args.scope || "wave";
-
-  if (!featureDir) {
-    error("Usage: checkpoint-state <feature-dir> --scope wave|task --plugin backend|frontend");
-  }
-
-  const resolvedDir = resolvePath(args.cwd, featureDir);
-  const issues = [];
-
-  const manifestPath = path.join(resolvedDir, ".dev", "MANIFEST.md");
-  const manifestContent = safeReadFile(manifestPath);
-
-  if (!manifestContent) {
-    issues.push("MANIFEST not found");
-  } else {
-    if (!/build_progress|current_wave/i.test(manifestContent)) {
-      issues.push("MANIFEST missing build_progress or current_wave field");
-    }
-  }
-
-  const statusPath = path.join(resolvedDir, "CURRENT_STATUS.md");
-  const statusContent = safeReadFile(statusPath);
-
-  if (!statusContent) {
-    issues.push("CURRENT_STATUS.md not found");
-  } else {
-    if (scope === "wave" && !/wave/i.test(statusContent)) {
-      issues.push("CURRENT_STATUS.md does not mention current wave");
-    }
-  }
-
-  const implStatusPath = path.join(resolvedDir, "01_IMPLEMENTATION_STATUS.md");
-  if (!fileExists(implStatusPath)) {
-    issues.push("01_IMPLEMENTATION_STATUS.md not found");
-  }
-
-  if (scope === "wave") {
-    try {
-      const { execSync } = require("child_process");
-      const gitStatus = execSync("git status --porcelain", {
-        cwd: args.cwd,
-        encoding: "utf8",
-        timeout: 5000,
-      }).trim();
-
-      const stateFiles = ["MANIFEST.md", "CURRENT_STATUS.md", "01_IMPLEMENTATION_STATUS.md"];
-      const uncommitted = [];
-      for (const line of gitStatus.split("\n")) {
-        if (!line.trim()) continue;
-        for (const sf of stateFiles) {
-          if (line.includes(sf)) {
-            uncommitted.push(sf);
+    if (isComplete) {
+      // Complete phase should have a review artifact
+      const reviewPrefix = getArtifactPrefix(phaseName, "review", plugin);
+      if (reviewPrefix) {
+        let searchDir = phaseDir;
+        // BUILD: check wave directories
+        if (phaseName === "build") {
+          const buildDir = path.join(resolvedDir, ".dev", "build");
+          let foundReview = false;
+          if (dirExists(buildDir)) {
+            try {
+              const waveDirs = fs.readdirSync(buildDir).filter((d) => /^wave-\d+$/.test(d));
+              for (const wd of waveDirs) {
+                if (findArtifact(path.join(buildDir, wd), reviewPrefix)) { foundReview = true; break; }
+              }
+            } catch (_) {}
           }
+          if (!foundReview && !findArtifact(phaseDir, reviewPrefix)) {
+            res.warnings.push(`Phase '${phaseName}' marked complete but no review artifact found in .dev/${phaseName}/ or wave directories.`);
+          }
+        } else if (!dirExists(phaseDir)) {
+          res.warnings.push(`Phase '${phaseName}' marked complete but directory .dev/${phaseName}/ does not exist.`);
+        } else if (!findArtifact(phaseDir, reviewPrefix)) {
+          res.warnings.push(`Phase '${phaseName}' marked complete but review artifact '${reviewPrefix}*' not found in .dev/${phaseName}/.`);
         }
       }
-      if (uncommitted.length > 0) {
-        issues.push(`Uncommitted state files: ${uncommitted.join(", ")} — commit before wave break`);
-      }
-    } catch (_) {}
-  }
-
-  const valid = issues.length === 0;
-
-  output(
-    {
-      valid,
-      scope,
-      plugin: args.plugin,
-      feature_dir: resolvedDir,
-      issues,
-      ...(issues.length > 0 && {
-        recovery: scope === "wave"
-          ? "Before /clear: (1) Update MANIFEST build_progress + current_wave, (2) Update CURRENT_STATUS.md with wave state, (3) Update 01_IMPLEMENTATION_STATUS.md, (4) git add + commit"
-          : "After each task: (1) Update task file with actuals, (2) Update 01_IMPLEMENTATION_STATUS.md",
-      }),
-    },
-    args.raw,
-    valid
-      ? `PASS: ${scope} checkpoint — all state files present and committed`
-      : `FAIL: ${scope} checkpoint — ${issues.length} issues: ${issues.join("; ")}`
-  );
-}
-function cmdValidateEntry(args) {
-  const phase = args.positional[0];
-  const featureDir = args.positional[1];
-
-  if (!phase || !featureDir) {
-    error("Usage: validate-entry <phase> <feature-dir> --plugin backend|frontend [--same-session]");
-  }
-
-  // NOTE: --same-session should be used AFTER updating the MANIFEST phase progress table
-  // (i.e., after the previous phase's GATE updates MANIFEST, not between approval and update)
-
-  const resolvedDir = resolvePath(args.cwd, featureDir);
-  const chain = PHASE_CHAINS[args.plugin];
-  const phaseIndex = chain.indexOf(phase.toLowerCase());
-
-  if (phaseIndex === -1) {
-    error(`Unknown phase '${phase}' for plugin '${args.plugin}'. Valid: ${chain.join(", ")}`);
-  }
-
-  if (phaseIndex === 0) {
-    output(
-      { valid: true, phase, plugin: args.plugin, note: "INTAKE — no prerequisites" },
-      args.raw,
-      "PASS: INTAKE — no prerequisites needed"
-    );
-    return;
-  }
-
-  const issues = [];
-  const warnings = [];
-
-  const manifestPath = path.join(resolvedDir, ".dev", "MANIFEST.md");
-  const manifestContent = safeReadFile(manifestPath);
-
-  if (!manifestContent) {
-    if (args.plugin === "frontend") {
-      warnings.push("No MANIFEST found — if this is a bug/issue, proceed. Otherwise, run INTAKE first.");
-    } else {
-      issues.push("MANIFEST not found — run INTAKE first to create it");
-    }
-  } else {
-    const manifest = parseManifest(manifestContent);
-    const currentPhase = (manifest.current_phase || "").toLowerCase();
-
-    const prevPhase = chain[phaseIndex - 1];
-    if (currentPhase && currentPhase !== phase.toLowerCase() && currentPhase !== prevPhase) {
-      warnings.push(`MANIFEST shows current phase as '${currentPhase}', expected '${phase}' or '${prevPhase}'`);
     }
 
-    const phases = parsePhaseProgress(manifestContent);
-    const prevPhaseEntry = phases.find((p) => p.name === prevPhase);
-    if (prevPhaseEntry) {
-      const completedStatuses = ["complete", "✅", "done", "approved", "auto", "auto-approved", "skipped"];
-      if (!completedStatuses.some((s) => prevPhaseEntry.status.includes(s))) {
-        issues.push(`Previous phase '${prevPhase}' status is '${prevPhaseEntry.status}' — must be completed before starting '${phase}'`);
+    // In-progress phase should have its directory
+    const inProg = ["in-progress", "in progress", "active"];
+    if (inProg.some((s) => phaseEntry.status.includes(s))) {
+      if (phaseName !== "build" && !dirExists(phaseDir)) {
+        res.warnings.push(`Phase '${phaseName}' is in-progress but directory .dev/${phaseName}/ does not exist.`);
       }
     }
   }
 
-  if (!args.sameSession) {
-    const prevPhase = chain[phaseIndex - 1];
-    const transDir = path.join(resolvedDir, "prompt-transitions");
-    const transFiles = args.plugin === "backend"
-      ? (BACKEND_TRANSITION_FILES[prevPhase] || { next: [] })
-      : (FRONTEND_TRANSITION_FILES[prevPhase] || { next: [] });
+  res.valid = res.issues.length === 0;
+  res.parsed_fields = manifest;
+  res.phase_count = phases.length;
 
-    let foundTransition = false;
-    for (const candidate of transFiles.next) {
-      if (fileExists(path.join(transDir, candidate))) {
-        foundTransition = true;
-        break;
-      }
-    }
-
-    if (!foundTransition && transFiles.next.length > 0) {
-      const expected = transFiles.next.join(" or ");
-      issues.push(`Transition file from '${prevPhase}' not found. Expected: prompt-transitions/${expected}`);
-      warnings.push(`Recovery: Read MANIFEST + design doc to reconstruct context, or re-run ${prevPhase} TRANSITION section`);
-    }
+  if (res.issues.length > 0) {
+    res.recovery = `Fix MANIFEST issues: ${res.issues.join("; ")}`;
   }
 
-  if (phase.toLowerCase() === "build") {
-    const waveDir = args.plugin === "backend"
-      ? path.join(resolvedDir, "tasks")
-      : path.join(resolvedDir, "waves");
-
-    try {
-      const files = fs.readdirSync(waveDir);
-      const wavePlans = files.filter((f) => /wave/i.test(f));
-      if (wavePlans.length === 0) {
-        issues.push("No wave execution plans found — DOCUMENT phase must create these before BUILD");
-      }
-    } catch (_) {
-      issues.push(`Wave plans directory not found at ${waveDir}`);
-    }
-  }
-
-  if (phase.toLowerCase() === "validate") {
-    const implStatus = path.join(resolvedDir, "01_IMPLEMENTATION_STATUS.md");
-    if (!fileExists(implStatus)) {
-      warnings.push("01_IMPLEMENTATION_STATUS.md not found — BUILD should have created this");
-    }
-  }
-
-  const valid = issues.length === 0;
-
-  output(
-    {
-      valid,
-      phase,
-      plugin: args.plugin,
-      issues,
-      warnings,
-      ...(issues.length > 0 && {
-        recovery: issues.map((i) => `Fix: ${i}`).join("\n"),
-      }),
-    },
-    args.raw,
-    valid
-      ? `PASS: Entry to ${phase.toUpperCase()} — all ${warnings.length > 0 ? `prerequisites met (${warnings.length} warnings)` : "prerequisites met"}`
-      : `FAIL: Cannot enter ${phase.toUpperCase()} — ${issues.length} blocking issues: ${issues.join("; ")}`
+  output(res, args.raw,
+    res.valid
+      ? `PASS: MANIFEST valid (${Object.keys(manifest).length} fields, ${phases.length} phases)${res.warnings.length > 0 ? ` (${res.warnings.length} warnings)` : ""}`
+      : `FAIL: MANIFEST has ${res.issues.length} issues: ${res.issues.join("; ")}`
   );
 }
 
 // --- CLI Router ---
-
 function main() {
-  const args = process.argv.slice(2);
-  if (args.length === 0) {
-    error("Usage: dev-pipeline-tools.js <command> [args] [--plugin backend|frontend] [--raw]");
+  const argv = process.argv.slice(2);
+  if (argv.length === 0) {
+    error("Usage: dev-pipeline-tools.js <command> [args] --plugin backend|frontend [--raw] [--wave N] [--scope wave|phase]\nCommands: validate-stage-entry, validate-stage-output, checkpoint-state, validate-manifest");
   }
 
-  const command = args[0];
-  const raw = args.includes("--raw");
-  const pluginIdx = args.indexOf("--plugin");
-  const plugin = pluginIdx !== -1 && args[pluginIdx + 1] ? args[pluginIdx + 1] : "backend";
+  const command = argv[0];
+  const raw = argv.includes("--raw");
+  const pluginIdx = argv.indexOf("--plugin");
+  const plugin = pluginIdx !== -1 && argv[pluginIdx + 1] ? argv[pluginIdx + 1] : "backend";
 
   if (!["backend", "frontend"].includes(plugin)) {
     error(`Invalid plugin: ${plugin}. Must be 'backend' or 'frontend'.`);
@@ -577,38 +634,31 @@ function main() {
   const cwd = process.cwd();
   const parsedArgs = { raw, plugin, cwd, positional: [] };
 
-  for (let i = 1; i < args.length; i++) {
-    if (args[i] === "--raw" || args[i] === "--plugin") {
-      if (args[i] === "--plugin") i++; // skip value
-      continue;
-    }
-    if (args[i] === "--scope") {
-      parsedArgs.scope = args[++i];
-      continue;
-    }
-    if (args[i] === "--same-session") {
-      parsedArgs.sameSession = true;
-      continue;
-    }
-    parsedArgs.positional.push(args[i]);
+  for (let i = 1; i < argv.length; i++) {
+    if (argv[i] === "--raw") continue;
+    if (argv[i] === "--plugin") { i++; continue; }
+    if (argv[i] === "--scope") { parsedArgs.scope = argv[++i]; continue; }
+    if (argv[i] === "--wave") { parsedArgs.wave = parseInt(argv[++i], 10); continue; }
+    parsedArgs.positional.push(argv[i]);
   }
 
   switch (command) {
-    case "validate-transition":
-      cmdValidateTransition(parsedArgs);
+    case "validate-stage-entry":
+      cmdValidateStageEntry(parsedArgs);
       break;
-    case "validate-manifest":
-      cmdValidateManifest(parsedArgs);
+    case "validate-stage-output":
+      cmdValidateStageOutput(parsedArgs);
       break;
     case "checkpoint-state":
       cmdCheckpointState(parsedArgs);
       break;
-    case "validate-entry":
-      cmdValidateEntry(parsedArgs);
+    case "validate-manifest":
+      cmdValidateManifest(parsedArgs);
       break;
     default:
-      error(`Unknown command: ${command}. Valid: validate-transition, validate-manifest, checkpoint-state, validate-entry`);
+      error(`Unknown command: ${command}. Valid: validate-stage-entry, validate-stage-output, checkpoint-state, validate-manifest`);
   }
 }
 
-main();
+module.exports = { cmdValidateStageEntry, cmdValidateStageOutput, cmdCheckpointState, cmdValidateManifest };
+if (require.main === module) main();

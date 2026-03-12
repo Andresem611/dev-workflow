@@ -8,6 +8,60 @@ const path = require("path");
 const TIMEOUT = 5000;
 const PROJECT_ROOT = process.cwd();
 
+const PLUGIN = "frontend";
+const PHASE_CHAIN = ["intake", "discover", "plan", "design", "document", "build", "validate", "ship"];
+
+const STAGE_PREFIXES = {
+  intake: {
+    discuss: "discuss-classification",
+    architect: "architect-manifest-plan",
+    execute: "execute-manifest-created",
+    review: "review-classification-confirmed",
+  },
+  discover: {
+    discuss: "discuss-ui-requirements",
+    architect: "architect-exploration-plan",
+    execute: "execute-design-doc",
+    review: "review-design-approval",
+  },
+  plan: {
+    discuss: "discuss-architecture-direction",
+    architect: "architect-decision-framework",
+    execute: "execute-locked-decisions",
+    review: "review-plan-approval",
+  },
+  design: {
+    discuss: "discuss-visual-direction",
+    architect: "architect-design-plan",
+    execute: "execute-design-spec",
+    review: "review-design-compliance",
+  },
+  document: {
+    discuss: "discuss-documentation-scope",
+    architect: "architect-documentation-plan",
+    execute: "execute-docs-manifest",
+    review: "review-documentation-quality",
+  },
+  build: {
+    discuss: "discuss-implementation-path",
+    architect: "architect-subagent-prompts",
+    execute: "execute-build-results",
+    review: "review-code-quality",
+  },
+  validate: {
+    discuss: "discuss-validation-strategy",
+    architect: "architect-validation-plan",
+    execute: "execute-validation-results",
+    review: "review-ship-readiness",
+  },
+  ship: {
+    discuss: "discuss-release-scope",
+    architect: "architect-release-plan",
+    execute: "execute-release-output",
+    review: "review-release-confirmation",
+  },
+};
+
 function git(cmd) {
   return execSync(cmd, {
     cwd: PROJECT_ROOT,
@@ -19,7 +73,6 @@ function git(cmd) {
 
 function runDocsAudit() {
   const mappings = [
-    // Customize these mappings for your frontend framework
     {
       doc: "COMPONENT_ARCHITECTURE.md",
       codeDirs: ["src/components/", "src/lib/components/"],
@@ -79,83 +132,6 @@ function runDocsAudit() {
   return { stale, upToDate };
 }
 
-function runSessionContinuity() {
-  const result = {};
-
-  try {
-    const todoPath = path.join(PROJECT_ROOT, "TODO.md");
-    if (fs.existsSync(todoPath)) {
-      const content = fs.readFileSync(todoPath, "utf8");
-      const lines = content.split("\n");
-      let pending = 0;
-      let done = 0;
-      for (const line of lines) {
-        if (/^- \[ \]/.test(line)) pending++;
-        if (/^- \[x\]/i.test(line)) done++;
-      }
-      result.todos = { pending, done };
-    }
-  } catch (_) {}
-
-  try {
-    const docsDir = path.join(PROJECT_ROOT, "docs");
-    if (fs.existsSync(docsDir)) {
-      const manifests = findManifests(docsDir);
-      if (manifests.length > 0) {
-        result.pipelines = [];
-        for (const mf of manifests) {
-          try {
-            const content = fs.readFileSync(mf, "utf8");
-            let featureName = "";
-            let currentPhase = "";
-            for (const line of content.split("\n")) {
-              // Table format: | **Current Phase** | DISCOVER |
-              const tablePhaseMatch = line.match(/\|\s*\*\*Current Phase\*\*\s*\|\s*([^|]+)\|/);
-              if (tablePhaseMatch) currentPhase = tablePhaseMatch[1].trim();
-              // Bold-pair format: **Current Phase:** DISCOVER
-              const boldPhaseMatch = line.match(/\*\*Current Phase:\*\*\s*(.+)/);
-              if (boldPhaseMatch) currentPhase = boldPhaseMatch[1].trim();
-              // Table format: | **Name** | Feature Name |
-              const tableNameMatch = line.match(/\|\s*\*\*(Name|Feature)\*\*\s*\|\s*([^|]+)\|/);
-              if (tableNameMatch && !featureName) featureName = tableNameMatch[2].trim();
-              // Bold-pair format: **Feature:** description
-              const boldNameMatch = line.match(/\*\*Feature:\*\*\s*(.+)/);
-              if (boldNameMatch && !featureName) featureName = boldNameMatch[1].trim();
-              // Legacy frontmatter format as fallback
-              const legacyPhase = line.match(/^current_phase:\s*(.+)/i);
-              if (legacyPhase) currentPhase = legacyPhase[1].trim();
-              const legacyName = line.match(/^(?:feature_name|name|title):\s*(.+)/i);
-              if (legacyName && !featureName) featureName = legacyName[1].trim();
-            }
-            if (currentPhase) {
-              result.pipelines.push({
-                name: featureName || path.basename(path.dirname(path.dirname(mf))),
-                phase: currentPhase,
-              });
-              // Validate manifest integrity
-              try {
-                const toolPath = path.join(__dirname, "..", "..", "shared", "tools", "dev-pipeline-tools.js");
-                if (fs.existsSync(toolPath)) {
-                  const featureDir = path.dirname(path.dirname(mf));
-                  const valResult = require("child_process").execSync(
-                    `node "${toolPath}" validate-manifest "${featureDir}" --plugin frontend --raw`,
-                    { timeout: 3000, encoding: "utf8", stdio: ["pipe", "pipe", "pipe"] }
-                  ).trim();
-                  if (valResult.startsWith("FAIL")) {
-                    result.pipelines[result.pipelines.length - 1].warning = valResult;
-                  }
-                }
-              } catch (_) {}
-            }
-          } catch (_) {}
-        }
-      }
-    }
-  } catch (_) {}
-
-  return result;
-}
-
 function findManifests(dir) {
   const results = [];
   try {
@@ -175,6 +151,252 @@ function findManifests(dir) {
     }
   } catch (_) {}
   return results;
+}
+
+// --- v2.0 Stage Detection ---
+
+function hasArtifactWithPrefix(dirPath, prefix) {
+  try {
+    const entries = fs.readdirSync(dirPath);
+    return entries.some((f) => f.startsWith(prefix) && f.endsWith(".md"));
+  } catch (_) {
+    return false;
+  }
+}
+
+function getLatestWaveDir(buildDir) {
+  try {
+    const entries = fs.readdirSync(buildDir).filter((d) => /^wave-\d+$/.test(d));
+    if (entries.length === 0) return null;
+    entries.sort();
+    return path.join(buildDir, entries[entries.length - 1]);
+  } catch (_) {
+    return null;
+  }
+}
+
+function detectStageInPhase(devDir, phase) {
+  let phaseDir = path.join(devDir, phase);
+
+  // BUILD phase uses wave-NN subdirectories -- scan latest wave
+  if (phase === "build") {
+    const buildDir = path.join(devDir, "build");
+    const latestWave = getLatestWaveDir(buildDir);
+    if (latestWave) {
+      phaseDir = latestWave;
+    } else if (!fs.existsSync(buildDir)) {
+      return "discuss";
+    }
+  }
+
+  if (!fs.existsSync(phaseDir)) {
+    return "discuss";
+  }
+
+  const prefixes = STAGE_PREFIXES[phase];
+  if (!prefixes) return "discuss";
+
+  const hasReview = hasArtifactWithPrefix(phaseDir, prefixes.review);
+  const hasExecute = hasArtifactWithPrefix(phaseDir, prefixes.execute);
+  const hasArchitect = hasArtifactWithPrefix(phaseDir, prefixes.architect);
+  const hasDiscuss = hasArtifactWithPrefix(phaseDir, prefixes.discuss);
+
+  if (hasReview) return "complete";
+  if (hasExecute) return "review";
+  if (hasArchitect) return "execute";
+  if (hasDiscuss) return "architect";
+  return "discuss";
+}
+
+function detectCompletedPhases(devDir) {
+  const completed = [];
+  for (const phase of PHASE_CHAIN) {
+    let phaseDir = path.join(devDir, phase);
+
+    // BUILD: check wave directories
+    if (phase === "build") {
+      const buildDir = path.join(devDir, "build");
+      if (fs.existsSync(buildDir)) {
+        try {
+          const waveDirs = fs.readdirSync(buildDir).filter((d) => /^wave-\d+$/.test(d));
+          let found = false;
+          for (const wd of waveDirs) {
+            const waveDir = path.join(buildDir, wd);
+            const prefixes = STAGE_PREFIXES.build;
+            if (hasArtifactWithPrefix(waveDir, prefixes.review)) {
+              found = true;
+              break;
+            }
+          }
+          if (found) completed.push(phase);
+        } catch (_) {}
+      }
+      continue;
+    }
+
+    if (!fs.existsSync(phaseDir)) continue;
+    const prefixes = STAGE_PREFIXES[phase];
+    if (prefixes && hasArtifactWithPrefix(phaseDir, prefixes.review)) {
+      completed.push(phase);
+    }
+  }
+  return completed;
+}
+
+function detectContextBridges(devDir) {
+  const bridges = [];
+  for (const phase of PHASE_CHAIN) {
+    let phaseDir = path.join(devDir, phase);
+    const prefixes = STAGE_PREFIXES[phase];
+    if (!prefixes) continue;
+
+    // BUILD: check wave directories
+    if (phase === "build") {
+      const buildDir = path.join(devDir, "build");
+      if (fs.existsSync(buildDir)) {
+        try {
+          const waveDirs = fs.readdirSync(buildDir).filter((d) => /^wave-\d+$/.test(d));
+          for (const wd of waveDirs) {
+            const waveDir = path.join(buildDir, wd);
+            if (hasArtifactWithPrefix(waveDir, prefixes.review)) {
+              try {
+                const entries = fs.readdirSync(waveDir);
+                const reviewFile = entries.find((f) => f.startsWith(prefixes.review) && f.endsWith(".md"));
+                if (reviewFile) bridges.push(`build/${wd}/${reviewFile}`);
+              } catch (_) {}
+            }
+          }
+        } catch (_) {}
+      }
+      continue;
+    }
+
+    if (!fs.existsSync(phaseDir)) continue;
+    if (hasArtifactWithPrefix(phaseDir, prefixes.review)) {
+      try {
+        const entries = fs.readdirSync(phaseDir);
+        const reviewFile = entries.find((f) => f.startsWith(prefixes.review) && f.endsWith(".md"));
+        if (reviewFile) bridges.push(`${phase}/${reviewFile}`);
+      } catch (_) {}
+    }
+  }
+  return bridges;
+}
+
+function parseManifestFields(content) {
+  const result = {};
+  // Table format: | **Key** | Value |
+  const tableRegex = /\|\s*\*\*(\w[\w\s]*)\*\*\s*\|\s*([^|]*)\|/g;
+  let match;
+  while ((match = tableRegex.exec(content)) !== null) {
+    result[match[1].trim().toLowerCase().replace(/\s+/g, "_")] = match[2].trim();
+  }
+  if (Object.keys(result).length >= 2) return result;
+  // Bold-pair format: **Key:** Value
+  const boldRegex = /\*\*(\w[\w\s]*):\*\*\s*(.+)/g;
+  while ((match = boldRegex.exec(content)) !== null) {
+    result[match[1].trim().toLowerCase().replace(/\s+/g, "_")] = match[2].trim();
+  }
+  // Legacy frontmatter
+  const legacyPhase = content.match(/^current_phase:\s*(.+)/im);
+  if (legacyPhase && !result.current_phase) result.current_phase = legacyPhase[1].trim();
+  const legacyName = content.match(/^(?:feature_name|name|title):\s*(.+)/im);
+  if (legacyName && !result.feature && !result.name && !result.feature_name) {
+    result.feature_name = legacyName[1].trim();
+  }
+  return result;
+}
+
+function runValidateManifest(featureDir) {
+  try {
+    const toolPath = path.join(__dirname, "..", "..", "shared", "tools", "dev-pipeline-tools.js");
+    if (!fs.existsSync(toolPath)) return null;
+    const valResult = execSync(
+      `node "${toolPath}" validate-manifest "${featureDir}" --plugin ${PLUGIN} --raw`,
+      { timeout: 3000, encoding: "utf8", stdio: ["pipe", "pipe", "pipe"] }
+    ).trim();
+    return valResult;
+  } catch (_) {
+    return null;
+  }
+}
+
+function runSessionContinuity() {
+  const result = {};
+
+  // --- TODO.md parsing ---
+  try {
+    const todoPath = path.join(PROJECT_ROOT, "TODO.md");
+    if (fs.existsSync(todoPath)) {
+      const content = fs.readFileSync(todoPath, "utf8");
+      const lines = content.split("\n");
+      let pending = 0;
+      let done = 0;
+      for (const line of lines) {
+        if (/^- \[ \]/.test(line)) pending++;
+        if (/^- \[x\]/i.test(line)) done++;
+      }
+      result.todos = { pending, done };
+    }
+  } catch (_) {}
+
+  // --- v2.0 Pipeline Detection ---
+  try {
+    const docsDir = path.join(PROJECT_ROOT, "docs");
+    if (fs.existsSync(docsDir)) {
+      const manifests = findManifests(docsDir);
+      if (manifests.length > 0) {
+        result.pipelines = [];
+        for (const mf of manifests) {
+          try {
+            const content = fs.readFileSync(mf, "utf8");
+            const fields = parseManifestFields(content);
+            const featureName = fields.feature || fields.name || fields.feature_name || "";
+            const currentPhase = (fields.current_phase || "").toLowerCase();
+
+            if (!currentPhase) continue;
+
+            const featureDir = path.dirname(path.dirname(mf)); // up from .dev/MANIFEST.md
+            const devDir = path.dirname(mf); // .dev/
+
+            // Detect current stage within the current phase
+            const stageResult = detectStageInPhase(devDir, currentPhase);
+            const currentStage = stageResult === "complete" ? "Complete" : stageResult.charAt(0).toUpperCase() + stageResult.slice(1);
+
+            // Detect completed phases
+            const completedPhases = detectCompletedPhases(devDir);
+
+            // Detect context bridges
+            const contextBridges = detectContextBridges(devDir);
+
+            // Validate manifest (non-blocking, 3s timeout)
+            const manifestValidation = runValidateManifest(featureDir);
+            let manifestStatus = "unknown";
+            if (manifestValidation) {
+              manifestStatus = manifestValidation.startsWith("PASS") ? "valid" : "invalid";
+            }
+
+            const pipeline = {
+              name: featureName || path.basename(featureDir),
+              phase: currentPhase.toUpperCase(),
+              stage: currentStage,
+              completedPhases: completedPhases.map((p) => p.toUpperCase()),
+              contextBridges,
+              manifestStatus,
+            };
+
+            if (manifestStatus === "invalid") {
+              pipeline.manifestWarning = manifestValidation;
+            }
+
+            result.pipelines.push(pipeline);
+          } catch (_) {}
+        }
+      }
+    }
+  } catch (_) {}
+
+  return result;
 }
 
 // --- Main ---
@@ -219,8 +441,28 @@ try {
         lines.push(
           `\u{1F527} Active pipeline: "${p.name}" at ${p.phase} phase`
         );
-        if (p.warning) {
-          lines.push(`  \u26A0\uFE0F  ${p.warning}`);
+        lines.push(
+          `  \u{1F4CD} Stage: ${p.stage}`
+        );
+        if (p.completedPhases.length > 0) {
+          lines.push(
+            `  \u2705 Completed: ${p.completedPhases.join(", ")}`
+          );
+        }
+        if (p.contextBridges.length > 0) {
+          lines.push(
+            `  \u{1F517} Context bridges: ${p.contextBridges.join(", ")}`
+          );
+        }
+        if (p.manifestStatus === "valid") {
+          lines.push(`  \u2705 MANIFEST: valid`);
+        } else if (p.manifestStatus === "invalid") {
+          lines.push(`  \u26A0\uFE0F  MANIFEST: invalid`);
+          if (p.manifestWarning) {
+            lines.push(`    ${p.manifestWarning}`);
+          }
+        } else {
+          lines.push(`  \u2753 MANIFEST: validation skipped`);
         }
       }
     }

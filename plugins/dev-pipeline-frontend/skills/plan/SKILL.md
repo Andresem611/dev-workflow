@@ -1,261 +1,434 @@
 ---
 name: plan
-description: Use when /dev:plan is invoked or MANIFEST shows PLAN phase. Handles architecture decisions, task breakdown, and wave grouping with tier-scaled review depth.
+description: Makes architecture decisions, creates task breakdowns, and defines wave groupings for a feature. Produces locked decision log and task list via the 4-stage inner loop. Triggers on /dev:plan or when /dev router advances past DISCOVER.
 ---
 
-# /dev:plan — Architecture Decisions + Task Breakdown
+# /dev:plan — Architecture Decisions + Task Breakdown (v2.0)
 
-Architecture decisions, task breakdown, wave grouping. Absorbs feature-orchestrator Phase 3 logic.
-
-**Inner loop:** RESEARCH → EXECUTE → DOCUMENT → GATE
+Lock architecture decisions (with WHY + alternatives rejected), break work into tasks, group tasks into waves, and define acceptance criteria. Uses the 4-stage inner loop: Discuss, Architect, Execute, Review.
 
 ---
 
-## RESEARCH
+## Stage 1: Discuss — Architecture Direction
 
-### 0. Validate Entry (MANDATORY)
+**Purpose:** Gather architecture preferences, constraints, and execution strategy from the user before planning begins.
+
+### Before Starting
 
 ```bash
-node ${PLUGIN_ROOT}/../shared/tools/dev-pipeline-tools.js validate-entry plan docs/[feature] --plugin frontend
+node ${PLUGIN_ROOT}/../shared/tools/dev-pipeline-tools.js validate-stage-entry plan discuss <feature-dir> --plugin frontend
 ```
 
-If FAIL → read error output. Fix missing prerequisites before proceeding.
-If PASS → continue to step 1.
+### Context Bridge
 
-1. **Read MANIFEST** from `docs/[feature]/.dev/MANIFEST.md` — extract tier, domains, confirmed requirements
-2. **Read transition file** `docs/[feature]/prompt-transitions/discover-to-plan.md` — carry forward DISCOVER outputs
-3. **Dispatch code-architect subagent** for architecture proposal:
-   ```
-   Agent tool:
-     subagent_type: "feature-dev:code-architect"
-     model: "opus"
-     prompt: "[CoT Preamble from feature-orchestrator]
-       Propose architecture for [feature]:
-       1. Component hierarchy with exact file paths
-       2. Data flow: API → State → UI
-       3. API contracts (endpoints, request/response types)
-       4. State management approach (Context vs Redux vs local)
-       5. Key design decisions with trade-off analysis
+Read the previous phase's review artifact: `.dev/discover/review-design-approval.md`
 
-       Context: [requirements from MANIFEST + reuse audit from DISCOVER]
-       Design system: Thoven (amber-500, font-display headers, font-sans body,
-       3D buttons shadow-[0_4px_0_0_rgb(217,119,6)] no borders,
-       spring animations stiffness:500 damping:35 mass:0.6)
+Extract: confirmed requirements, reuse audit findings, codebase patterns, key decisions from DISCOVER.
 
-       Output: Architecture proposal + decision table"
-   ```
+### Mechanics (per inner-loop-reference.md Section 2.1)
 
-4. **Backend dependency detection** — for each API endpoint in the proposal:
-   ```
-   curl -s -o /dev/null -w "%{http_code}" \
-     "${NEXT_PUBLIC_API_BASE_URL}/api/v1/[endpoint]"
-   ```
-   Classify each endpoint: EXISTS (2xx/4xx) | MISSING (404/connection refused)
+Use `AskUserQuestion` for EVERY question. One question at a time. NEVER batch multiple questions into a single prompt. No cap on questions — the user says "enough" or "move on" to proceed.
+
+**WHAT questions** — The work itself:
+- Component architecture preferences (atomic, feature-based, page-based)?
+- State management approach (Context, Zustand, Redux, local state)?
+- API integration patterns (React Query, SWR, custom hooks)?
+- Backend dependencies — are all APIs ready?
+- Known constraints (performance budgets, bundle size limits, browser support)?
+- Accessibility requirements beyond WCAG 2.1 AA baseline?
+
+**HOW meta-questions** — Execution strategy:
+- "Should I dispatch parallel architect agents or a focused sequential approach?"
+- "Want a challenger agent to stress-test architecture decisions?"
+- "How should we group waves — by layer (types/API/state/UI) or by feature slice?"
+- "How strict should review be for architecture decisions?"
+
+**Optional research pre-step:** If the user opts in for a codebase scan, dispatch an Explore agent to analyze existing architecture patterns, then resume questioning with findings.
+
+**Doneness Definition (MANDATORY — ask before leaving Discuss):**
+- "What does 'done' look like for this feature? What should a reviewer check?"
+- "Are there specific acceptance criteria — visual, behavioral, performance, accessibility?"
+- "What should the verifier be able to confirm is working when this is complete?"
+
+The orchestrator MUST ask at least 1 doneness question before advancing to Architect. These answers feed directly into the requirements artifact produced in the next stage.
+
+### Artifact
+
+`.dev/plan/discuss-architecture-direction.md` — Captures all Q&A, architecture preferences, meta-decisions on execution depth.
+
+### After Completion
+
+```bash
+node ${PLUGIN_ROOT}/../shared/tools/dev-pipeline-tools.js validate-stage-output plan discuss <feature-dir> --plugin frontend
+```
 
 ---
 
-## EXECUTE
+## Stage 2: Architect — Decision Framework
 
-Depth scales by tier:
+**Purpose:** Plan the subagent assignments, define decision categories, success criteria, and task breakdown format.
 
-### KNOWN — Solo Architecture Review
+### Before Starting
 
-Lead proposes architecture. Single reviewer subagent challenges it:
-
-```
-Agent tool:
-  subagent_type: "feature-dev:code-architect"
-  model: "opus"
-  prompt: "[CoT Preamble]
-    Review this architecture proposal for [feature]:
-    [paste proposal]
-
-    Challenge against:
-    1. Existing codebase patterns — cite specific files
-    2. Edge cases: empty data, loading, error, auth boundaries
-    3. State management appropriateness
-    4. Performance: re-renders, bundle size
-    5. Mobile/responsive behavior
-    6. COPPA compliance (if student-facing)
-    7. Accessibility: WCAG 2.1 AA
-
-    Output: Decision table with [Decision | Choice | Rationale | Concerns | Resolution]"
+```bash
+node ${PLUGIN_ROOT}/../shared/tools/dev-pipeline-tools.js validate-stage-entry plan architect <feature-dir> --plugin frontend
 ```
 
-### COMBINATION — Boardroom Architecture Review
+### Mechanics (per inner-loop-reference.md Section 2.2)
 
-Invoke boardroom (TeamCreate) with architecture focus. Architect + domain experts debate the proposal. Cap at 2-3 rounds. Lead synthesizes.
+**MANDATORY:** Use `/prompt-generator` to craft every subagent prompt. Prompt quality IS architecture.
 
-### NOVEL — Boardroom + Dual-Perspective
+### Subagent Definitions
 
-Two parallel subagents (Architect + Challenger) each produce independent proposals. Then boardroom debate on contested decisions. Lead synthesizes, documents dissent.
+| Field | Description |
+|-------|-------------|
+| **Agent type** | `architecture-reviewer` (decisions), `frontend-developer` (task breakdown), optional `challenger` (stress-test) |
+| **Prompt** | Crafted via `/prompt-generator` |
+| **Success criteria** | What the subagent output must contain |
+| **Input context** | Discuss artifact + DISCOVER review artifact + MANIFEST |
+| **Execution order** | Parallel vs sequential, dependencies between agents |
 
-### After Review — All Tiers
+### Decision Categories
 
-1. **Build decision log** — every decision gets a WHY entry (see format below)
-2. **Task breakdown** — decompose into 30min-2.5hr tasks with exact file paths
-3. **Wave grouping** — assign tasks to parallel waves based on dependencies
-4. **Define custom gate criteria** for DESIGN, BUILD, VALIDATE phases
-5. **Check backend results** — if ANY endpoint is MISSING → trigger PAUSE
+Subagents must address: component architecture, state management, API patterns, styling approach, routing, and dependencies.
 
-### Decision Log Format
+### Success Criteria
 
-Every architecture decision MUST follow this format in MANIFEST:
+Define what the combined Execute output must achieve:
+- Every decision has WHY + alternatives rejected (no exceptions)
+- Every confirmed requirement from DISCOVER has a corresponding task
+- Waves are logical — no circular dependencies, dependencies respected
+- Backend blockers identified and flagged with expected contracts
+- Task breakdown follows 30min-2.5hr sizing rule
+
+### Task Breakdown Format
+
+Each task must include:
+
+| Field | Description |
+|-------|-------------|
+| **Task ID** | Sequential: T01, T02, T03... |
+| **Description** | What the task accomplishes |
+| **File paths** | Exact paths to create, modify, and test |
+| **Acceptance criteria** | Clear done-definition for the task |
+| **Wave number** | Which wave this task belongs to |
+| **Agent type** | Which subagent type executes this task in BUILD |
+
+**MANDATORY: Requirements Artifact**
+
+The Architect MUST produce `requirements.md` in the feature docs directory using the template at `references/requirements-template.md`.
+
+Requirements are derived from:
+- Domain tags (from INTAKE MANIFEST)
+- User answers to doneness questions (from Discuss stage)
+- Design decisions and constraints identified during architecture
+
+Each requirement MUST be:
+- Identified with a category-number ID (e.g., `UI-01`, `A11Y-03`)
+- Testable — if you can't write a verification check, rewrite it
+- Mapped to a wave/task in the traceability table
+
+The requirements doc is the HARD CONTRACT that VALIDATE verifies against. Without it, VALIDATE has nothing to check except "do tests pass" — which is insufficient.
+
+### Artifact
+
+`.dev/plan/architect-decision-framework.md` — Subagent assignments, decision categories, success criteria, task breakdown format, execution order.
+
+`.dev/plan/requirements.md` — Checkable requirements with category IDs, verification methods, and traceability to waves/tasks.
+
+```bash
+node ${PLUGIN_ROOT}/../shared/tools/dev-pipeline-tools.js validate-stage-output plan architect <feature-dir> --plugin frontend
+```
+
+---
+
+## Stage 3: Execute — Locked Decisions + Task Breakdown
+
+**Purpose:** Dispatch subagents to produce the locked decision log, task list, wave groupings, acceptance criteria, and backend dependency status.
+
+### Before Starting
+
+```bash
+node ${PLUGIN_ROOT}/../shared/tools/dev-pipeline-tools.js validate-stage-entry plan execute <feature-dir> --plugin frontend
+```
+
+### Mechanics (per inner-loop-reference.md Section 2.3)
+
+**MANDATORY:** Dispatch subagents. The orchestrator NEVER executes work inline.
+
+For each subagent defined in Architect:
+1. Dispatch using Agent tool with the `/prompt-generator`-crafted prompt
+2. Wait for completion
+3. Collect results
+4. Check against per-subagent success criteria
+5. Log result (pass/fail, deviations, artifacts produced)
+
+### Required Outputs
+
+Execute must produce ALL five of these sections:
+
+#### 1. Locked Decision Log
+
+Table format. See Decision Log Format section below for full spec.
 
 ```markdown
-### Decisions (LOCKED)
-
-| # | Decision | Choice | Why | Alternatives Rejected | Risk |
-|---|----------|--------|-----|----------------------|------|
-| D1 | State management | React Context | Matches dashboard pattern (components/parent/DashboardContext.tsx), no cross-page state needed | Redux (overkill), Zustand (not in codebase) | Context re-render scope — mitigate with memo |
-| D2 | API layer | New lib/feature-api.ts | Follows established *-api.ts pattern | Inline fetch (violates CLAUDE.md rules) | None |
+| ID | Decision | Choice | WHY | Alternatives Rejected |
+|----|----------|--------|-----|----------------------|
+| D01 | State management | Zustand | Lightweight, fits project patterns | Redux (overkill), Context (re-render issues) |
 ```
 
-**WHY is mandatory.** A decision without WHY is not a decision — it is a guess. Cite existing codebase files as evidence.
+**WHY is mandatory.** A decision without WHY is a guess. Cite codebase files as evidence.
 
-### Task Breakdown Rules
+#### 2. Task List
 
-- **30min - 2.5hr** per task. Split if larger, combine if smaller than 20min.
-- Every task: exact file paths (create/modify/test), acceptance criteria, dependencies
-- Task ordering: Types → API → State → Components → Pages → Tests → Polish
-- Each task references its wave assignment
-
-### Wave Grouping
+Per task: ID, description, file paths to create/modify, acceptance criteria, wave number, assigned agent type.
 
 ```markdown
-### Wave Plan
+| ID | Description | Files | Acceptance Criteria | Wave | Agent |
+|----|-------------|-------|-------------------|------|-------|
+| T01 | Define types | create: types/feature.ts | All API types covered | W1 | frontend-developer |
+```
 
+**Sizing:** 30min-2.5hr per task. Split if larger, combine if under 20min.
+**Ordering:** Types, API, State, Components, Pages, Tests, Polish.
+
+#### 3. Wave Groupings
+
+```markdown
 | Wave | Tasks | Parallel? | Depends On |
 |------|-------|-----------|------------|
-| W1 | T01 (types), T02 (API layer) | Yes | — |
-| W2 | T03 (context), T04 (hook) | Yes | W1 |
-| W3 | T05 (component A), T06 (component B) | Yes | W2 |
-| W4 | T07 (page integration) | No | W3 |
-| W5 | T08 (tests), T09 (polish) | Yes | W4 |
+| W1 | T01 (types), T02 (API) | Yes | -- |
+| W2 | T03 (state), T04 (context) | Yes | W1 |
 ```
 
-Tasks within a wave run in parallel (subagents). Waves run sequentially.
+Tasks within a wave run in parallel. Waves run sequentially. One file = one task = one wave assignment.
 
-### Custom Gate Criteria
+#### 4. Acceptance Criteria
 
-Define acceptance criteria that DESIGN, BUILD, and VALIDATE gates check IN ADDITION to their standard checks:
+Overall feature done-definition: locked decisions implemented, API integrations handle loading/error/empty states, responsive, WCAG 2.1 AA compliant, plus feature-specific criteria from DISCOVER.
+
+#### 5. Backend Dependency Status
 
 ```markdown
-### Custom Gate Criteria
-
-**G3 (DESIGN):** [e.g., "Mobile wireframe for booking flow", "Dark mode variants"]
-**G5 (BUILD per wave):** [e.g., "All API calls use error boundaries", "Loading skeletons on every async view"]
-**G6 (VALIDATE):** [e.g., "Booking flow works with 0 available slots", "Teacher with no photo renders fallback"]
+| Endpoint | Method | Expected Request | Expected Response | Status |
+|----------|--------|-----------------|-------------------|--------|
+| /api/v1/bookings | POST | { student_id, slot_id } | { booking: { id } } | MISSING |
 ```
 
-### Backend Dependency → PAUSE
+If ANY endpoint is MISSING: flag as blocker, record expected contracts, surface in Review for user decision (proceed with mocks vs PAUSE).
 
-If backend detection found MISSING endpoints:
+**MANDATORY: must_haves in Wave Files**
 
-1. Set MANIFEST status: `awaiting-backend`
-2. Record missing endpoints with expected contracts:
-   ```markdown
-   ### Backend Blockers
-   | Endpoint | Method | Expected Request | Expected Response | Status |
-   |----------|--------|-----------------|-------------------|--------|
-   | /api/v1/bookings | POST | { student_id, slot_id } | { booking: { id, status } } | MISSING |
-   ```
-3. Invoke prompt-generator to create backend handoff prompt
-4. Transition to `/dev:pause` — do NOT proceed to DESIGN/DOCUMENT
+Each wave file produced by Execute MUST include a `must_haves` section:
+
+```markdown
+## must_haves
+- **truths**: [User-observable behaviors that must be true when this wave is done]
+- **artifacts**: [Files that must exist and be substantive, not stubs]
+- **key_links**: [Connections between components that must be wired]
+```
+
+These are consumed by VALIDATE for goal-backward verification. Truths without must_haves = unverifiable work.
+
+### Artifact
+
+`.dev/plan/execute-locked-decisions.md` — All five sections: decision log, task list, wave groupings, acceptance criteria, backend dependency status. Each wave includes `must_haves` for verification.
+
+```bash
+node ${PLUGIN_ROOT}/../shared/tools/dev-pipeline-tools.js validate-stage-output plan execute <feature-dir> --plugin frontend
+```
 
 ---
 
-## DOCUMENT
+## Stage 4: Review — Plan Approval
 
-Update these artifacts:
+**Purpose:** Validate Execute output against success criteria, surface gaps, get user approval.
 
-1. **MANIFEST** — add to `docs/[feature]/.dev/MANIFEST.md`:
-   - Decision log (LOCKED) with WHY reasoning
-   - Wave groupings table
-   - Custom gate criteria for G3, G5, G6
-   - Backend dependency status
-   - Phase progress: PLAN → COMPLETE
-
-2. **Decision log** — embedded in MANIFEST (not separate file)
-
-3. **Transition file** — generate via prompt-generator:
-   - If DESIGN phase applies: `prompt-transitions/plan-to-design.md`
-   - If DESIGN skipped: `prompt-transitions/plan-to-document.md`
-   - Contents: feature summary, LOCKED decisions, domains, wave plan, custom gate criteria, tier-specific instructions for next phase
-
----
-
-## GATE: G2 — Architecture Approval
-
-**Always mandatory.** No tier skips this gate.
-
-Present to user:
-
-```
-Architecture decisions for [Feature]:
-
-| # | Decision | Choice | Why (short) |
-|---|----------|--------|-------------|
-| D1 | ... | ... | ... |
-| D2 | ... | ... | ... |
-
-Task breakdown: [N] tasks across [N] waves
-Estimated total: [X] hours
-Backend status: All endpoints exist | [N] endpoints missing → PAUSE
-
-Custom gate criteria defined for: DESIGN / BUILD / VALIDATE
-```
-
-**Options:** Approve | Revise [specify which decision] | Pause
-
-### Pre-Gate Verification
-
-4. **Verify transition (MANDATORY):**
+### Before Starting
 
 ```bash
-node ${PLUGIN_ROOT}/../shared/tools/dev-pipeline-tools.js validate-transition plan docs/[feature] --plugin frontend
+node ${PLUGIN_ROOT}/../shared/tools/dev-pipeline-tools.js validate-stage-entry plan review <feature-dir> --plugin frontend
 ```
 
-If FAIL → Re-invoke prompt-generator with the listed missing fields.
+### Mechanics (per inner-loop-reference.md Section 2.4)
 
-5. **Verify MANIFEST (MANDATORY):**
+### Validation Checks
+
+Run each check. For each: evidence-based pass/fail.
+
+1. **Every decision has WHY + alternatives rejected** — scan decision log, reject entries missing either field
+2. **Every requirement from DISCOVER has a corresponding task** — cross-reference confirmed requirements against task list
+3. **Wave groupings are logical** — no circular dependencies, dependencies between waves respected, no two tasks in the same wave touching the same file
+4. **Backend blockers identified and flagged** — missing endpoints have expected contracts documented
+5. **Task sizing** — no task estimated above 2.5hr, no task below 20min
+6. **Requirements artifact checks:**
+   - [ ] `requirements.md` exists with checkable requirement IDs
+   - [ ] Every requirement is testable (has a verification method)
+   - [ ] Traceability table maps all requirements to waves/tasks
+   - [ ] Wave files include `must_haves` blocks
+   - [ ] No unmapped requirements (coverage = 100%)
+
+### Run Validation Tools
 
 ```bash
-node ${PLUGIN_ROOT}/../shared/tools/dev-pipeline-tools.js validate-manifest docs/[feature] --plugin frontend
+node ${PLUGIN_ROOT}/../shared/tools/dev-pipeline-tools.js validate-stage-output plan execute <feature-dir> --plugin frontend
 ```
 
-If FAIL → Update MANIFEST before ending session.
+```bash
+node ${PLUGIN_ROOT}/../shared/tools/dev-pipeline-tools.js validate-manifest <feature-dir> --plugin frontend
+```
 
-### After G2 Approval
+### Surface Gaps
 
-Determine next phase: DESIGN (if design domains tagged) or DOCUMENT (if not).
+Use `AskUserQuestion` for any gaps found. Present the plan summary:
 
-Display `▶ Next Up` block and STOP:
+```
+## /dev:plan — Architecture Review
+
+**Feature:** [name]
+
+### Locked Decisions
+| ID | Decision | Choice | WHY (short) |
+|----|----------|--------|-------------|
+| D01 | ... | ... | ... |
+
+### Plan Summary
+- Tasks: [N] across [N] waves
+- Backend status: All endpoints exist | [N] endpoints MISSING
+- Acceptance criteria: [N] items defined
+
+### Validation
+- [ ] Every decision has WHY: [PASS/FAIL]
+- [ ] Every requirement has a task: [PASS/FAIL]
+- [ ] Wave groupings logical: [PASS/FAIL]
+- [ ] Backend blockers flagged: [PASS/FAIL]
+- [ ] requirements.md exists with checkable IDs: [PASS/FAIL]
+- [ ] All requirements testable: [PASS/FAIL]
+- [ ] Traceability covers all requirements: [PASS/FAIL]
+- [ ] Wave must_haves present: [PASS/FAIL]
+
+Options:
+1. **Accept** — proceed to DESIGN
+2. **Retry Execute** — re-dispatch subagents with adjustments
+3. **Back to Architect** — redesign the execution plan
+4. **Back to Discuss** — revisit architecture direction
+```
+
+**User decides.** No auto-accepting (D08).
+
+### On Accept
+
+1. Update MANIFEST phase progress: PLAN = complete
+2. Write review artifact with bridge context for DESIGN
+
+Display `Next Up` block and **STOP**:
 
 ```
 ---
 ▶ Next Up
 
-Phase: [DESIGN or DOCUMENT] — [description]
+Phase: DESIGN — Visual design spec + component design
 
-`dev-pipeline-frontend:[design or document]`
+`dev-pipeline-frontend:design`
 
-/clear first → fresh context window
+/clear first -> fresh context window
 ```
 
-**STOP.** Do not invoke next phase. Do not offer "continue in same session".
+State persists to disk (MANIFEST + stage artifacts). Nothing is lost on `/clear`.
+
+**STOP.** Do not invoke DESIGN. Do not offer "continue in same session".
+
+Frontend ALWAYS routes to DESIGN after PLAN (D15). There is no conditional skip.
+
+### Artifact
+
+`.dev/plan/review-plan-approval.md` — Validation verdicts with evidence, user decision, locked decisions summary, wave plan summary, backend dependency status, bridge context for DESIGN.
+
+This artifact IS the context bridge. DESIGN reads it to understand architecture decisions.
+
+```bash
+node ${PLUGIN_ROOT}/../shared/tools/dev-pipeline-tools.js validate-stage-output plan review <feature-dir> --plugin frontend
+```
+
+---
+
+## Decision Log Format
+
+Every architecture decision MUST follow this format:
+
+```markdown
+| ID | Decision | Choice | WHY | Alternatives Rejected |
+|----|----------|--------|-----|----------------------|
+| D01 | State management | Zustand | Lightweight, no boilerplate, fits project patterns | Redux (overkill), Context (re-render issues) |
+```
+
+Rules:
+- **WHY is mandatory.** No exceptions. A decision without WHY is a guess.
+- **Alternatives Rejected is mandatory.** Forces deliberate thinking over defaults.
+- **Cite codebase evidence** where possible — reference real file paths as precedent.
+- Decisions are LOCKED after Review approval. Changes require re-entering PLAN.
+
+---
+
+## Directory Structure
+
+```
+docs/[Feature_Name]/
+└── .dev/
+    ├── MANIFEST.md
+    ├── discover/
+    │   └── review-design-approval.md    <- context bridge IN
+    └── plan/
+        ├── discuss-architecture-direction.md
+        ├── architect-decision-framework.md
+        ├── requirements.md                   <- HARD CONTRACT for VALIDATE
+        ├── execute-locked-decisions.md
+        └── review-plan-approval.md           <- context bridge OUT (to DESIGN)
+```
+
+No `prompt-transitions/` directory. The `review-plan-approval.md` serves as the context bridge to DESIGN.
 
 ---
 
 ## Common Mistakes
 
-| Mistake | Why It Fails | Prevention |
-|---------|-------------|------------|
-| Decision log without WHY | Future sessions guess at intent, make wrong trade-offs | Enforce WHY column — reject entries without it |
-| Tasks without exact file paths | Subagents create wrong files, duplicate work | Every task lists create/modify/test paths |
-| Skipping backend detection | BUILD phase hits 404s, wastes full wave | Always curl endpoints during RESEARCH |
-| Waves with hidden dependencies | Parallel tasks conflict on same file | One file = one task = one wave assignment |
-| Custom gate criteria too vague | "Works well" passes anything | Criteria must reference specific scenarios with data states |
-| Tasks > 2.5 hours | Context overflow, scope creep in subagents | Split. If it feels like one task, it is two |
-| Architecture without codebase evidence | Decisions drift from existing patterns | Every choice cites a real file path as precedent |
-| Proceeding past G2 without approval | Entire BUILD may need rework | G2 is ALWAYS mandatory — no auto-advance |
+| Mistake | Prevention |
+|---------|------------|
+| Decisions without WHY | Every decision MUST include reasoning — reject entries missing it |
+| Missing alternatives rejected | Forces deliberate thinking — reject entries missing it |
+| Tasks without acceptance criteria | Every task needs a clear done-definition |
+| Tasks without exact file paths | Subagents create wrong files without paths — every task lists create/modify/test |
+| Tasks larger than 2.5 hours | Split. If it feels like one task, it is two |
+| Bridging to DOCUMENT instead of DESIGN | Frontend: PLAN always routes to DESIGN (D15) |
+| Waves with hidden dependencies | One file = one task = one wave assignment — no conflicts |
+| Architecture without codebase evidence | Every choice should cite a real file path as precedent |
+| Batching questions in Discuss | One `AskUserQuestion` at a time (D02) |
+| Creating decisions inline in Execute | MUST dispatch subagent (D03) |
+| Skipping `/prompt-generator` in Architect | Mandatory for every Architect stage (D04) |
+| Auto-accepting in Review | User decides — surface via `AskUserQuestion` (D08) |
+| Auto-invoking next phase after Review | Display `Next Up` block and STOP |
+| Creating `prompt-transitions/` directory | v1.x pattern removed — `review-*.md` IS the context bridge |
+| Skipping doneness questions in Discuss | At least 1 doneness question is MANDATORY before advancing |
+| No requirements.md produced in Architect | requirements.md is the HARD CONTRACT for VALIDATE — without it, verification is insufficient |
+| Wave files missing must_haves | Every wave needs truths, artifacts, key_links for goal-backward verification |
+
+---
+
+## Quick Reference
+
+```
+Discuss:  AskUserQuestion (WHAT + HOW meta + doneness) -> discuss-architecture-direction.md
+Architect: /prompt-generator -> architect-decision-framework.md + requirements.md
+Execute:  Subagents produce 5 outputs + must_haves -> execute-locked-decisions.md
+Review:   Validate (incl. requirements checks) + user confirms -> review-plan-approval.md
+
+Execute outputs:
+  1. Locked Decision Log (WHY + alternatives rejected)
+  2. Task List (ID, files, acceptance criteria, wave, agent)
+  3. Wave Groupings (parallel tasks, sequential waves)
+  4. Acceptance Criteria (feature-level done-definition)
+  5. Backend Dependency Status (EXISTS/MISSING per endpoint)
+
+PLAN always routes to DESIGN (D15). No conditional skip.
+No tiers. No prompt-transitions/. review-*.md = context bridge.
+```

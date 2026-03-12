@@ -1,144 +1,142 @@
 ---
 name: pause
-description: Use when explicitly pausing feature development mid-pipeline. Captures full context for resumption — current phase, sub-step, completed work, remaining work, blockers, decisions, and context that would be lost. Triggers on dev-pipeline-backend:pause, "pause feature", "stop for now", "pick this up later".
+description: Pauses backend feature development mid-pipeline. Captures full context for resumption — current phase, stage, completed work, remaining work, blockers. No inner loop. Triggers on dev-pipeline-backend:pause or "pause", "stop for now", "pick this up later".
 ---
 
-# dev-pipeline-backend:pause — Explicit Pause with Handoff
+# dev-pipeline-backend:pause — Pause Pipeline with Handoff
 
-## Purpose
+**NO INNER LOOP.** PAUSE is an operational interrupt, not a development phase. It does NOT run Discuss/Architect/Execute/Review. It follows a GSD-style state dump: capture state, write handoff, commit, confirm. That is all. (Design decision D16.)
 
-Capture the full state of in-progress feature development so it can be resumed in a future session with zero context loss. Creates a detailed handoff document in MANIFEST.
-
-**This is NOT automatic session end** — this is an explicit user-initiated pause that creates a rich resumption context.
-
----
-
-## WHEN TO INVOKE
-
-- User says "pause", "stop for now", "pick this up later"
-- User selects "Pause" at any phase gate
-- Auto-invoked by BUILD when 3-strikes escalation triggers
-- Context window running low mid-phase
+Can be invoked from ANY phase at ANY stage. The capture step adapts to whatever phase/stage is currently active.
 
 ---
 
-## PROCESS
+## Step 1: Capture State
 
-### Step 1: Capture Current State
+Gather from MANIFEST and current session context:
 
-Gather all of the following:
+| Field | Source | Example |
+|-------|--------|---------|
+| **Current phase** | MANIFEST + session | BUILD |
+| **Current stage** | Session context | Execute |
+| **Wave number** | MANIFEST (BUILD only) | wave-03 |
+| **Completed phases** | MANIFEST phase statuses | INTAKE, DISCOVER, PLAN |
+| **Completed stages in current phase** | Phase directory artifacts | Discuss, Architect |
+| **Remaining stages** | Infer from completed | Review |
+| **Remaining phases** | MANIFEST pipeline definition | VALIDATE, SHIP |
+| **Blockers** | User or session context | "Waiting on API contract for /bookings" |
+| **Key decisions made** | MANIFEST decision log | Locked decisions from PLAN |
+| **Files created/modified** | Git status + session tracking | List of paths |
 
-```markdown
-pause_context:
-  paused_at: "[YYYY-MM-DD HH:MM]"
-  current_phase: [INTAKE|DISCOVER|PLAN|DOCUMENT|BUILD|VALIDATE|HANDOVER|SHIP]
-  sub_step: "[Specific sub-step within the phase]"
-  # Examples:
-  #   "DISCOVER: Standard brainstorm, question 3 of 5"
-  #   "BUILD: Wave 2, TASK_04 in progress (service 60% done)"
-  #   "VALIDATE: Step 3 security review running"
-```
+---
 
-### Step 2: Document Session Progress
+## Step 2: Write Handoff
 
-```markdown
-  completed_this_session:
-    - "[Specific accomplishment 1]"
-    - "[Specific accomplishment 2]"
-    # Be concrete: "Wave 1 complete (migration + model + factory)"
-    # NOT vague: "Made progress on database work"
-
-  remaining:
-    - "[Specific next action 1]"
-    - "[Specific next action 2]"
-    # Be actionable: "Finish TASK_04 credit hold service — webhook handler remaining"
-    # NOT vague: "Continue building"
-```
-
-### Step 3: Document Blockers and Context
+Create `.dev/pause-handoff.md` in the feature's `.dev/` root directory:
 
 ```markdown
-  blockers:
-    - "[Blocker description + what's needed to unblock]"
-    # Or "none" if no blockers
+# Pause Handoff — [Feature Name]
 
-  decisions_this_session:
-    - "[D0X: decision summary — locked/deferred]"
-    # Only decisions made THIS session, not all decisions
+**Paused At:** [Phase] / [Stage] / [Wave if BUILD]
+**Paused On:** [YYYY-MM-DD HH:MM UTC]
 
-  context_for_next_session:
-    - "[Critical context that would be lost without this note]"
-    - "[Key insight discovered during this session]"
-    - "[Reference to check: 'See COMMON_ERRORS.md #7 for the race condition pattern']"
-    # This is the most important field — what does the next session NEED to know?
+## State Summary
+- **Completed Phases:** [list]
+- **Current Phase:** [phase] — [stage]
+- **What's Done in Current Phase:** [list of completed stages and artifacts]
+- **What Remains in Current Phase:** [remaining stages]
+- **Remaining Phases:** [list]
+
+## Blockers
+[Any blockers preventing progress, or "None — user-initiated pause"]
+
+## Resume Instructions
+1. Run `dev-pipeline-backend:dev` — router will detect MANIFEST with pause state
+2. Read this file for context
+3. Read `.dev/[current-phase]/[latest-artifact].md` for stage state
+4. Continue from [stage] in [phase]
+
+### Domain-Specific Resume Checks
+- Verify migration status on both databases (`rails db:migrate:status` + `RAILS_ENV=production rails db:migrate:status`)
+- Check Solid Queue is running (`bundle exec rake solid_queue:start`)
+- Confirm full RSpec suite passes (`bundle exec rspec`)
+- Review any schema changes since pause (`git diff db/structure.sql`)
+
+## Key Decisions Made
+[Summary of locked decisions from MANIFEST decision log, if available]
+
+## Files Modified This Session
+[List of files created or modified with brief descriptions]
 ```
 
-### Step 4: Write to MANIFEST
+---
 
-Update `docs/[feature]/.dev/MANIFEST.md`:
+## Step 3: Update MANIFEST
 
-1. Set `**Status:** Paused`
-2. Set `**Current Phase:**` to current phase
-3. Replace the `## Pause Context` section with the full pause_context above
-
-### Step 5: Update CURRENT_STATUS.md
+Add pause context block to MANIFEST:
 
 ```markdown
-# [Feature Name] — PAUSED
-
-**Status:** Paused at [phase], [sub-step]
-**Paused:** [date/time]
-**Last completed:** [most recent accomplishment]
-**Next action:** [first item from remaining list]
-**Blockers:** [blockers or "None"]
-
-Resume with: `dev-pipeline-backend:dev` (will auto-detect paused feature)
+## Pause Context
+- **Status:** paused
+- **Paused At:** [phase] / [stage]
+- **Paused On:** [YYYY-MM-DD HH:MM UTC]
+- **Resume From:** [phase]:[stage]
 ```
 
-### Step 6: Commit Work in Progress
+Set MANIFEST status field to `paused`.
+
+---
+
+## Step 4: Checkpoint
+
+Run the checkpoint tool to persist state:
+
+```bash
+node ${PLUGIN_ROOT}/../shared/tools/dev-pipeline-tools.js checkpoint-state <feature-dir> --scope phase --plugin backend
+```
+
+---
+
+## Step 5: WIP Commit
+
+Stage all changes and create a WIP commit:
 
 ```bash
 git add -A
-git commit -m "wip: [feature-name] paused at [phase]
+```
 
-Paused at: [phase], [sub-step]
-Completed: [summary of session work]
-Next: [first remaining item]
+Commit message format:
+
+```
+WIP: [Feature Name] — paused at [phase]/[stage]
+
+Pause handoff written. Resume with dev-pipeline-backend:dev.
 
 Publication Status: Not Published
 
-Co-Authored-By: Claude <noreply@anthropic.com>"
-```
-
-### Step 7: Confirm to User
-
-```
-Feature development paused.
-
-  Feature: [name]
-  Paused at: [phase] — [sub-step]
-  Completed this session: [count] items
-  Remaining: [count] items
-  Blockers: [count or "None"]
-
-  Resume with: `dev-pipeline-backend:dev`
-  (Will auto-detect this feature and pick up where you left off)
+Generated with [Claude Code](https://claude.com/claude-code)
+Co-Authored-By: Claude <noreply@anthropic.com>
 ```
 
 ---
 
-## RESUMPTION
+## Step 6: Confirm
 
-When `dev-pipeline-backend:dev` is invoked and finds a paused MANIFEST, it auto-detects and resumes. See `SKILL.md` routing logic for full resumption details.
+Use `AskUserQuestion` to confirm:
+
+> "Pause handoff written to `.dev/pause-handoff.md`, MANIFEST updated, state checkpointed, and WIP committed. Verified?"
+
+User confirms handoff is complete. **STOP.** Session ends here.
 
 ---
 
-## Common Mistakes
+## Rules
 
-| Mistake | Fix |
-|---------|-----|
-| Vague completed/remaining items | Be specific: file names, task IDs, percentages |
-| Missing context_for_next_session | This is the most valuable field — don't skip it |
-| Not committing WIP | Always commit before pausing — uncommitted work can be lost |
-| Forgetting to update CURRENT_STATUS.md | This is the quick-glance file for resumption |
-| Not updating MANIFEST Status to Paused | `dev-pipeline-backend:dev` routing depends on this field |
+- ALWAYS update MANIFEST with pause context before stopping
+- ALWAYS write `pause-handoff.md` with structured resume instructions
+- ALWAYS specify the exact next action — not just "continue BUILD" but "Resume Execute stage in BUILD wave-03, task 4"
+- ALWAYS include locked decisions in handoff so they are not re-debated on resume
+- ALWAYS list all artifact file paths with current state
+- ALWAYS run checkpoint-state before committing
+- NEVER leave a pause without a handoff file — context WILL be lost
+- NEVER skip the WIP commit — uncommitted state is lost state

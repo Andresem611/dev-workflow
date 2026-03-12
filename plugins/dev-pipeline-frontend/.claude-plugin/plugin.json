@@ -1,7 +1,7 @@
 {
   "name": "dev-pipeline-frontend",
-  "description": "Frontend development pipeline — phased feature delivery from intake through ship",
-  "version": "1.1.0",
+  "description": "Frontend development pipeline v2.0 — 4-stage inner loop (Discuss → Architect → Execute → Review) for phased feature delivery from intake through ship",
+  "version": "2.1.0",
   "author": {
     "name": "Thoven",
     "email": "andres@thoven.co"

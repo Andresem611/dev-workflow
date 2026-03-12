@@ -1,218 +1,269 @@
 ---
 name: dev
-description: Use when developing features end-to-end, resuming paused feature work, or starting new feature pipelines. Triggers on dev-pipeline-backend:dev, start feature, build feature, resume feature.
+description: Develops backend features end-to-end — from idea through ship. Routes all multi-step backend work through a linear phase chain (INTAKE through SHIP) and resumes paused pipelines. Triggers on "build feature", "implement", "add endpoint", or any multi-step backend work. Also triggers on "/dev" or when resuming a paused feature pipeline.
 ---
 
-# dev-pipeline-backend:dev — Unified Feature Development Pipeline
+# /dev — Backend Development Pipeline v2.0
 
-## The Conductor
+Unified pipeline that routes all backend feature work through a linear phase chain: INTAKE through SHIP. Single entry point replaces manual skill-hopping between brainstorming, feature-orchestrator, writing-plans, subagent-driven-development, verify, and publish.
 
-`dev-pipeline-backend:dev` orchestrates the entire feature lifecycle through a GSD-inspired sub-command chain. It invokes existing skills (brainstorm, writing-plans, verify, etc.) — it does NOT replace them.
+## When to Use
 
-**Design doc:** `docs/plans/2026-03-10-dev-pipeline-design.md`
+- Building any new backend feature
+- User says "build", "implement", "add endpoint", "create" for a backend feature
+- Resuming a paused feature (`/dev` with existing MANIFEST)
+- Receiving a tech spec, API spec, or migration-heavy requirement
+- Bug/issue that needs structured investigation and fix
+
+**Do NOT use for:**
+- Pure strategy/business discussions (use `thoven-boardroom`)
+- Non-code tasks (emails, Notion, research)
+- Quick one-line fixes that need no pipeline
+- Frontend-only work (use `dev-pipeline-frontend:dev`)
+
+---
 
 ## Sub-Command Chain
 
+Each phase is a plugin skill invoked via colon notation:
+
 ```
-dev-pipeline-backend:dev              → This file (routes to current phase or starts new feature)
-dev-pipeline-backend:intake       → Classify, scope, create MANIFEST, determine tier
-dev-pipeline-backend:discover     → /brainstorm + TeamCreate (NOVEL tier)
-dev-pipeline-backend:plan         → Agent research + architecture decisions (decisions get LOCKED here)
-dev-pipeline-backend:document     → 5-layer docs + /writing-plans for wave execution plans
-dev-pipeline-backend:build        → Task execution (tier-driven) + /investigate + /safe-migrate
-dev-pipeline-backend:validate     → /verify + /security-review + QA + production data re-audit
-dev-pipeline-backend:handover     → Frontend design + /frontend-handover (conditional)
-dev-pipeline-backend:ship         → /publish workflow
-dev-pipeline-backend:pause        → Explicit pause with detailed handoff document
+/dev              → This file. Routes to correct phase or resumes.
+/dev intake       → Skill(dev-pipeline-backend:intake)    — Classify, scope, create MANIFEST
+/dev discover     → Skill(dev-pipeline-backend:discover)  — Brainstorm + codebase research + reuse audit
+/dev plan         → Skill(dev-pipeline-backend:plan)      — Architecture decisions + task breakdown
+/dev document     → Skill(dev-pipeline-backend:document)  — 5-layer docs + wave execution plans
+/dev build        → Skill(dev-pipeline-backend:build)     — Wave-based task execution + agent dispatch
+/dev validate     → Skill(dev-pipeline-backend:validate)  — RSpec, security review, QA, production data audit
+/dev ship         → Skill(dev-pipeline-backend:ship)      — Changelog + commit + deployment
+/dev pause        → Skill(dev-pipeline-backend:pause)     — Explicit pause with handoff context
 ```
+
+Each phase skill contains its own complete logic. This file is the router only.
+
+**Phase invocation:** When routing to a phase, use the Skill tool:
+```
+Skill(dev-pipeline-backend:intake)     # Plugin colon notation
+```
+
+---
+
+## Phase Chain
+
+```
+INTAKE → DISCOVER → PLAN → DOCUMENT → BUILD → VALIDATE → SHIP
+                                                           ↑
+                                                     PAUSE (any point)
+```
+
+**Every phase runs the inner loop:** Discuss → Architect → Execute → Review
+See `references/inner-loop-reference.md` for the canonical 4-stage pattern definition.
+
+**Every Review offers:** Accept (next phase) / Retry Execute / Back to Architect / Back to Discuss
+
+### Session Boundary Enforcement
+
+**Every Review acceptance is a hard stop.** When Review completes and the user accepts, display a `Next Up` block and STOP. No exceptions.
+
+**`Next Up` block format (displayed inline after every Review acceptance):**
+
+```
+---
+▶ Next Up
+
+Phase: [NEXT PHASE] — [one-line description]
+
+`dev-pipeline-backend:[next-phase]`
+
+/clear first → fresh context window
+```
+
+**Rules:**
+- Every Review displays this block after acceptance. No exceptions.
+- The agent does NOT invoke the next phase. The user runs `/clear` and invokes.
+- State persists to disk (MANIFEST + stage artifacts). Nothing is lost on `/clear`.
+- `review-*.md` files carry full structured context between phases (context bridge pattern).
+- BUILD is the only phase with intra-session wave progression (see build skill for details).
+
+---
+
+## Entry Mode Routing
+
+Determine entry mode from user input, then route to the correct starting phase.
+
+| Mode | Signal | Starting Phase |
+|------|--------|----------------|
+| **Idea dump** | Rough idea, "I want...", "what if..." | INTAKE → DISCOVER |
+| **Tech spec** | PRD, spec doc, detailed requirements | INTAKE → PLAN |
+| **API spec** | OpenAPI doc, endpoint contract, route list | INTAKE → PLAN |
+| **Migration-heavy** | Schema change, new tables, data backfill | INTAKE → PLAN |
+| **Bug/issue** | "broken", "error", "bug", "fix" | INTAKE → BUILD (investigate logic) |
+| **Resume** | Existing MANIFEST found | MANIFEST's current phase |
+
+**Default:** If unclear, start at INTAKE and let classification decide.
+
+---
+
+## Domain Tags
+
+Set during INTAKE. Drive agent dispatch and conditional validation in BUILD and VALIDATE.
+
+| Domain | Signals | Triggers |
+|--------|---------|----------|
+| `models` | New models, associations, validations | Schema verification, factory checks |
+| `migrations` | Schema changes, column adds, index work | `/safe-migrate`, dual DB sync check |
+| `controllers` | New endpoints, parameter handling | Route testing, request specs |
+| `services` | Business logic, complex workflows | Service unit tests, integration tests |
+| `auth` | Login, tokens, role guards, COPPA | Auth boundary testing, `/security-review` |
+| `payments` | Stripe, billing, subscriptions | Payment flow verification, `/security-review` |
+| `background-jobs` | Solid Queue, async processing | Job execution testing, queue verification |
+| `mailers` | SendGrid, email templates, notifications | Email delivery testing, template review |
+| `api-design` | Route structure, versioning, contracts | API contract verification |
+| `performance` | N+1 queries, caching, heavy queries | Query analysis, benchmark testing |
+| `security` | Input validation, injection, access control | `/security-review`, OWASP checks |
+
+Multiple domains can apply to a single feature.
+
+---
 
 ## Routing Logic
 
-When `dev-pipeline-backend:dev` is invoked, determine the action:
-
-### 1. Check for Active Feature
+### On `/dev` invocation:
 
 ```
-Search for active MANIFEST:
-  Glob: docs/*/.dev/MANIFEST.md
-  Read each, check Status field
+1. Check for existing MANIFEST (docs/**/.dev/MANIFEST.md)
+   |-- Found + status != COMPLETE → RESUME
+   |   |-- Read MANIFEST
+   |   |-- Read latest review-*.md from last completed phase
+   |   |-- If paused: read .dev/pause-handoff.md
+   |   |-- Report state to user, route to current phase
+   +-- Not found → NEW FEATURE
+       |-- Classify entry mode from user input
+       |-- Route to starting phase per Entry Mode table
+       +-- First phase is always INTAKE (creates MANIFEST)
+
+2. On phase invocation:
+   |-- Skill(dev-pipeline-backend:<phase>)
+   |-- Read MANIFEST
+   |-- Read review-*.md from previous phase for context bridge
+   |-- If review-*.md missing:
+   |     validate-stage-entry <current_phase> discuss <feature-dir> --plugin backend
+   |     If FAIL: show issues, suggest re-running previous phase Review
+   |     If PASS with warnings: proceed with warning
+   +-- Phase runs its own inner loop → Review → ▶ Next Up → STOP
 ```
 
-**If active MANIFEST found (Status: In Progress or Paused):**
-- Read MANIFEST → get `Current Phase` and `pause_context`
-- Read `docs/[feature]/prompt-transitions/[current_phase].md`
-- If prompt-transition file missing:
-  ```bash
-  node ${PLUGIN_ROOT}/../shared/tools/dev-pipeline-tools.js validate-entry [current_phase] docs/[feature] --plugin backend
-  ```
-  - If FAIL: show issues to user, suggest re-running previous phase's TRANSITION
-  - If PASS with warnings: proceed but warn user about missing context
-  - Read MANIFEST + CURRENT_STATUS.md + design doc as fallback context
-- Present: "You're building **[feature]**, currently at **[phase]**."
-- If paused: show pause context (what was done, what remains, blockers)
-- Suggest: "Next action: [specific next step]"
-- Route to the current phase's sub-command
+### MANIFEST Location
 
-**If multiple active MANIFESTs found:**
-- List all with feature name, phase, last updated
-- Ask user which to resume or if starting a new feature
+```
+docs/[Feature_Name]/.dev/MANIFEST.md
+```
 
-**If no active MANIFEST:**
-- Route to `dev-pipeline-backend:intake`
+Search for existing MANIFESTs: `docs/**/.dev/MANIFEST.md`
 
-### 2. Parse Arguments
+### Resume Protocol
 
-| Input | Route |
-|-------|-------|
-| `dev-pipeline-backend:dev` (no args) | Resume active feature OR start intake |
-| `dev-pipeline-backend:dev "description"` | `dev-pipeline-backend:intake` with idea dump mode |
-| `dev-pipeline-backend:dev --spec path/to/spec.md` | `dev-pipeline-backend:intake` with tech spec mode |
-| `dev-pipeline-backend:dev --handover feature-name` | `dev-pipeline-backend:intake` with frontend handover mode |
-| `dev-pipeline-backend:dev --bug "description"` | `dev-pipeline-backend:intake` with bug/issue mode |
-| `dev-pipeline-backend:phase-name` | Jump to specific phase (must have MANIFEST) |
+1. Read MANIFEST to find: current phase, domains, last completed phase
+2. Read the latest `review-*.md` from the last completed phase directory
+3. If paused: also read `.dev/pause-handoff.md` for handoff context
+4. Present summary to user: "Resuming [feature] at [phase]. Last completed: [phase]."
+5. Load the current phase sub-file and continue
 
-### 3. Phase Validation
+---
 
-Before routing to any phase, validate prerequisites:
+## Phase Prerequisites
+
+Each phase validates that its predecessors completed before executing.
 
 | Phase | Requires |
 |-------|----------|
 | INTAKE | Nothing |
-| DISCOVER | MANIFEST exists (INTAKE complete) |
-| PLAN | DISCOVER gate approved |
-| DOCUMENT | PLAN gate approved, decisions locked |
-| BUILD | DOCUMENT gate approved, wave execution plans exist |
-| VALIDATE | BUILD gate approved, tests passing |
-| HANDOVER | VALIDATE gate approved |
-| SHIP | VALIDATE or HANDOVER gate approved |
-| PAUSE | Active feature in any phase |
+| DISCOVER | MANIFEST exists |
+| PLAN | DISCOVER completed (or skipped per entry mode) |
+| DOCUMENT | PLAN completed |
+| BUILD | DOCUMENT completed |
+| VALIDATE | BUILD completed (all waves) |
+| SHIP | VALIDATE passed |
+| PAUSE | Any phase in progress |
 
-If prerequisites not met, tell user what's missing and suggest the correct phase.
+If prerequisites are not met, warn the user and suggest the correct phase.
 
-## Complexity Tiers
+---
 
-Determined during INTAKE. Drives behavior across ALL phases.
-
-| Tier | When | Example | Brainstorm | Build |
-|------|------|---------|------------|-------|
-| **KNOWN** | Pattern exists in codebase | CRUD endpoint, landing page | Quick | Sequential |
-| **COMBINATION** | Combines known patterns | Booking cancellation | Standard | Wave-parallel |
-| **NOVEL** | No existing pattern, needs research | AI curriculum generator | Deep + TeamCreate | Expert-team waves |
-
-## Entry Modes
-
-| Mode | Starting Point | Description |
-|------|---------------|-------------|
-| **Idea dump** | INTAKE → DISCOVER | Rough idea, needs full brainstorm |
-| **Tech spec** | INTAKE → DISCOVER (post-spec) | Spec exists, skip to post-spec brainstorm |
-| **Frontend handover** | INTAKE → HANDOVER | Backend done, need frontend work |
-| **Bug/issue** | INTAKE → BUILD (/investigate) | Something broken, investigate flow |
-
-## Phase Pattern (Every Phase)
+## Artifact Paths
 
 ```
-RESEARCH → EXECUTE → DOCUMENT → GATE
+docs/[Feature_Name]/.dev/
+├── MANIFEST.md
+├── intake/          → discuss-classification, architect-manifest-plan, execute-manifest-created, review-classification-confirmed
+├── discover/        → discuss-feature-requirements, architect-exploration-plan, execute-design-doc, review-design-approval
+├── plan/            → discuss-architecture-direction, architect-decision-framework, execute-locked-decisions, review-plan-approval
+├── document/        → discuss-documentation-scope, architect-documentation-plan, execute-docs-manifest, review-documentation-quality
+├── build/wave-NN/   → discuss-implementation-path, architect-subagent-prompts, execute-build-results, review-code-quality
+├── validate/        → discuss-validation-strategy, architect-validation-plan, execute-validation-results, review-ship-readiness
+└── ship/            → discuss-release-scope, architect-release-plan, execute-release-output, review-release-confirmation
 ```
 
-1. **RESEARCH:** Gather context (agents, codebase, files)
-2. **EXECUTE:** Do the work (skills, agents, decisions)
-3. **DOCUMENT:** Update docs, MANIFEST, trackers
-4. **GATE:** Present results, get approval
+Each phase gets its own subdirectory. All artifacts follow `<stage>-<descriptive-name>.md` naming. `review-*.md` in each phase directory serves as the context bridge to the next phase. There is NO separate `prompt-transitions/` directory.
 
-### Standard Gate
+---
+
+## Error Escalation (BUILD Phase)
 
 ```
-PHASE GATE: [phase name]
-  Summary: what was accomplished
-  Artifacts: files created/updated
-  Decisions: locked/deferred
-  Custom criteria: [from PLAN]
-  Next phase: what happens next
-  Options:
-    1. Approve → advance
-    2. Revise → address feedback
-    3. Pause → dev-pipeline-backend:pause
+Task fails verification
+|-- Simple error → Self-fix (1 retry max)
++-- Complex error → Investigate logic
+    |-- Investigation fixes it → Resume
+    +-- 3 strikes → PAUSE with options:
+        1. Guide fix manually
+        2. Revise plan (return to PLAN phase)
+        3. Pause feature entirely
 ```
 
-## Domain-Triggered Agents
-
-MANIFEST tracks domains. Agents dispatch based on domains, NOT phases.
-
-| Domain | Agents | Skills |
-|--------|--------|--------|
-| `auth` | `security-engineer`, `rails-expert` | `/security-review` |
-| `database` | `master-backend-ai-rails`, `postgres-pro` | `/safe-migrate`, `/production-data-audit` |
-| `payments` | `security-engineer`, `backend-service-developer` | `/security-review` |
-| `students` | `security-engineer` (COPPA) | `/security-review` |
-| `real-time` | `websocket-engineer` | — |
-| `email` | — | `/email` |
-| `external-api` | `backend-service-developer` | `/security-review` |
-| `performance` | `performance-engineer`, `database-optimizer` | — |
-| `background-jobs` | `rails-expert` | — |
-| `api-design` | `api-designer` | — |
-| `frontend` | `frontend-developer`, `ui-designer` | `/frontend-handover` |
-
-## State Management
-
-### MANIFEST Location
-`docs/[feature]/.dev/MANIFEST.md` — pipeline state, decisions, waves, acceptance criteria
-
-### Prompt Transitions
-`docs/[feature]/prompt-transitions/[phase].md` — context bridge between phases
-
-### Feature Docs
-```
-docs/[feature]/
-├── .dev/
-│   ├── MANIFEST.md
-│   └── reports/
-├── prompt-transitions/
-├── 00_MASTER_PLAN.md
-├── 01_IMPLEMENTATION_STATUS.md
-├── CURRENT_STATUS.md
-├── tasks/
-│   ├── TASK_01_[name].md
-│   ├── WAVE_01_PLAN.md
-│   └── ...
-└── api/
-    └── [FEATURE]_API_CONTRACT.md
-```
-
-## Context Protection
-
-- **Subagent isolation:** Heavy work runs in subagents. Agents write to files, orchestrator reads files.
-- **Session boundaries:** Each phase designed to complete in one session. Artifacts persist.
-- **Resumption:** MANIFEST + prompt-transitions enable pickup at any point.
-
-## Error Handling
-
-### BUILD Auto-Escalation
-```
-Task fails → self-fix (1 retry) → /investigate → 3-strikes → dev-pipeline-backend:pause
-```
-
-### Cross-Phase Regression
-If any phase discovers design needs revision:
-- Go back to earlier phase (e.g., PLAN → DISCOVER)
-- MANIFEST tracks regressions
-- Decision status changes from `locked` to `revisited`
+---
 
 ## Common Mistakes
 
-| Mistake | Fix |
-|---------|-----|
-| Skipping to BUILD without DOCUMENT gate | Every phase must complete its gate before advancing |
-| Not checking for active MANIFEST before starting new feature | Always Glob for existing MANIFESTs first |
-| Advancing past a gate without user approval | Gates are MANDATORY stops — no auto-advancing (except INTAKE) |
-| Starting a phase without reading its prompt-transition | Prompt transitions carry critical context from the previous phase |
-| Mixing up tiers mid-pipeline | Tier is set in INTAKE and drives ALL subsequent phases |
-| Not updating MANIFEST after phase completion | MANIFEST is the source of truth — stale state breaks resumption |
+| Mistake | Why It Breaks | Prevention |
+|---------|---------------|------------|
+| Skipping INTAKE | No MANIFEST, no domains — all phases break | INTAKE is always the first phase for new features |
+| Jumping to BUILD without DOCUMENT | No task files, no wave plans, unstructured execution | Validate prerequisites before each phase |
+| Ignoring domain tags | Missing validation checks (e.g., no migration audit on schema feature) | Set domains during INTAKE, they drive VALIDATE |
+| Manual skill-hopping mid-pipeline | Context lost between skills, MANIFEST not updated | Stay in /dev pipeline; it orchestrates internally |
+| Not reading MANIFEST on resume | Repeats completed work, loses decisions | Always read MANIFEST first on `/dev` |
+| Using `prompt-transitions/` directory | v1.x pattern — no longer exists | `review-*.md` in each phase directory IS the context bridge |
+| Skipping Discuss stage | Requirements unclear, subagent prompts are vague | Every phase MUST run Discuss with `AskUserQuestion` |
+| Executing inline in Execute | Orchestrator does work instead of dispatching | MUST dispatch subagents — orchestrator never executes inline |
+| Auto-looping in Review | User loses control of iteration direction | User decides path: Accept / Retry / Back to Architect / Back to Discuss |
+| Not reading `review-*.md` on resume | Context bridge lost, next phase starts blind | Always read previous phase's `review-*.md` before starting |
+| Auto-invoking next phase after Review | Context rot, no fresh window | Review displays `Next Up` block and STOP. Never invoke next phase. |
+| Offering "continue in same session" | Defeats session boundary purpose | Never offer. Every Review acceptance is a hard stop. |
+| Forgetting dual DB migrations | helium dev DB drifts from Neon production | Run migrations in BOTH environments — see DEPLOYMENT.md |
+| Skipping RSpec before commit | Broken tests ship to staging/production | `bundle exec rspec` is mandatory in VALIDATE and before every commit |
+| Adding a DESIGN phase | Backend has no DESIGN phase — that is frontend-only | Chain is INTAKE → DISCOVER → PLAN → DOCUMENT → BUILD → VALIDATE → SHIP |
 
-## Rules
+---
 
-- **NEVER skip phases** — each phase builds on the previous
-- **NEVER start code without DOCUMENT complete** — wave execution plans must exist
-- **ALWAYS invoke /prompt-generator at phase transitions** — context bridges are mandatory
-- **ALWAYS update MANIFEST at every phase** — pipeline state must be accurate
-- **Respect gates** — user approval required before advancing
-- **Tier drives behavior** — KNOWN/COMBINATION/NOVEL changes how every phase operates
+## Tool Integration
+
+Call these at the specified points. Tool location: `${PLUGIN_ROOT}/../shared/tools/dev-pipeline-tools.js`
+
+| When | Command |
+|------|---------|
+| Before entering any stage | `validate-stage-entry <phase> <stage> <feature-dir> --plugin backend` |
+| After completing any stage | `validate-stage-output <phase> <stage> <feature-dir> --plugin backend` |
+| Before session breaks | `checkpoint-state <feature-dir> --scope wave\|phase --plugin backend` |
+| After MANIFEST changes | `validate-manifest <feature-dir> --plugin backend` |
+
+---
+
+## Reference Files
+
+| File | Content |
+|------|---------|
+| `references/manifest-template.md` | MANIFEST structure and field definitions |
+| `references/domain-agent-map.md` | Which agents to dispatch per domain tag |
+| `references/validation-checklists.md` | Per-domain validation criteria |
+| `references/codebase-context-block.md` | Standard codebase context for subagent prompts |
+| `references/inner-loop-reference.md` | 4-stage inner loop pattern definition |

@@ -2,6 +2,10 @@
 
 Embed this context in ALL subagent prompts dispatched by the /dev pipeline. Keeps subagents grounded in project reality.
 
+## Contents
+- [Standard Context Block](#standard-context-block)
+- [Phase-Specific Context Additions](#phase-specific-context-additions)
+
 ---
 
 ## Standard Context Block

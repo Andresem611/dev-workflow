@@ -1,67 +1,199 @@
 ---
 name: intake
-description: Use when starting any new feature, bug fix, or development task through the /dev pipeline. Handles initial classification, scoping, and MANIFEST creation. Triggers on /dev:intake or when /dev router detects no existing MANIFEST.
+description: Starts new features through the /dev pipeline. Handles initial classification, scoping, domain tagging, and MANIFEST creation using the 4-stage inner loop. Triggers on /dev:intake or when /dev router detects no existing MANIFEST.
 ---
 
-# /dev:intake — Entry Phase
+# /dev:intake — Entry Phase (v2.0)
 
-Classifies incoming work, determines complexity tier and domain tags, creates the MANIFEST, and routes to the correct starting phase.
-
-## Inner Loop: RESEARCH → EXECUTE → DOCUMENT → GATE
+Classifies incoming work, tags domains, creates the MANIFEST, and routes to the correct starting phase. Uses the 4-stage inner loop: Discuss, Architect, Execute, Review.
 
 ---
 
-## RESEARCH — Parse Input & Scan Codebase
+## Resume Mode
 
-### 1. Parse User Input
+If an existing MANIFEST is found at `docs/[feature]/.dev/MANIFEST.md`:
+1. Read existing MANIFEST — do NOT create a new one
+2. Check current phase and status
+3. If paused, read `.dev/pause-handoff.md` for handoff context
+4. Report state to user and route to the recorded phase
 
-Extract from the user's request:
-- **What** they want built (feature name, description)
-- **Why** (business goal, user story, problem statement)
-- **Attachments** (spec docs, Figma links, backend API docs, error reports)
-- **Constraints** mentioned (timeline, dependencies, tech preferences)
+---
 
-### 2. Detect Entry Mode
+## Stage 1: Discuss — Classification Discussion
 
-| Mode | Signal | Routes To |
-|------|--------|-----------|
-| **Idea dump** | Rough idea, no spec, exploratory language | DISCOVER |
-| **Tech spec** | PRD, spec doc, detailed requirements provided | PLAN (skip DISCOVER) |
-| **Backend handoff** | "Backend is ready", API docs attached, endpoint references | PLAN or DESIGN |
-| **Figma/design handoff** | Mockups, design files, visual references provided | DESIGN |
-| **Bug/issue** | "broken", "error", "not working", stack traces | BUILD (via investigate logic) |
-| **Resume** | Existing MANIFEST found at `docs/[feature]/.dev/MANIFEST.md` | Current phase from MANIFEST |
+**Purpose:** Gather what/why/constraints from the user. Understand the feature, UI references, early implementation preferences.
 
-### 3. Quick Codebase Scan
+### Before Starting
 
-Search for existing patterns related to the feature (keep shallow — deeper research happens in DISCOVER):
-
-```
-Glob: **/*[relevant-keyword]*.{ts,tsx}
-Grep: pattern related to feature domain
-Check: docs/*/00_MASTER_PLAN.md for similar past features
+```bash
+node ${PLUGIN_ROOT}/../shared/tools/dev-pipeline-tools.js validate-stage-entry intake discuss <feature-dir> --plugin frontend
 ```
 
-If **Resume** mode: read `docs/[feature]/.dev/MANIFEST.md` and skip to routing.
+### Mechanics (per inner-loop-reference.md Section 2.1)
+
+Use `AskUserQuestion` for EVERY question. One question at a time. NEVER batch multiple questions into a single prompt. No cap on questions — the user says "enough" or "move on" to proceed.
+
+**WHAT questions** — The work itself:
+- What are you building?
+- Why? What problem does this solve?
+- Any constraints (timeline, dependencies, tech preferences)?
+- UI references or mockups?
+- Existing patterns in the codebase to follow?
+
+**HOW meta-questions** — Execution strategy:
+- "How deep should classification go?"
+- "Want me to do a quick codebase scan first?"
+- "Any domains you already know apply?"
+
+**Optional research pre-step:** If the user opts in for a codebase scan, dispatch an Explore agent to search for similar features, then resume questioning with findings.
+
+### Artifact
+
+`.dev/intake/discuss-classification.md` — Captures all Q&A, user preferences, meta-decisions.
+
+### After Completion
+
+```bash
+node ${PLUGIN_ROOT}/../shared/tools/dev-pipeline-tools.js validate-stage-output intake discuss <feature-dir> --plugin frontend
+```
 
 ---
 
-## EXECUTE — Classify & Scope
+## Stage 2: Architect — MANIFEST Plan
 
-### 1. Complexity Tier (by NOVELTY, not time)
+**Purpose:** Plan the MANIFEST structure, identify domains to tag, determine entry mode, define the Execute subagent prompt.
 
-| Tier | Signal | Example |
-|------|--------|---------|
-| **KNOWN** | Pattern already exists in codebase, can copy/adapt | "Add another dashboard card", "New CRUD page" |
-| **COMBINATION** | Combines 2+ known patterns in a new way | "Booking wizard with calendar + teacher cards + payment" |
-| **NOVEL** | No existing pattern, requires new architecture | "Real-time collaborative practice rooms" |
+### Before Starting
 
-**Decision criteria:**
-- Search codebase for similar implementations. Found near-identical? → KNOWN
-- Found pieces but not assembled this way? → COMBINATION
-- Nothing comparable exists? → NOVEL
+```bash
+node ${PLUGIN_ROOT}/../shared/tools/dev-pipeline-tools.js validate-stage-entry intake architect <feature-dir> --plugin frontend
+```
 
-### 2. Domain Tags (select all that apply)
+### Mechanics (per inner-loop-reference.md Section 2.2)
+
+**MANDATORY:** Use `/prompt-generator` to craft the subagent prompt for MANIFEST creation.
+
+Plan these elements:
+- **Entry mode** detected (see Entry Mode Detection table below)
+- **Domain tags** to assign (see Domain Tag Table below)
+- **MANIFEST fields** to populate: feature name, description, entry mode, domain tags, current phase, status, phase progress table
+- **Success criteria** for Execute: MANIFEST file exists, all required fields populated, domain tags assigned, no tier field present
+
+### Artifact
+
+`.dev/intake/architect-manifest-plan.md` — MANIFEST structure plan, domain tags, entry mode, subagent prompt crafted via `/prompt-generator`.
+
+```bash
+node ${PLUGIN_ROOT}/../shared/tools/dev-pipeline-tools.js validate-stage-output intake architect <feature-dir> --plugin frontend
+```
+
+---
+
+## Stage 3: Execute — Create MANIFEST
+
+**Purpose:** Dispatch a subagent to create the MANIFEST with metadata, domains, empty phase table, and initial hints.
+
+### Before Starting
+
+```bash
+node ${PLUGIN_ROOT}/../shared/tools/dev-pipeline-tools.js validate-stage-entry intake execute <feature-dir> --plugin frontend
+```
+
+### Mechanics (per inner-loop-reference.md Section 2.3)
+
+**MANDATORY:** Dispatch a subagent. The orchestrator NEVER creates the MANIFEST inline.
+
+The subagent:
+1. Creates `docs/[Feature_Name]/.dev/MANIFEST.md` using the template from `references/manifest-template.md`
+2. Populates: feature name, description, entry mode, domain tags, current phase, status (`active`), empty phase progress table (INTAKE = in progress, rest = pending)
+3. Creates the `.dev/intake/` directory structure
+4. Does NOT include any tier field (tiers removed — D05)
+
+### Artifact
+
+`.dev/intake/execute-manifest-created.md` — Confirmation that MANIFEST was created, path to it, fields populated.
+
+```bash
+node ${PLUGIN_ROOT}/../shared/tools/dev-pipeline-tools.js validate-stage-output intake execute <feature-dir> --plugin frontend
+```
+
+---
+
+## Stage 4: Review — Classification Confirmation
+
+**Purpose:** Validate the MANIFEST, confirm domain tags, get user approval.
+
+### Before Starting
+
+```bash
+node ${PLUGIN_ROOT}/../shared/tools/dev-pipeline-tools.js validate-stage-entry intake review <feature-dir> --plugin frontend
+```
+
+### Mechanics (per inner-loop-reference.md Section 2.4)
+
+1. Check MANIFEST exists and has all required fields
+2. Validate domain tags are reasonable for the described feature
+3. Run validation:
+
+```bash
+node ${PLUGIN_ROOT}/../shared/tools/dev-pipeline-tools.js validate-manifest <feature-dir> --plugin frontend
+```
+
+4. Surface any gaps or issues via `AskUserQuestion`
+5. Present classification summary to user:
+
+```
+## /dev:intake — Classification Complete
+
+**Feature:** [name]
+**Domains:** [tag list with justifications]
+**Entry Mode:** [mode] -> Routes to [phase]
+
+Scope: [one-paragraph summary]
+
+Options:
+1. **Accept** — proceed to [target phase]
+2. **Retry Execute** — re-dispatch subagent with adjustments
+3. **Back to Architect** — redesign the MANIFEST plan
+4. **Back to Discuss** — revisit requirements
+```
+
+**User decides.** No auto-accepting (D08).
+
+### On Accept
+
+1. Update MANIFEST phase progress: INTAKE = complete
+2. Determine routing based on entry mode (see Entry Mode Detection table)
+3. Display `Next Up` block and **STOP**:
+
+```
+---
+▶ Next Up
+
+Phase: [NEXT PHASE] — [one-line description]
+
+`dev-pipeline-frontend:[next-phase]`
+
+/clear first -> fresh context window
+```
+
+State persists to disk (MANIFEST + stage artifacts). Nothing is lost on `/clear`.
+
+**STOP.** Do not invoke the next phase.
+
+### Artifact
+
+`.dev/intake/review-classification-confirmed.md` — User confirmation, final domain tags, routing decision, bridge context for next phase.
+
+This artifact IS the context bridge. The next phase reads it to understand classification decisions.
+
+```bash
+node ${PLUGIN_ROOT}/../shared/tools/dev-pipeline-tools.js validate-stage-output intake review <feature-dir> --plugin frontend
+```
+
+---
+
+## Domain Tag Table
 
 | Domain | Signals |
 |--------|---------|
@@ -78,162 +210,71 @@ If **Resume** mode: read `docs/[feature]/.dev/MANIFEST.md` and skip to routing.
 | `seo` | Marketing pages, metadata, structured data |
 | `analytics` | Tracking events, identify calls |
 
-### 3. Feature Scope Summary
+---
 
-Compose a one-paragraph scope statement:
-- Feature name (kebab-case for folder: `booking-wizard`)
-- What it does (1-2 sentences)
-- Tier + justification
-- Domain tags + justification
-- Entry mode detected
-- Target starting phase
+## Entry Mode Detection
+
+| Mode | Signal | Routes To |
+|------|--------|-----------|
+| **Idea dump** | Rough idea, exploratory language | DISCOVER |
+| **Tech spec** | PRD, spec doc, detailed requirements | PLAN (skip DISCOVER) |
+| **Backend handoff** | "Backend is ready", API docs attached | PLAN or DESIGN |
+| **Design handoff** | Mockups, design files, visual references | DESIGN |
+| **Bug/issue** | "broken", "error", stack traces | BUILD (investigate) |
+| **Resume** | Existing MANIFEST found | Current phase from MANIFEST |
 
 ---
 
-## DOCUMENT — Create MANIFEST & Folder Structure
-
-### 1. Create Folder Structure
+## Directory Structure Created
 
 ```
 docs/[Feature_Name]/
-├── .dev/
-│   ├── MANIFEST.md          ← Created now
-│   └── reports/             ← Empty, used by later phases
-└── prompt-transitions/      ← Empty, used by phase bridges
+└── .dev/
+    ├── MANIFEST.md
+    └── intake/
+        ├── discuss-classification.md
+        ├── architect-manifest-plan.md
+        ├── execute-manifest-created.md
+        └── review-classification-confirmed.md
 ```
 
-### 2. Create MANIFEST
-
-Write `docs/[Feature_Name]/.dev/MANIFEST.md` using the template at `references/manifest-template.md`.
-
-Populate these fields during INTAKE:
-- Feature name, description, entry mode
-- Complexity tier with justification
-- Domain tags
-- Current phase: the phase being routed to
-- Status: `active`
-- Phase progress table (INTAKE = complete, rest = pending)
-- Decision log: empty (populated during PLAN)
-- Artifact paths: MANIFEST path only (others added per phase)
-
-### 2b. Generate Transition File
-
-Write `prompt-transitions/intake-to-discover.md` (or intake-to-plan, intake-to-design, intake-to-build depending on entry mode routing). Include: feature name, tier, domains, entry mode, scope summary, and routing decision.
-
-### 3. Resume Mode Handling
-
-If resuming, do NOT create a new MANIFEST. Instead:
-1. Read existing MANIFEST
-2. Check current phase and status
-3. Check for pause context (blockers, handoff notes)
-4. Report state to user and route to the recorded phase
-
----
-
-## GATE — G0 Approval
-
-### Auto-Advance (KNOWN tier only)
-
-INTAKE is the ONLY phase that can auto-advance. For KNOWN tier:
-1. Present the scope summary to the user as an informational message
-2. Immediately route to the target phase (usually DISCOVER or PLAN)
-3. No approval required
-
-### Mandatory Approval (COMBINATION / NOVEL)
-
-Present to user:
-
-```
-## /dev:intake — Classification Complete
-
-**Feature:** [name]
-**Tier:** [KNOWN|COMBINATION|NOVEL] — [justification]
-**Domains:** [tag list]
-**Entry Mode:** [mode] → Routes to [phase]
-
-Scope: [one-paragraph summary]
-
-Options:
-1. **Approve** — proceed to [target phase]
-2. **Revise** — change tier, domains, or routing
-3. **Pause** — save MANIFEST, stop here
-```
-
-Wait for explicit user choice before proceeding.
-
-### Pre-Gate Verification
-
-5. **Verify transition (MANDATORY):**
-
-```bash
-node ${PLUGIN_ROOT}/../shared/tools/dev-pipeline-tools.js validate-transition intake docs/[feature] --plugin frontend
-```
-
-If FAIL → Re-invoke prompt-generator with the listed missing fields.
-
-6. **Verify MANIFEST (MANDATORY):**
-
-```bash
-node ${PLUGIN_ROOT}/../shared/tools/dev-pipeline-tools.js validate-manifest docs/[feature] --plugin frontend
-```
-
-If FAIL → Update MANIFEST before ending session.
-
-### Routing After Approval
-
-| Entry Mode | Target Phase | Notes |
-|------------|-------------|-------|
-| Idea dump | DISCOVER | Full brainstorm cycle |
-| Tech spec | PLAN | Requirements already defined |
-| Backend handoff | PLAN or DESIGN | PLAN if architecture needed, DESIGN if UI-only |
-| Figma/design handoff | DESIGN | Design artifacts provided |
-| Bug/issue | BUILD | Enters via investigate logic |
-| Resume | Recorded phase | From MANIFEST `current_phase` |
-
-**G0 behavior:**
-- **KNOWN tier:** Auto-advance — invoke next phase immediately (INTAKE is lightweight).
-- **COMBINATION/NOVEL tier:** After user approves, display `▶ Next Up` block and STOP.
-
-```
----
-▶ Next Up
-
-Phase: [NEXT PHASE] — [description]
-
-`dev-pipeline-frontend:[next-phase]`
-
-/clear first → fresh context window
-```
-
-**STOP.** Do not invoke next phase.
+No `prompt-transitions/` directory. The `review-classification-confirmed.md` serves as the context bridge to the next phase.
 
 ---
 
 ## Common Mistakes
 
-| Mistake | Why It Fails | Prevention |
-|---------|-------------|------------|
-| Classifying by estimated time instead of novelty | Time varies by developer; novelty drives architecture risk | Ask: "Does this pattern exist in our codebase?" not "How long will this take?" |
-| Skipping codebase scan | Misclassifies KNOWN as COMBINATION | Always search for similar implementations before classifying |
-| Over-tagging domains | Triggers unnecessary validation audits in VALIDATE | Only tag domains with clear evidence from the request |
-| Under-tagging domains | Skips needed audits (missed a11y, missed mobile) | Check each domain signal against the feature description |
-| Creating MANIFEST for bug/issue entry | Bugs use investigate logic, not the full pipeline | If entry mode is bug/issue, route to BUILD with investigate — skip MANIFEST creation |
-| Auto-advancing COMBINATION/NOVEL | User loses ability to correct misclassification | ONLY KNOWN tier auto-advances. All others require explicit approval |
-| Not reading existing MANIFEST on resume | Creates duplicate, loses progress tracking | Always check `docs/*/.dev/MANIFEST.md` before creating new one |
+| Mistake | Prevention |
+|---------|------------|
+| Batching questions in Discuss | One `AskUserQuestion` at a time (D02) |
+| Creating MANIFEST inline in Execute | MUST dispatch subagent (D03) |
+| Adding tier field to MANIFEST | Tiers removed (D05) |
+| Skipping `/prompt-generator` in Architect | Mandatory for every Architect stage (D04) |
+| Auto-accepting in Review | User decides — surface via `AskUserQuestion` (D08) |
+| Making DESIGN conditional on domain tags | DESIGN always runs (D15) |
+| Auto-invoking next phase after Review | Display `Next Up` block and STOP |
+| Creating `prompt-transitions/` directory | v1.x pattern removed — `review-*.md` IS the context bridge |
+| Skipping codebase scan when user opts in | Dispatch Explore agent if user says yes during Discuss (D09) |
 
 ---
 
 ## Quick Reference
 
 ```
-INPUT → Detect entry mode → Codebase scan → Classify tier → Tag domains
-  → Create MANIFEST → G0 gate → Route to target phase
+Discuss: AskUserQuestion (WHAT + HOW meta) -> discuss-classification.md
+Architect: /prompt-generator -> architect-manifest-plan.md
+Execute: Subagent creates MANIFEST -> execute-manifest-created.md
+Review: validate-manifest + user confirms -> review-classification-confirmed.md
 
-Tier Decision:
-  Pattern exists?     → KNOWN (auto-advance)
-  Pieces exist?       → COMBINATION (approval required)
-  Nothing comparable? → NOVEL (approval required)
+Entry Mode -> Target Phase:
+  Idea dump      -> DISCOVER
+  Tech spec      -> PLAN
+  Backend handoff -> PLAN or DESIGN
+  Design handoff -> DESIGN
+  Bug/issue      -> BUILD (investigate)
+  Resume         -> MANIFEST current phase
 
-MANIFEST location: docs/[Feature_Name]/.dev/MANIFEST.md
+MANIFEST: docs/[Feature_Name]/.dev/MANIFEST.md
 Template: references/manifest-template.md
+No tiers. No prompt-transitions/. review-*.md = context bridge.
 ```

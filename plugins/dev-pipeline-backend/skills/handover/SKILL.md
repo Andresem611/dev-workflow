@@ -1,7 +1,13 @@
 ---
 name: handover
-description: Use when a validated backend feature needs frontend implementation. Conditional phase — only runs if feature has frontend component. Triggers on dev-pipeline-backend:handover or pipeline advancement past VALIDATE.
+description: Hands a validated backend feature to frontend for implementation. Conditional phase — only runs if feature has frontend component. Triggers on dev-pipeline-backend:handover or pipeline advancement past VALIDATE.
 ---
+
+> **DEPRECATED — v1.x remnant. Not in v2.0 pipeline chain.**
+> This skill uses the legacy RESEARCH > EXECUTE > DOCUMENT > GATE pattern.
+> It is NOT referenced by the v2.0 dev/SKILL.md router.
+> If reactivation is needed, rewrite to use the 4-stage inner loop (Discuss > Architect > Execute > Review).
+> Known issues: uses `validate-entry` (should be `validate-stage-entry`), references `prompt-transitions/` (deprecated), references `reports/validation-report.md` (nonexistent).
 
 # dev-pipeline-backend:handover — Frontend Design + Handover
 

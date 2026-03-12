@@ -1,104 +1,169 @@
 ---
 name: discover
-description: Use when /dev:discover is invoked or the pipeline transitions from INTAKE to DISCOVER. Handles brainstorming, codebase research, reuse audit, and boardroom debate for COMBINATION/NOVEL tiers.
+description: Explores requirements, brainstorms solutions, and researches existing patterns for a feature. Produces design doc and reuse audit via the 4-stage inner loop. Triggers on /dev:discover or when /dev router advances past INTAKE.
 ---
 
 # /dev:discover — Brainstorm + Codebase Research
 
-Brainstorm requirements at tier-appropriate depth, audit the codebase for reuse, and confirm requirements before planning begins.
+Explore UI requirements, user flows, interaction patterns, and component reuse. Produces a design doc and reuse audit.
 
-**Inner loop:** RESEARCH → EXECUTE → DOCUMENT → GATE
+**Inner loop:** Discuss → Architect → Execute → Review
 
 ---
 
-## RESEARCH
+## Stage 1: Discuss — UI Requirements Discussion
 
 ### 0. Validate Entry (MANDATORY)
 
 ```bash
-node ${PLUGIN_ROOT}/../shared/tools/dev-pipeline-tools.js validate-entry discover docs/[feature] --plugin frontend
+node ${PLUGIN_ROOT}/../shared/tools/dev-pipeline-tools.js validate-stage-entry discover discuss <feature-dir> --plugin frontend
 ```
 
-If FAIL → read error output. Fix missing prerequisites before proceeding.
-If PASS → continue to step 1.
+If FAIL → read error output and fix missing prerequisites before proceeding.
+If PASS → continue.
 
-1. **Read MANIFEST** at `docs/[Feature]/.dev/MANIFEST.md` — extract:
-   - `tier` (KNOWN / COMBINATION / NOVEL)
-   - `domains` (routing, state, forms, api-integration, etc.)
-   - `feature_name`, `entry_mode`, confirmed requirements from INTAKE
+### 1. Read Previous Phase Context
 
-2. **Dispatch code-explorer subagent:**
-   ```
-   Agent tool:
-     prompt: "[CoT Preamble]
-       Analyze codebase for patterns related to [feature]:
-       1. Reusable components: components/ui/, components/shared/, components/parent/, components/teacher/, components/student/
-       2. API patterns: lib/*-api.ts
-       3. State management: contexts/, hooks/, Redux slices
-       4. Types: types/, lib/*-types.ts
-       5. Similar features: search for analogous UI patterns
-       Report: file paths, pattern descriptions, reuse recommendations"
-   ```
+Read the INTAKE context bridge: `.dev/intake/review-classification-confirmed.md`
 
-3. **For COMBINATION/NOVEL only:** Read the boardroom skill pattern from `thoven-boardroom/SKILL.md` to prepare debate structure.
+Extract:
+- Feature name, description, domains
+- Entry mode and routing rationale
+- Requirements captured during INTAKE
+- Codebase scan findings (shallow)
+
+### 2. Ask WHAT Questions (one at a time)
+
+Use `AskUserQuestion` for every question. One question per call. No batching. No cap — the user says "enough" or "move on" to end questioning (D02, D07).
+
+WHAT questions explore:
+- UI requirements and acceptance criteria
+- User flows and interaction patterns
+- Component reuse needs and expectations
+- Visual references or prior art
+- Edge cases and error states
+- Responsive behavior and accessibility needs
+
+### 3. Ask HOW Meta-Questions
+
+HOW questions let the user control execution depth (D06):
+
+| Question | What It Controls |
+|----------|-----------------|
+| "Should we run a boardroom debate on approach?" | Enables/disables boardroom in Execute (D18) |
+| "Focused agents or broad exploration?" | Scope of codebase research |
+| "How deep should the reuse audit go?" | Reuse audit thoroughness |
+| "Want codebase research before we continue?" | Triggers optional research pre-step (D09) |
+| "Any specific areas of the codebase to investigate?" | Targets Explore agent scope |
+
+### 4. Optional Research Pre-Step (D09)
+
+If user opts in during questioning, dispatch an Explore agent to scan for existing patterns before continuing:
+
+```
+Dispatch: Explore subagent
+Purpose: Scan codebase for patterns related to [feature]
+Scope: User-directed (broad or focused)
+```
+
+Resume Discuss questioning with findings. The research enriches remaining questions.
+
+### Stage Artifact
+
+Write: `.dev/discover/discuss-ui-requirements.md`
+
+Contents:
+- All Q&A pairs (WHAT and HOW)
+- Locked decisions from user
+- Research pre-step findings (if performed)
+- User preferences for execution depth
+
+```bash
+node ${PLUGIN_ROOT}/../shared/tools/dev-pipeline-tools.js validate-stage-output discover discuss <feature-dir> --plugin frontend
+```
 
 ---
 
-## EXECUTE
+## Stage 2: Architect — Exploration Plan
 
-### Tier: KNOWN — Quick Brainstorm
+### 0. Validate Entry (MANDATORY)
 
-Solo analysis. No boardroom.
+```bash
+node ${PLUGIN_ROOT}/../shared/tools/dev-pipeline-tools.js validate-stage-entry discover architect <feature-dir> --plugin frontend
+```
 
-1. Review INTAKE requirements + code-explorer findings
-2. Ask 2-3 clarifying questions via `AskUserQuestion` (single round)
-3. Confirm requirements fit an existing codebase pattern
-4. Run reuse audit (see below)
+### 1. Craft Subagent Prompts (MANDATORY — D04)
 
-### Tier: COMBINATION — Standard Brainstorm + Boardroom Debate
+Use `/prompt-generator` to craft every subagent prompt. Prompt quality IS architecture.
 
-1. Review INTAKE requirements + code-explorer findings
-2. Ask 3-5 clarifying questions via `AskUserQuestion`
-3. **Boardroom debate (standard depth):**
-   - Spawn 3-4 relevant roles as parallel subagents (select from: CTO, CPO, Head of Design, Head of Learning Science — pick roles matching the feature's domains)
-   - Each role analyzes the feature from their perspective, proposes approach, flags risks
-   - Synthesize: agreements, disagreements, the room's lean
-   - Present synthesis to user — no formal judge round needed
-4. Run reuse audit (see below)
+### 2. Define Agents
 
-### Tier: NOVEL — Deep Brainstorm + Full Boardroom Panel
+| Agent | Type | Purpose | Required |
+|-------|------|---------|----------|
+| Explore | `subagent_type` | Scan codebase for existing patterns, similar components, reusable hooks/utils | Always |
+| ui-designer | agent | Produce design doc: UI requirements, user flows, interaction patterns, component design | Always |
+| Boardroom | debate | Strategic debate on approach with multiple perspectives | Only if user opted in (D18) |
 
-1. Review INTAKE requirements + code-explorer findings
-2. Ask 5-7 clarifying questions via `AskUserQuestion` (may need 2 rounds)
-3. **Boardroom debate (full panel):**
-   - Spawn all 7 roles as parallel subagents (CTO, CPO, CMO, Head of Growth, Head of Learning Science, Head of Design, CFO)
-   - Each role: 3-5 key points, clear recommendation, expected disagreements, one question for the CEO
-   - Run directed debate: message clashing roles to hash out disagreements (2-3 rounds max)
-   - Synthesize: agreements, disagreements, questions for CEO, the room's lean
-   - Present to user for decisions on unresolved disagreements
-4. Run reuse audit (see below)
+### 3. Define Success Criteria
 
-### Reuse Audit (ALL Tiers — Mandatory)
+For each subagent:
+- **Explore:** Must return exact file paths for every finding. Must classify each as REUSE / EXTEND / CREATE-NEW with justification.
+- **ui-designer:** Must cover all user flows from Discuss, interaction patterns, component hierarchy, reuse recommendations informed by Explore findings.
+- **Boardroom (if enabled):** Must produce synthesis with agreements, disagreements, and the room's lean.
 
-Dispatch code-explorer subagent:
+Overall:
+- Design doc covers every user flow identified in Discuss
+- Reuse audit has zero "probably exists" entries — every item has a file path or "not found"
+- All user requirements from Discuss are addressed
+
+### 4. Define Execution Order
 
 ```
-Agent tool:
-  prompt: "[CoT Preamble]
-    Perform reuse audit for [feature]. Search:
-    - components/ui/ and components/shared/ — UI primitives
-    - components/parent/, components/teacher/, components/student/ — feature components
-    - lib/*-api.ts — API functions
-    - hooks/, lib/, contexts/ — custom hooks and state
-    - types/, lib/*-types.ts — TypeScript interfaces
-
-    For EACH item found, classify:
-    - REUSE AS-IS: [component, path, why suitable]
-    - EXTEND: [component, path, modifications needed]
-    - NOT SUITABLE: [component, path, why not]
-
-    List what MUST be created new, with justification."
+1. Explore agent (first — patterns inform design decisions)
+2. ui-designer agent (second — uses Explore findings as input)
+3. Boardroom debate (third, if enabled — strategic layer on top of research + design)
 ```
+
+Explore and ui-designer are sequential (ui-designer depends on Explore output). Boardroom can run after both complete.
+
+### Stage Artifact
+
+Write: `.dev/discover/architect-exploration-plan.md`
+
+Contents:
+- Subagent assignments with crafted prompts
+- Per-agent success criteria
+- Overall success criteria
+- Execution order and dependencies
+- Escalation rules (what happens if an agent fails)
+
+```bash
+node ${PLUGIN_ROOT}/../shared/tools/dev-pipeline-tools.js validate-stage-output discover architect <feature-dir> --plugin frontend
+```
+
+---
+
+## Stage 3: Execute — Design Doc + Reuse Audit
+
+### 0. Validate Entry (MANDATORY)
+
+```bash
+node ${PLUGIN_ROOT}/../shared/tools/dev-pipeline-tools.js validate-stage-entry discover execute <feature-dir> --plugin frontend
+```
+
+### 1. Dispatch Explore Agent (MANDATORY — D03)
+
+Dispatch the Explore subagent with the prompt crafted in Architect. The orchestrator NEVER executes research inline.
+
+Explore scans:
+- `components/ui/`, `components/shared/` — UI primitives
+- `components/parent/`, `components/teacher/`, `components/student/` — feature components
+- `lib/*-api.ts` — API integration patterns
+- `hooks/`, `contexts/` — custom hooks and state management
+- `types/`, `lib/*-types.ts` — TypeScript interfaces
+- Similar features — analogous UI patterns
+
+Collect results. Check against Explore success criteria from Architect.
 
 ### Reuse Decision Tree
 
@@ -106,163 +171,165 @@ Agent tool:
 Need a component/function/hook?
 ├── Does something similar exist in the codebase?
 │   ├── YES → Can it be used as-is?
-│   │   ├── YES → REUSE IT (record path + usage)
-│   │   └── NO → Can it be extended without breaking existing consumers?
-│   │       ├── YES → EXTEND IT (document changes needed)
-│   │       └── NO → CREATE NEW (document why extension won't work)
+│   │   ├── YES → REUSE (record path + usage)
+│   │   └── NO → Can it be extended without breaking consumers?
+│   │       ├── YES → EXTEND (document changes needed)
+│   │       └── NO → CREATE NEW (document why extension fails)
 │   └── NO → CREATE NEW (document search performed)
 ```
 
+### 2. Dispatch ui-designer Agent (MANDATORY — D03)
+
+Dispatch with crafted prompt from Architect, Explore findings as input, and all Discuss requirements.
+
+The ui-designer produces: UI requirements spec, user flow diagrams, interaction patterns, component hierarchy with reuse decisions, error states, and responsive behavior notes.
+
+Collect results. Check against ui-designer success criteria from Architect.
+
+### 3. Dispatch Boardroom Debate (OPTIONAL — D18)
+
+Only if user opted in during Discuss.
+
+Dispatch boardroom with:
+- Feature requirements from Discuss
+- Explore findings (codebase patterns)
+- ui-designer output (design direction)
+- Specific question to debate (from Architect plan)
+
+Collect synthesis: agreements, disagreements, the room's lean.
+
+### 4. Handle Failures
+
+If any subagent fails: log the failure, continue with remaining agents, surface all failures in Review (D08).
+
+### Stage Artifact
+
+Write: `.dev/discover/execute-design-doc.md`
+
+Contents:
+- Reuse audit results (from Explore): counts and details for REUSE / EXTEND / CREATE-NEW
+- Design doc (from ui-designer): user flows, interaction patterns, component design
+- Boardroom findings (if run): synthesis, agreements, disagreements
+- Per-agent pass/fail against success criteria
+- Any failures or deviations logged
+
+```bash
+node ${PLUGIN_ROOT}/../shared/tools/dev-pipeline-tools.js validate-stage-output discover execute <feature-dir> --plugin frontend
+```
+
 ---
 
-## DOCUMENT
+## Stage 4: Review — Design Approval
 
-1. **Update MANIFEST** — add to `docs/[Feature]/.dev/MANIFEST.md`:
-   - Confirmed requirements (refined from brainstorm)
-   - Reuse audit summary (counts: N reuse, N extend, N new)
-   - Boardroom synthesis (COMBINATION/NOVEL only)
-   - Key decisions from brainstorm
-   - Phase status: DISCOVER → COMPLETE
+### 0. Validate Entry (MANDATORY)
 
-2. **Generate transition file** — write `docs/[Feature]/prompt-transitions/discover-to-plan.md`:
-   ```markdown
-   # Transition: DISCOVER → PLAN
-   ## Feature: [name]
-   ## Tier: [tier]
+```bash
+node ${PLUGIN_ROOT}/../shared/tools/dev-pipeline-tools.js validate-stage-entry discover review <feature-dir> --plugin frontend
+```
 
-   ## Confirmed Requirements
-   [Refined requirements from brainstorm]
+### 1. Check Against Success Criteria
 
-   ## Reuse Findings
-   - Reuse as-is: [list with paths]
-   - Extend: [list with paths + changes]
-   - Create new: [list with justification]
+For each criterion from Architect, provide evidence-based pass/fail:
+- Design doc covers all user flows from Discuss
+- Interaction patterns and edge cases documented
+- Reuse audit: every finding has file path or "not found", classified as REUSE / EXTEND / CREATE-NEW
+- Boardroom synthesis documented (if run)
 
-   ## Key Decisions
-   [From brainstorm/boardroom]
+### 2. Surface Gaps
 
-   ## Domains
-   [From MANIFEST]
+Use `AskUserQuestion` to present summary, pass/fail verdicts with evidence, gaps or open questions, and reuse audit counts (N reuse, N extend, N create-new).
 
-   ## Instructions for PLAN Phase
-   - [Tier-specific guidance for architecture depth]
-   - [Flag any unresolved disagreements from boardroom]
+### 3. User Decision (D08 — No Auto-Looping)
+
+Present options via `AskUserQuestion`:
+
+| Option | When to Use |
+|--------|-------------|
+| **Accept** | Design doc and reuse audit meet requirements |
+| **Retry Execute** | Re-dispatch failed agents with adjusted prompts |
+| **Back to Architect** | Redesign the exploration plan |
+| **Back to Discuss** | Revisit requirements or direction |
+
+### 4. On Accept
+
+1. Update MANIFEST with:
+   - Phase status: DISCOVER complete
+   - Confirmed requirements (refined from design doc)
+   - Reuse audit summary
+   - Key decisions
+
+2. Validate MANIFEST:
+   ```bash
+   node ${PLUGIN_ROOT}/../shared/tools/dev-pipeline-tools.js validate-manifest <feature-dir> --plugin frontend
    ```
 
+3. Write review artifact (context bridge to PLAN).
+
+### Stage Artifact (Context Bridge)
+
+Write: `.dev/discover/review-design-approval.md`
+
+This artifact bridges to PLAN. Must contain: design decisions and rationale, reuse audit findings (paths + classifications), confirmed requirements, boardroom synthesis (if run), caveats for PLAN, and recommended focus areas for architecture.
+
+```bash
+node ${PLUGIN_ROOT}/../shared/tools/dev-pipeline-tools.js validate-stage-output discover review <feature-dir> --plugin frontend
+```
+
 ---
 
-## GATE: G1 — Always Mandatory
+## After Review Approval
 
-Present results to user with tiered exit criteria:
-
-### KNOWN Exit Criteria
-- [ ] Requirements confirmed (clarifying questions resolved)
-- [ ] Reuse audit complete (search performed, decisions made)
-- [ ] Existing pattern identified that this feature follows
-
-### COMBINATION Exit Criteria
-- [ ] All KNOWN criteria met
-- [ ] Boardroom debate conducted (3-4 roles)
-- [ ] Architecture approach explored (room's lean documented)
-- [ ] Cross-concern risks identified
-
-### NOVEL Exit Criteria
-- [ ] All COMBINATION criteria met
-- [ ] Full boardroom panel debate conducted (7 roles)
-- [ ] All disagreements resolved or escalated to user
-- [ ] Research exhausted (no obvious unexplored angles)
-- [ ] User confirmed direction on all open questions
-
-Present via `AskUserQuestion`:
-- question: "DISCOVER complete. [Summary: N requirements confirmed, N reuse/N extend/N new components, key decisions]. Proceed to PLAN?"
-- options: "Approve — proceed to PLAN" | "Revise — [area to revisit]" | "Pause"
-
-### Pre-Gate Verification
-
-4. **Verify transition (MANDATORY):**
-
-```bash
-node ${PLUGIN_ROOT}/../shared/tools/dev-pipeline-tools.js validate-transition discover docs/[feature] --plugin frontend
-```
-
-If FAIL → Re-invoke prompt-generator with the listed missing fields.
-
-5. **Verify MANIFEST (MANDATORY):**
-
-```bash
-node ${PLUGIN_ROOT}/../shared/tools/dev-pipeline-tools.js validate-manifest docs/[feature] --plugin frontend
-```
-
-If FAIL → Update MANIFEST before ending session.
-
-### After G1 Approval
-
-Display `▶ Next Up` block and STOP:
+Display the Next Up block and STOP:
 
 ```
 ---
-▶ Next Up
+Next Up
 
 Phase: PLAN — Architecture decisions + task breakdown
 
-`dev-pipeline-frontend:plan`
+dev-pipeline-frontend:plan
 
-/clear first → fresh context window
+/clear first — fresh context window
 ```
 
-**STOP.** Do not invoke PLAN. Do not offer "continue in same session".
+State persists to disk (MANIFEST + stage artifacts). Nothing is lost on `/clear`.
+
+**STOP.** Do not invoke PLAN. Do not offer to continue in the same session.
+
+---
+
+## Agents Used in This Phase
+
+| Agent | Type | Purpose | When |
+|-------|------|---------|------|
+| Explore | subagent_type | Codebase scanning for existing patterns, similar implementations, reusable code | Always (Execute step 1) |
+| ui-designer | agent | Design direction, UI requirements analysis, component design, user flows | Always (Execute step 2) |
+| Boardroom | debate | Strategic debate on approach with multiple role perspectives | User opt-in only (D18, Execute step 3) |
 
 ---
 
 ## Common Mistakes
 
-| Mistake | Why It Fails | Prevention |
-|---------|-------------|------------|
-| Skipping reuse audit for KNOWN tier | "It's simple" — but duplicated components cause maintenance debt | Reuse audit is mandatory for ALL tiers, no exceptions |
-| Running full boardroom for KNOWN features | Wastes context and time on solved patterns | Check tier FIRST, solo brainstorm for KNOWN |
-| Boardroom with wrong roles | Spawning CFO for a UI-only feature adds noise | Select roles matching feature domains |
-| Accepting vague requirements | "Make it look nice" passes through | Ask concrete clarifying questions with specific options |
-| Reuse audit without file paths | "There's probably something we can reuse" | Subagent MUST return exact file paths or "not found" |
-| Skipping transition file | Next phase loses brainstorm context | Always generate discover-to-plan.md before gate |
-| Proceeding past G1 without approval | Violates gate protocol | Gate is ALWAYS mandatory — wait for user response |
-
----
-
-## Boardroom Integration Reference
-
-The boardroom pattern follows `thoven-boardroom/SKILL.md`. Key adaptations for DISCOVER:
-
-- **No meeting notes file** — synthesis goes into MANIFEST instead
-- **No formal judge round** — save that for PLAN phase architecture decisions
-- **Role selection** — COMBINATION uses 3-4 roles; NOVEL uses all 7
-- **Scope** — debate focuses on requirements and approach, NOT architecture details (that's PLAN)
-- **Teammate prompt must include:** feature requirements, codebase findings from code-explorer, and the specific question to debate
-
-### Spawning Boardroom Teammates
-
-```
-Agent tool (per role, in parallel):
-  prompt: "You are the [ROLE] on the Thoven leadership team.
-    YOUR TEAMMATES: [list selected roles]
-    THOVEN CONTEXT: [from memory files if available]
-    FEATURE: [name and requirements]
-    CODEBASE FINDINGS: [from code-explorer]
-
-    Analyze this feature from your role's perspective:
-    1. Your 3-5 key points (specific, opinionated)
-    2. Your recommendation (clear stance, no hedging)
-    3. Expected disagreements with other roles
-    4. One question for the CEO
-
-    Be direct. This is a meeting, not a memo."
-```
+| Mistake | Prevention |
+|---------|------------|
+| Executing design doc inline | MUST dispatch ui-designer subagent — orchestrator never executes work (D03) |
+| Skipping reuse audit | Always dispatch Explore agent for pattern scanning — no exceptions |
+| Crafting prompts without /prompt-generator | Every subagent prompt goes through /prompt-generator in Architect (D04) |
+| Forcing boardroom debate | Boardroom is user opt-in only during Discuss (D18) |
+| Not reading intake context bridge | Start Discuss by reading `.dev/intake/review-classification-confirmed.md` |
+| Reuse audit without file paths | Explore MUST return exact file paths or explicit "not found" — no "probably exists" |
+| Batching multiple questions | One `AskUserQuestion` call per question, always (D02) |
+| Auto-looping on review failure | Surface failures to user, let them decide next action (D08) |
+| Skipping stage entry validation | Run `validate-stage-entry` before every stage — no exceptions |
+| Continuing past Review without approval | Review requires explicit user acceptance before proceeding |
 
 ---
 
 ## Quick Reference
 
-| Tier | Clarifying Qs | Boardroom | Roles | Reuse Audit | Gate |
-|------|--------------|-----------|-------|-------------|------|
-| KNOWN | 2-3 (1 round) | None | Solo | Mandatory | G1 |
-| COMBINATION | 3-5 (1 round) | Standard | 3-4 selected | Mandatory | G1 |
-| NOVEL | 5-7 (2 rounds) | Full panel | All 7 | Mandatory | G1 |
+| Stage | Key Action | Artifact |
+|-------|-----------|----------|
+| Discuss | WHAT + HOW questions, optional research pre-step | `discuss-ui-requirements.md` |
+| Architect | /prompt-generator for all subagent prompts | `architect-exploration-plan.md` |
+| Execute | Dispatch Explore, ui-designer, optional boardroom | `execute-design-doc.md` |
+| Review | Evidence-based pass/fail, user decides | `review-design-approval.md` (bridges to PLAN) |

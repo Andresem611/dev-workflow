@@ -1,229 +1,142 @@
 ---
 name: pause
-description: Use when pausing the /dev pipeline at any phase. Captures current state, generates handoff context for resumption, and handles backend dependency pauses. Triggers on /dev:pause, "pause", "stop here", "continue later", or when backend endpoints are missing.
+description: Pauses feature development mid-pipeline. Captures full context for resumption — current phase, stage, completed work, remaining work, blockers. No inner loop. Triggers on /dev:pause or "pause", "stop for now", "pick this up later".
 ---
 
-# /dev:pause — Explicit Pause with Handoff
+# /dev:pause — Pause Pipeline with Handoff
 
-Can be invoked at ANY point during the /dev pipeline. Captures full context so a future session (or different agent) can resume exactly where work stopped.
+**NO INNER LOOP.** PAUSE is an operational interrupt, not a development phase. It does NOT run Discuss/Architect/Execute/Review. It follows a GSD-style state dump: capture state, write handoff, commit, confirm. That is all. (Design decision D16.)
 
-## When This Runs
-
-- User explicitly says "pause", "stop here", "continue later"
-- Backend dependency detected during PLAN (auto-triggered)
-- 3 strikes during BUILD (error escalation)
-- User chooses "Pause" at any gate
-- Session ending with incomplete work
+Can be invoked from ANY phase at ANY stage. The capture step adapts to whatever phase/stage is currently active.
 
 ---
 
-## Step 1: Capture Current State
+## Step 1: Capture State
 
-Gather everything needed for seamless resume.
+Gather from MANIFEST and current session context:
 
-### 1a. Identify Position
-
-```
-Current phase:     [INTAKE | DISCOVER | PLAN | DESIGN | DOCUMENT | BUILD | VALIDATE | SHIP]
-Step within phase: [e.g., "EXECUTE step 2c — wave 2 task 3"]
-Inner loop stage:  [RESEARCH | EXECUTE | DOCUMENT | GATE]
-```
-
-### 1b. Inventory Completed Work
-
-- Which phases are fully complete
-- Which tasks/waves finished (if in BUILD)
-- Which gates passed
-- Artifacts generated (list file paths)
-- Decisions locked in MANIFEST
-
-### 1c. Inventory Remaining Work
-
-- Current phase remaining steps
-- Subsequent phases still needed
-- Outstanding tasks in current wave
-- Custom acceptance criteria not yet met
-
-### 1d. Identify Blockers
-
-- Why pausing? (user choice, backend dependency, error escalation, session limit)
-- Specific blockers with detail
-- If backend: what endpoints are missing, what contracts are needed
+| Field | Source | Example |
+|-------|--------|---------|
+| **Current phase** | MANIFEST + session | BUILD |
+| **Current stage** | Session context | Execute |
+| **Wave number** | MANIFEST (BUILD only) | wave-03 |
+| **Completed phases** | MANIFEST phase statuses | INTAKE, DISCOVER, PLAN |
+| **Completed stages in current phase** | Phase directory artifacts | Discuss, Architect |
+| **Remaining stages** | Infer from completed | Review |
+| **Remaining phases** | MANIFEST pipeline definition | VALIDATE, SHIP |
+| **Blockers** | User or session context | "Waiting on API contract for /bookings" |
+| **Key decisions made** | MANIFEST decision log | Locked decisions from PLAN |
+| **Files created/modified** | Git status + session tracking | List of paths |
 
 ---
 
-## Step 2: Generate Handoff
+## Step 2: Write Handoff
 
-### 2a. Update MANIFEST
-
-Add pause context block to MANIFEST (`docs/[feature]/.dev/MANIFEST.md`):
-
-```markdown
-## Pause Context
-
-- **Paused at:** [phase] / [step] / [inner loop stage]
-- **Pause reason:** [user-choice | awaiting-backend | error-escalation | session-limit]
-- **Paused on:** 2026-03-10
-- **Completed phases:** INTAKE, DISCOVER, PLAN, ...
-- **Current phase progress:** [e.g., "BUILD wave 2: tasks 1-3 done, task 4 in progress"]
-- **Blockers:** [specific blockers]
-- **Resume action:** [exact next step to take]
-```
-
-Set MANIFEST status to `"paused"`.
-
-### 2b. Generate Pause Handoff File
-
-Create `docs/[feature]/prompt-transitions/pause-handoff.md`:
+Create `.dev/pause-handoff.md` in the feature's `.dev/` root directory:
 
 ```markdown
 # Pause Handoff — [Feature Name]
 
+**Paused At:** [Phase] / [Stage] / [Wave if BUILD]
+**Paused On:** [YYYY-MM-DD HH:MM UTC]
+
+## State Summary
+- **Completed Phases:** [list]
+- **Current Phase:** [phase] — [stage]
+- **What's Done in Current Phase:** [list of completed stages and artifacts]
+- **What Remains in Current Phase:** [remaining stages]
+- **Remaining Phases:** [list]
+
+## Blockers
+[Any blockers preventing progress, or "None — user-initiated pause"]
+
 ## Resume Instructions
+1. Run `/dev` — router will detect MANIFEST with pause state
+2. Read this file for context
+3. Read `.dev/[current-phase]/[latest-artifact].md` for stage state
+4. Continue from [stage] in [phase]
 
-1. Read MANIFEST at `docs/[feature]/.dev/MANIFEST.md`
-2. Current phase: [PHASE]
-3. Next action: [exact step description]
+### Domain-Specific Resume Checks
+- Verify dev server starts cleanly (`npm run dev`)
+- Check for stale `node_modules` (`npm install` if lock file changed)
+- Confirm no TypeScript errors (`npm run type-check`)
+- Review any upstream design system changes since pause
 
-## Context Summary
+## Key Decisions Made
+[Summary of locked decisions from MANIFEST decision log, if available]
 
-### What Was Done
-- [Bulleted list of completed work]
-
-### What Remains
-- [Bulleted list of remaining work]
-
-### Key Decisions (from MANIFEST decision log)
-- [Decision 1]: [choice] — [reasoning]
-- [Decision 2]: [choice] — [reasoning]
-
-### Active Artifacts
-- [File path]: [what it contains, current state]
-
-### Blockers
-- [Blocker description + what resolves it]
+## Files Modified This Session
+[List of files created or modified with brief descriptions]
 ```
 
-### 2c. Backend Dependency Handoff (if applicable)
+---
 
-When pause reason is `awaiting-backend`, generate an additional file:
+## Step 3: Update MANIFEST
 
-`docs/[feature]/prompt-transitions/backend-handoff.md`:
+Add pause context block to MANIFEST:
 
 ```markdown
-# Backend Handoff — [Feature Name]
+## Pause Context
+- **Status:** paused
+- **Paused At:** [phase] / [stage]
+- **Paused On:** [YYYY-MM-DD HH:MM UTC]
+- **Resume From:** [phase]:[stage]
+```
 
-## API Contract Needed
+Set MANIFEST status field to `paused`.
 
-### Endpoint 1: [METHOD /api/v1/resource]
-- **Purpose:** [what frontend needs this for]
-- **Auth:** [JWT required, role restrictions]
-- **Request body:**
-  ```json
-  {
-    "field": "type — description"
-  }
-  ```
-- **Expected response:**
-  ```json
-  {
-    "field": "type — description"
-  }
-  ```
-- **Error cases:** [expected error responses]
+---
 
-### Endpoint 2: ...
+## Step 4: Checkpoint
 
-## Data Models Needed
-- [Model name]: [fields and relationships]
+Run the checkpoint tool to persist state:
 
-## Auth Requirements
-- [Which auth system: parent/teacher JWT or student JWT]
-- [Role restrictions: Admin, Parent, Teacher, Student]
-
-## Frontend Readiness
-- API module scaffolded: [yes/no, path if yes]
-- Components waiting: [list of components blocked on this data]
-- Mock data in use: [yes/no, location if yes]
-
-## Resume Trigger
-When backend endpoints are deployed to dev server, resume /dev with:
-"Backend is ready for [Feature Name]"
-Entry mode: backend-handoff → routes to [PLAN | DESIGN | BUILD]
+```bash
+node ${PLUGIN_ROOT}/../shared/tools/dev-pipeline-tools.js checkpoint-state <feature-dir> --scope phase --plugin frontend
 ```
 
 ---
 
-### 2d. Display Resume Block Inline
+## Step 5: WIP Commit
 
-After writing all handoff files, display inline:
+Stage all changes and create a WIP commit:
 
-```
-Pipeline paused for [Feature Name].
-
-Resume with: `dev-pipeline-frontend:[paused-phase]`
-Read MANIFEST first: `docs/[feature]/.dev/MANIFEST.md`
-Read handoff: `docs/[feature]/prompt-transitions/pause-handoff.md`
-
-/clear first → fresh context window
+```bash
+git add -A
 ```
 
-**STOP.** Session ends here.
+Commit message format:
+
+```
+WIP: [Feature Name] — paused at [phase]/[stage]
+
+Pause handoff written. Resume with /dev.
+
+Publication Status: Not Published
+
+Generated with [Claude Code](https://claude.com/claude-code)
+Co-Authored-By: Claude <noreply@anthropic.com>
+```
 
 ---
 
-## Step 3: Resume Protocol
+## Step 6: Confirm
 
-When `/dev` is invoked and MANIFEST shows `status: "paused"`:
+Use `AskUserQuestion` to confirm:
 
-1. **Read MANIFEST** — detect paused state
-2. **Read pause-handoff.md** — get full context
-3. **Route to paused phase** — resume at exact step
-4. **If backend pause:** verify endpoints exist before resuming
-   ```bash
-   curl -s "${API_BASE_URL}/api/v1/[endpoint]" -H "Authorization: Bearer ${TOKEN}" | head -20
-   ```
-5. **Clear pause context** from MANIFEST once resumed
-6. **Continue pipeline** from where it stopped
+> "Pause handoff written to `.dev/pause-handoff.md`, MANIFEST updated, state checkpointed, and WIP committed. Verified?"
+
+User confirms handoff is complete. **STOP.** Session ends here.
 
 ---
 
-## Pause Scenarios
-
-| Trigger | Pause Reason | Extra Output | Resume Condition |
-|---------|-------------|-------------|-----------------|
-| User says "pause" | `user-choice` | pause-handoff.md | User invokes /dev |
-| Missing backend endpoints | `awaiting-backend` | + backend-handoff.md | User says "backend ready" |
-| 3 strikes in BUILD | `error-escalation` | + error details in handoff | User provides fix guidance |
-| Gate → Pause option | `user-choice` | pause-handoff.md | User invokes /dev |
-| Session ending | `session-limit` | pause-handoff.md | New session, invoke /dev |
-
----
-
-## Common Mistakes
-
-| Mistake | Why It Breaks | Prevention |
-|---------|--------------|------------|
-| Pause without updating MANIFEST | Next session can't find where to resume | ALWAYS write pause context to MANIFEST |
-| Vague "resume action" | Agent doesn't know exact next step | Be specific: "Run wave 2 task 4: implement BookingCard" |
-| Missing backend contract details | Backend dev builds wrong API shape | Include full request/response JSON schemas |
-| No artifact inventory | Resuming agent re-does completed work | List every generated file with its current state |
-| Skipping decision log | Resuming agent re-debates settled decisions | Copy locked decisions from MANIFEST into handoff |
-| Not setting MANIFEST status | /dev orchestrator doesn't detect pause | Set status to `"paused"` explicitly |
-| Backend handoff without auth details | Backend builds endpoint without proper auth | Always specify JWT system and role restrictions |
-| Pause during GATE without recording gate state | Resume doesn't know if gate passed | Record gate status: pending, passed, or revision-needed |
-
----
-
-## Rules (Non-Negotiable)
+## Rules
 
 - ALWAYS update MANIFEST with pause context before stopping
-- ALWAYS generate pause-handoff.md with structured resume instructions
-- ALWAYS specify the exact next action (not just "continue BUILD")
-- ALWAYS include decision log in handoff (decisions must not be re-debated)
-- ALWAYS generate backend-handoff.md when pausing for backend dependencies
-- ALWAYS list all artifact file paths with their current state
+- ALWAYS write `pause-handoff.md` with structured resume instructions
+- ALWAYS specify the exact next action — not just "continue BUILD" but "Resume Execute stage in BUILD wave-03, task 4"
+- ALWAYS include locked decisions in handoff so they are not re-debated on resume
+- ALWAYS list all artifact file paths with current state
+- ALWAYS run checkpoint-state before committing
 - NEVER leave a pause without a handoff file — context WILL be lost
-- NEVER resume from pause without reading MANIFEST + pause-handoff.md first
-- NEVER skip endpoint verification when resuming from backend pause
-- NEVER re-debate locked decisions on resume — they are settled
+- NEVER skip the WIP commit — uncommitted state is lost state

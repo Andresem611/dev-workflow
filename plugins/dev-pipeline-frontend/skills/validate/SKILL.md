@@ -1,122 +1,181 @@
 ---
 name: validate
-description: Use when /dev pipeline reaches VALIDATE phase. Runs comprehensive validation absorbing verify, manual-qa, accessibility-check, mobile-audit, and post-development audit into three layers (always-run, tier-driven, domain-triggered).
+description: Verifies a completed feature build before shipping. Runs evidence-based validation checks — type-check, lint, stubs, a11y, responsive, performance, visual regression. Triggers on /dev:validate or when /dev router advances past BUILD.
 ---
 
 # /dev:validate
 
-Comprehensive validation gate. Three layers scaled by tier and domains.
+Evidence-based validation gate. Every check produces concrete evidence — "should work" is not evidence.
 
-**Iron Law:** No claims without evidence in THIS message. "Should work" is not evidence. Run the check, show the output.
+**Iron Law:** No claims without evidence in THIS message. Run the check, show the output.
 
-## Inner Loop: RESEARCH > EXECUTE > DOCUMENT > GATE
+## Inner Loop: Discuss > Architect > Execute > Review
+
+Reference: `${PLUGIN_ROOT}/../shared/references/inner-loop-reference.md`
 
 ---
 
-## 1. RESEARCH
+## Stage 1: Discuss — Validation Strategy
 
-### 0. Validate Entry (MANDATORY)
+### 1.1 Read Context Bridge
 
-```bash
-node ${PLUGIN_ROOT}/../shared/tools/dev-pipeline-tools.js validate-entry validate docs/[feature] --plugin frontend
 ```
-
-If FAIL → read error output. Fix missing prerequisites before proceeding.
-If PASS → continue to step 1.
-
-Read these files before executing anything:
-
-| File | Extract |
-|------|---------|
-| `.dev/MANIFEST.md` | Tier, domains, current phase, custom acceptance criteria for VALIDATE |
-| `.dev/reports/*` | Any prior validation attempts |
-| `01_IMPLEMENTATION_STATUS.md` | Task completion status — all tasks must be DONE |
-| `CURRENT_STATUS.md` | BUILD phase exit state |
-| All BUILD artifacts | Changed files list via `git diff --name-only` against pre-build state |
+.dev/build/wave-NN/review-code-quality.md   ← last wave's review (context bridge)
+.dev/MANIFEST.md                             ← domains, current phase, acceptance criteria
+```
 
 **Stop condition:** If any BUILD task is not DONE, return to BUILD. Do not validate incomplete work.
 
+**MANDATORY: Load Requirements Contract**
+
+Load `requirements.md` from the feature docs directory. This is the HARD CONTRACT — every requirement ID must be checked. Also load all wave files' `must_haves` blocks. VALIDATE's job is to verify these, not just "do tests pass."
+
+Goal-backward verification (from GSD):
+1. What must be TRUE for the feature to be done? → Check truths from must_haves
+2. What must EXIST for those truths to hold? → Check artifacts from must_haves
+3. What must be WIRED for those artifacts to function? → Check key_links from must_haves
+
+### 1.2 WHAT Questions
+
+Ask via `AskUserQuestion`, one at a time:
+- Which validation areas need extra attention? Any known issues from BUILD?
+- Specific acceptance criteria beyond what MANIFEST defines?
+- Areas of the codebase that changed significantly and need closer review?
+- Known browser or device constraints to test against?
+
+### 1.3 HOW Meta-Questions
+
+- "How thorough should validation be? Full audit or quick sanity check?"
+- "Full a11y audit or quick check on key interactive elements?"
+- "Want judge scoring for code quality assessment?"
+- "Browser QA needed, or curl/API verification sufficient?"
+- "Performance benchmarks — full Lighthouse or just bundle size?"
+
+No cap on questions. User says "enough" or "move on" to proceed.
+
+### 1.4 Artifact
+
+Write `.dev/validate/discuss-validation-strategy.md` — all Q&A, locked decisions, validation depth preferences.
+
+```bash
+node ${PLUGIN_ROOT}/../shared/tools/dev-pipeline-tools.js validate-stage-output validate discuss <feature-dir> --plugin frontend
+```
+
 ---
 
-## 2. EXECUTE — Three Layers
+## Stage 2: Architect — Validation Plan
 
-### Layer 1: Always Run (all tiers)
+### 2.1 Read Inputs
 
-Run every check. Failures in any block are blocking.
+- `discuss-validation-strategy.md` — user preferences and depth decisions
+- `MANIFEST.md` — domain tags (drive which validations run)
+- `references/validation-checklists.md` — standard checklists per domain
 
-#### 1A. Type-check + Lint
+### 2.2 Craft Subagent Prompts
 
+**MANDATORY:** Use `/prompt-generator` for every subagent prompt.
+
+| Agent | Validation Area | When |
+|-------|----------------|------|
+| `qa-expert` | Type-check, lint, stub scan, docs drift, QA runbook | Always |
+| `code-reviewer` | Code quality, pattern adherence | Always |
+| `accessibility-tester` | Full WCAG 2.1 AA audit | `a11y` domain |
+| `performance-engineer` | Lighthouse, bundle size, render perf | `performance` domain |
+| `security-engineer` | Auth boundary testing, injection checks | `auth-ui` domain |
+
+For each subagent define: agent type, prompt (via `/prompt-generator`), success criteria, input context (changed files, feature code, types), execution order.
+
+**MANDATORY: Requirements-Based Verification Plan**
+
+Structure the verification plan around requirement IDs, not just test categories:
+
+For each requirement in `requirements.md`:
+1. Determine verification method: automated (type-check, lint, test, a11y audit) or manual
+2. Define the check: what to run, what output indicates PASS/FAIL
+3. Map to must_haves: which truths/artifacts/key_links support this requirement
+
+The verification report MUST include a **Requirements Coverage** table:
+
+| Requirement | Status | Evidence |
+|-------------|--------|----------|
+| UI-01 | SATISFIED | Component renders correctly, screenshot verified |
+| A11Y-03 | BLOCKED | Missing aria-label on submit button |
+| PERF-01 | NEEDS HUMAN | LCP measurement requires production environment |
+
+### 2.3 Execution Order
+
+1. **Critical (blocking):** Type-check, lint, stub scan
+2. **Standard (blocking):** Docs drift, code quality review, QA runbook
+3. **Domain-specific (from MANIFEST):** a11y, responsive, performance, auth-ui, forms, animation, api-integration, seo
+4. **Optional (if user opted in):** Judge scoring, production data audit
+
+### 2.4 Artifact
+
+Write `.dev/validate/architect-validation-plan.md` — ordered checklist, subagent assignments with prompts, success criteria, execution dependencies.
+
+```bash
+node ${PLUGIN_ROOT}/../shared/tools/dev-pipeline-tools.js validate-stage-output validate architect <feature-dir> --plugin frontend
+```
+
+---
+
+## Stage 3: Execute — Run Validations
+
+Dispatch subagents per the Architect plan. The orchestrator NEVER executes validation work inline.
+
+### 3.1 Always-Run Checks
+
+Every check produces EVIDENCE — actual command output, not summaries.
+
+**Type-Check + Lint:**
 ```bash
 timeout 60 npm run type-check 2>&1
 npm run lint 2>&1
 ```
+Evidence: actual tsc and eslint output. Both must pass.
 
-Both must pass. Show errors if any. Do not proceed until clean.
-
-#### 1B. Stub-check
-
-Scan all changed files for incomplete code patterns:
+**Stub Scan** — scan changed files (`git diff --name-only`):
 
 | Pattern | Severity |
 |---------|----------|
 | `TODO\|FIXME\|HACK\|XXX` | Warning |
-| `placeholder\|TBD\|lorem ipsum` | Error |
-| Empty catch blocks, `=> {}`, `return null //` | Error |
-| `console.log\|console.debug` | Warning |
-| `localhost\|127.0.0.1\|password123` | Error |
+| `lorem ipsum\|placeholder\|TBD\|TBC` | Error |
+| Empty implementations (`=> {}`, `return null //`, empty catch) | Error |
+| Hardcoded test values (`localhost`, `127.0.0.1`, `password123`) | Error |
+| `console.(log\|debug\|warn\|error)`, commented-out code blocks | Warning |
 
-Errors are blocking. Warnings are reported but non-blocking.
+Evidence: every match with file:line and surrounding context. Errors block, warnings inform.
 
-#### 1C. Docs Drift Scan
+**Docs Drift Scan** — check changed symbols against `CLAUDE.md`, `docs/**/*.md`, `CHANGELOG.md [Unreleased]`, `types/*.ts`, inline comments near changes (5 lines above/below each hunk). Evidence: list of stale references or explicit "0 found" with search scope.
 
-1. Get changed symbols from `git diff` (renamed functions, changed types, modified endpoints)
-2. Search `CLAUDE.md`, `docs/**/*.md`, `CHANGELOG.md [Unreleased]`, `types/*.ts` for stale references
-3. Check inline comments 5 lines above/below each changed hunk for stale descriptions
-4. If `lib/*-api.ts` changed: verify callers use correct endpoint paths and headers
+**Code Quality Review** — dispatch `code-reviewer`: pattern adherence, separation of concerns, no direct fetch in components (must use `lib/*-api.ts`), error/loading/empty states. Evidence: file:line findings.
 
-Errors (stale refs to renamed/deleted symbols) are blocking. Warnings (missing changelog entry) are non-blocking.
+**QA Runbook** — generate if none exists (`docs/[Feature]/TESTING_RUNBOOK.md`), then execute:
+1. Curl/API verification first — status codes, response shapes, access control
+2. Browser QA second (if user opted in) — one test at a time, wait for user pass/fail
 
-#### 1D. QA Runbook Generation + Execution
+### 3.2 Domain-Triggered Checks
 
-**Generate** (if no runbook exists for this feature):
-1. Read every file in the feature (pages, API layer, utilities, components, analytics)
-2. Extract test paths: auth guards, conditional UI, loading/error states, validation, API calls, responsive classes, animations
-3. Write test cases in three phases: Smoke (automated), Development QA (curl + browser), Production QA (post-deploy)
-4. Save to `docs/[Feature]/TESTING_RUNBOOK.md`
+Run ONLY when corresponding domain tag exists in MANIFEST.
 
-**Execute** (always — generate first if needed):
-1. **Curl/API verification first:** Login as test accounts, hit endpoints, verify status codes + response shapes + access control
-2. **Browser QA second:** Create tasks for visual checks, walk user through one at a time, wait for pass/fail per test
-3. Group browser tests by login account to minimize switching
-4. If a test fails, stop and discuss before continuing
+| Domain | Agent | Key Checks |
+|--------|-------|------------|
+| `a11y` | `accessibility-tester` | Contrast (4.5:1), focus indicators, touch targets (44x44px), ARIA, keyboard nav, skip links, form labels, screen reader, modal trapping |
+| `responsive` | `qa-expert` | Layout at 375/768/1440px, touch targets, no h-scroll, text readability, media scaling |
+| `performance` | `performance-engineer` | LCP < 2.5s, FID < 100ms, CLS < 0.1, bundle size, re-renders, lazy loading, code splitting |
+| `auth-ui` | `security-engineer` | Auth guards, role-based access, token handling, injection vectors |
+| `forms` | `qa-expert` | Edge cases (empty, max length, special chars), validation messages, error recovery |
+| `animation` | `qa-expert` | Visual regression, reduced-motion support, no jank, spring animation compliance |
+| `api-integration` | `qa-expert` | Response shapes match TypeScript types, error responses handled, auth headers correct |
+| `seo` | `qa-expert` | Title/meta, OpenGraph, Twitter cards, canonical URL, heading hierarchy, alt text, JSON-LD |
 
-Both layers (curl + browser) are mandatory. Neither replaces the other.
+Evidence required: file:line citations for violations, actual audit output for automated checks.
 
-#### 1E. Production Data Audit
+**Always run regardless of domains:** type-check, lint, stub scan, docs drift, code quality review.
 
-Curl real endpoints on dev backend. For each API module the feature uses:
+### 3.3 Optional Checks (If User Opted In)
 
-```bash
-# Example pattern — adapt per feature
-curl -s -H "Authorization: Bearer $TOKEN" "$API_BASE_URL/api/v1/endpoint" | head -c 2000
-```
-
-Verify:
-- Response status is 2xx
-- Response shape matches TypeScript types in `types/`
-- Required fields are present and non-null
-- No `"Alex Rodriguez"` hardcoded fallback data (TD-007)
-- Enum values match frontend expectations
-
-Log each endpoint checked with status and field verification result.
-
----
-
-### Layer 2: Tier-Driven
-
-#### COMBINATION + NOVEL: Judge Scoring
-
-Dispatch judge subagent (sonnet model) with rubric:
+**Judge Scoring** — dispatch judge subagent:
 
 | Criterion | Weight |
 |-----------|--------|
@@ -126,139 +185,141 @@ Dispatch judge subagent (sonnet model) with rubric:
 | Pattern Adherence | 15% |
 | Documentation Accuracy | 15% |
 
-Default score is 2. Justify any score above 2. Score of 5 in <5% of evaluations.
-- Weighted total >= 4.0: PASS
-- Weighted total < 4.0: FAIL — list specific issues, fix, re-run
-- After 3 failures: escalate to user
+Default score is 2. Justify scores above 2. Weighted total >= 4.0 passes.
 
-#### NOVEL Only: Debate Mode
+**Production Data Audit** — curl real endpoints, verify response shapes match TypeScript types, required fields present, auth guards return 401/403 for wrong roles.
 
-Dispatch 3 independent judges in parallel:
-- Judge 1: Focus on CORRECTNESS and edge cases
-- Judge 2: Focus on CODE QUALITY and patterns
-- Judge 3: Focus on COMPLETENESS, docs accuracy, and security
+### 3.4 Post-Development Audit
 
-Scoring: Unanimous >= 4.0 passes. All < 3.0 fails (redesign). Split (>1.5 point gap) triggers Round 2 where judges see each other's evaluations. Majority rules.
+Final checklist (from `references/validation-checklists.md`):
 
----
+- All acceptance criteria from PLAN met
+- Custom gate criteria from PLAN checked
+- No console errors or warnings in feature
+- Loading states for all async operations
+- Error states with retry/recovery actions
+- Empty states handled (no data scenario)
+- Auth guards on protected routes
+- API calls through `lib/*-api.ts` only (no direct fetch in components)
+- Works on mobile, tablet, desktop
+- No regressions in existing features
 
-### Layer 3: Domain-Triggered
+### 3.5 Goal-Backward Verification
 
-Run ONLY when the corresponding domain tag exists in MANIFEST.
+**MANDATORY: Goal-Backward Verification**
 
-| Domain | Audit | Key Checks |
-|--------|-------|------------|
-| `a11y` | WCAG 2.1 AA | All 7 categories: Keyboard, Focus, ARIA, Forms, Visual, Semantic, Motion. Line numbers required for every violation. |
-| `responsive` | Mobile/tablet/desktop | All 8 categories: Touch targets (44x44px), Breakpoints, Text/Input sizing, Overflow (320px), Fixed positioning, Modals, Tap vs Hover, Images. |
-| `performance` | Lighthouse + bundle | Run `npm run build`, check bundle size delta, flag components >50KB. |
-| `analytics` | Event verification | Curl endpoints that trigger events, check console for `[Analytics] Event tracked:` logs, verify property shapes. |
-| `design-system` | Thoven compliance | Verify: amber-500 not orange-500, font-display only on h1/h2, font-sans everywhere else, 3D button pattern where applicable. |
-| `seo` | Meta + structured data | Check `layout.tsx` for OpenGraph, Twitter cards, canonical URLs, JSON-LD structured data. |
+Beyond running tests, the Execute stage MUST:
 
-For a11y and responsive audits: cite specific file:line for every violation with the exact fix.
+1. **Verify truths**: For each truth in must_haves, confirm the codebase makes it true
+2. **Verify artifacts**: Each artifact in must_haves exists AND is substantive (not a stub)
+3. **Verify key_links**: Each connection in must_haves is wired (not orphaned)
+4. **Scan anti-patterns**: Search for TODO, FIXME, placeholder, "coming soon" in modified files
+5. **Check requirements coverage**: Mark each requirement ID as SATISFIED / BLOCKED / NEEDS HUMAN
 
-### Custom Acceptance Criteria
+Stub detection (from GSD verification-patterns):
+- Placeholder text: `grep -iE "placeholder|coming soon|will be here"`
+- Empty handlers: `onClick={() => {}}`, `onChange={() => console.log()}`
+- Hardcoded returns: `return null`, `return []`, `return {}`
+- TODO markers: `grep -E "TODO|FIXME|XXX|HACK"`
 
-Read PLAN-defined criteria for the VALIDATE gate from MANIFEST. Check each criterion explicitly. Report pass/fail per criterion with evidence.
+### 3.6 Artifact
 
----
+Write `.dev/validate/execute-validation-results.md` — every check with pass/fail and actual evidence.
 
-## 3. DOCUMENT
-
-After all checks complete:
-
-1. **Update MANIFEST** — set phase to VALIDATE, record pass/fail per layer
-2. **Write validation report** to `.dev/reports/validation-report.md`:
-
-```markdown
-## Validation Report — [Feature Name]
-**Date:** [date]  **Tier:** [tier]  **Domains:** [list]
-
-### Layer 1: Always Run
-| Check | Result | Details |
-|-------|--------|---------|
-| Type-check | PASS/FAIL | [error count] |
-| Lint | PASS/FAIL | [error count] |
-| Stub-check | PASS/FAIL | [errors/warnings] |
-| Docs drift | PASS/FAIL | [errors/warnings] |
-| QA runbook | PASS/FAIL | [X/Y curl, X/Y browser] |
-| Production data audit | PASS/FAIL | [endpoints checked] |
-
-### Layer 2: Tier-Driven
-[Judge score table or "N/A — KNOWN tier"]
-
-### Layer 3: Domain-Triggered
-[Per-domain audit results or "No domain audits triggered"]
-
-### Custom Criteria
-| Criterion | Result | Evidence |
-|-----------|--------|----------|
-
-### Failures
-| ID | Layer | Severity | Description |
-|----|-------|----------|-------------|
+```bash
+node ${PLUGIN_ROOT}/../shared/tools/dev-pipeline-tools.js validate-stage-output validate execute <feature-dir> --plugin frontend
 ```
 
-3. **Generate transition file:** `prompt-transitions/validate-to-ship.md` with validation summary, any caveats, and ship readiness assessment.
-
 ---
 
-## 4. GATE: G6 (Always Mandatory)
+## Stage 4: Review — Ship Readiness
 
-Present to user:
+### 4.1 Compile Results
+
+| Check | Result | Evidence Summary |
+|-------|--------|-----------------|
+| Type-check | PASS/FAIL | [error count, key errors] |
+| Lint | PASS/FAIL | [error count, key errors] |
+| Stub scan | PASS/FAIL | [error/warning counts, locations] |
+| Docs drift | PASS/FAIL | [stale refs found] |
+| Code quality | PASS/FAIL | [key findings] |
+| QA runbook | PASS/FAIL | [X/Y curl, X/Y browser passed] |
+| Domain checks | PASS/FAIL | [per-domain summary] |
+| Post-dev audit | PASS/FAIL | [criteria met/failed] |
+
+### 4.2 Categorize Issues
+
+**Blockers** — must fix before ship: type errors, lint errors, stub scan errors (empty implementations, hardcoded test values), security issues (missing auth guards, injection vectors), stale docs referencing deleted/renamed symbols.
+
+**Known Issues** — document but do not block: stub scan warnings (TODO/FIXME, console.log), minor a11y findings below AA threshold, performance nice-to-haves, docs drift warnings (missing changelog entry).
+
+**Requirements Coverage Summary (MANDATORY in review output):**
+
+Present to the user:
+1. Requirements score: X/Y requirements satisfied
+2. Any BLOCKED requirements with blocking issue
+3. Any NEEDS HUMAN requirements with what to test
+4. Anti-patterns found (blockers vs warnings)
+5. Overall status: PASSED / GAPS_FOUND / HUMAN_NEEDED
+
+If GAPS_FOUND: list specific gaps with fix recommendations before allowing advancement.
+
+### 4.3 Ship Readiness Assessment
+
+Verdict: **READY** (zero blockers, known issues documented) or **NOT READY** (specific blockers with file:line and suggested fix).
+
+### 4.4 Surface to User
+
+Present via `AskUserQuestion`:
 
 ```
-## G6: Validation Gate
+## Ship Readiness Assessment
 
 ### Results Summary
-[Layer 1/2/3 results table from report]
+[Results table from 4.1]
 
-### Failures (if any)
-[List with severity: Critical / Medium / Low]
+### Blockers (if any)
+[List with file:line and suggested fix]
 
-### Custom Criteria
-[Pass/fail per criterion]
+### Known Issues (if any)
+[List with severity and tracking plan]
+
+### Custom Acceptance Criteria
+[Pass/fail per MANIFEST-defined criterion with evidence]
 
 ### Options
 1. **Approve** — proceed to SHIP
-2. **Fix and re-validate** — address failures, re-run VALIDATE
-3. **Pause** — save state, exit pipeline
+2. **Fix and re-validate** — address blockers, re-run from Execute
+3. **Back to Architect** — redesign validation plan
+4. **Back to Discuss** — revisit validation strategy
+5. **Pause** — save state, exit pipeline
 ```
 
-All Critical failures must be resolved before Approve is offered. Medium/Low failures can be approved with acknowledgment.
+Approve is only offered when zero blockers remain.
 
-### Pre-Gate Verification
+### 4.5 Artifact
 
-4. **Verify transition (MANDATORY):**
+Write `.dev/validate/review-ship-readiness.md` — full results, blocker/known issue categorization, ship readiness verdict, user decision. This artifact IS the context bridge to SHIP.
 
 ```bash
-node ${PLUGIN_ROOT}/../shared/tools/dev-pipeline-tools.js validate-transition validate docs/[feature] --plugin frontend
+node ${PLUGIN_ROOT}/../shared/tools/dev-pipeline-tools.js validate-stage-output validate review <feature-dir> --plugin frontend
+node ${PLUGIN_ROOT}/../shared/tools/dev-pipeline-tools.js validate-manifest <feature-dir> --plugin frontend
 ```
 
-If FAIL → Re-invoke prompt-generator with the listed missing fields.
+### 4.6 After Approval
 
-5. **Verify MANIFEST (MANDATORY):**
-
-```bash
-node ${PLUGIN_ROOT}/../shared/tools/dev-pipeline-tools.js validate-manifest docs/[feature] --plugin frontend
-```
-
-If FAIL → Update MANIFEST before ending session.
-
-### After G6 Approval
-
-Display `▶ Next Up` block and STOP:
+Update MANIFEST phase to VALIDATE complete. Display and STOP:
 
 ```
 ---
-▶ Next Up
+Next Up
 
-Phase: SHIP — Changelog + commit + deployment reminder
-
-`dev-pipeline-frontend:ship`
-
-/clear first → fresh context window
+Phase: SHIP — Changelog + commit + deployment
+Command: dev-pipeline-frontend:ship
+/clear first — fresh context window
 ```
+
+State persists to disk (MANIFEST + stage artifacts). Nothing is lost on `/clear`.
 
 **STOP.** Do not invoke SHIP. Do not offer "continue in same session".
 
@@ -268,10 +329,9 @@ Phase: SHIP — Changelog + commit + deployment reminder
 
 | Mistake | Why It Fails | Prevention |
 |---------|-------------|------------|
-| Skipping curl layer, doing browser-only QA | Misses API contract regressions, wrong status codes, access control holes | Always curl first, browser second |
-| Running type-check but not reading its output | Blind "it passed" without evidence | Show actual output in this message |
-| Using KNOWN-tier validation for COMBINATION features | Skips judge scoring, ships unreviewed code | Read tier from MANIFEST, not from memory |
-| Declaring a11y "clean" after checking 2 of 7 categories | Partial audit misses keyboard traps, missing ARIA, motion issues | All 7 categories mandatory when `a11y` domain is tagged |
-| Skipping production data audit | Response shapes drift from types, hardcoded fallbacks ship | Curl real endpoints, compare to TypeScript types |
-| Not checking custom acceptance criteria | PLAN defined specific gates that get ignored | Read MANIFEST criteria, check each explicitly |
-| Claiming "I already verified earlier" | Stale evidence from a different message | Fresh evidence only. Re-run in THIS message. |
+| Claiming "it passed" without showing output | No evidence, no trust | Show actual command output in THIS message |
+| Skipping curl layer, doing browser-only QA | Misses API contract regressions | Always curl first, browser second |
+| Declaring a11y "clean" after partial audit | Misses keyboard traps, ARIA, motion | Full checklist when `a11y` domain tagged |
+| Not checking custom acceptance criteria | PLAN-defined gates get ignored | Read MANIFEST criteria, check each explicitly |
+| Claiming "I already verified earlier" | Stale evidence from different context | Fresh evidence only — re-run in THIS session |
+| Orchestrator executing checks inline | Violates subagent dispatch rule (D03) | Always dispatch via Agent tool |
