@@ -133,18 +133,26 @@ Multiple domains can apply to a single feature.
 ### On `/dev` invocation:
 
 ```
-1. Check for existing MANIFEST (docs/**/.dev/MANIFEST.md)
-   |-- Found + status != COMPLETE → RESUME
-   |   |-- Read MANIFEST
-   |   |-- Read latest review-*.md from last completed phase
-   |   |-- If paused: read .dev/pause-handoff.md
-   |   |-- Report state to user, route to current phase
-   +-- Not found → NEW FEATURE
-       |-- Classify entry mode from user input
-       |-- Route to starting phase per Entry Mode table
-       +-- First phase is always INTAKE (creates MANIFEST)
+1. Check for $ARGUMENTS (feature name passed via /dev command)
+   |-- Provided → find matching MANIFEST → skip to resume
+   +-- Not provided → scan docs/**/.dev/MANIFEST.md
 
-2. On phase invocation:
+2. MANIFEST scan results:
+   |-- 0 found    → NEW FEATURE → INTAKE
+   |-- 1 found    → RESUME directly
+   +-- 2+ found   → SHOW PICKER
+       |-- AskUserQuestion: list features with phase/stage/status
+       |-- User picks feature → RESUME
+       +-- User picks "new"   → INTAKE
+
+3. On RESUME:
+   |-- Read MANIFEST (current phase, domains, status)
+   |-- Read latest review-*.md from last completed phase
+   |-- If paused: read .dev/pause-handoff.md
+   |-- Report state to user: "Resuming [feature] at [phase]. Last: [phase]."
+   +-- Route to current phase skill
+
+4. On phase invocation:
    |-- Skill(dev-pipeline-frontend:<phase>)
    |-- Read MANIFEST
    |-- Read review-*.md from previous phase for context bridge
@@ -274,6 +282,7 @@ Task fails verification
 | Offering "continue in same session" | Defeats session boundary purpose | Never offer. Every Review acceptance is a hard stop. |
 | Using production backend URL | Data inconsistency, affects live users | Always verify `NEXT_PUBLIC_API_BASE_URL` points to dev |
 | Creating feature branches | Project uses main-only workflow | Commit directly to `main`. No branches. |
+| Running /dev with multiple MANIFESTs and no picker | Auto-resuming first found feature silently | Always show picker when 2+ active MANIFESTs |
 
 ---
 
