@@ -221,6 +221,8 @@ node ${PLUGIN_ROOT}/../shared/tools/dev-pipeline-tools.js validate-stage-output 
 | **Tech spec** | PRD, spec doc, detailed requirements | PLAN (skip DISCOVER) |
 | **Frontend handoff** | "Frontend needs this API", endpoint requests | PLAN |
 | **Bug/issue** | "broken", "error", stack traces | BUILD (investigate) |
+| **Kiro spec** | `.kiro/specs/` dir present, EARS requirements pasted (WHEN…SHALL lines), or "Kiro spec ready" | PLAN (skip DISCOVER) |
+| **CEK SDD spec** | `.specs/tasks/todo/` dir present, arc42 spec pasted, or "CEK spec ready" | PLAN (skip DISCOVER) |
 | **Resume** | Existing MANIFEST found | Current phase from MANIFEST |
 
 ---
@@ -271,6 +273,8 @@ Entry Mode -> Target Phase:
   Tech spec        -> PLAN
   Frontend handoff -> PLAN
   Bug/issue        -> BUILD (investigate)
+  Kiro spec        -> PLAN (skip DISCOVER; spec artifacts seed architecture + acceptance criteria)
+  CEK SDD spec     -> PLAN (skip DISCOVER; arc42 spec seeds architecture + acceptance criteria)
   Resume           -> MANIFEST current phase
 
 MANIFEST: docs/[Feature_Name]/.dev/MANIFEST.md
