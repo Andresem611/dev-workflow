@@ -5,6 +5,12 @@ All notable changes to the dev-pipeline plugin marketplace will be documented in
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.1.1] - 2026-03-12
+
+### Fixed
+- **Shared tools not found in cache** — `dev-pipeline-tools.js` was in a root-level `shared/` sibling directory that doesn't get installed when each plugin is cached independently. Embedded the tools file inside each plugin at `shared/tools/dev-pipeline-tools.js` so `${PLUGIN_ROOT}/../shared/tools/` resolves correctly.
+- **Kiro spec + CEK SDD entry modes** — Added both as intake entry modes in frontend and backend pipelines, routing to PLAN (skip DISCOVER). Added `shared/references/ears-notation-guide.md` for EARS notation reference.
+
 ## [2.1.0] - 2026-03-12
 
 ### Added
