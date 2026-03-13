@@ -329,7 +329,7 @@ Display `Next Up` block and **STOP**:
 
 Phase: DESIGN — Visual design spec + component design
 
-`dev-pipeline-frontend:design`
+`/dev:design`
 
 /clear first -> fresh context window
 ```

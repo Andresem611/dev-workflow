@@ -74,7 +74,7 @@ See `references/inner-loop-reference.md` for the canonical 4-stage pattern defin
 
 Phase: [NEXT PHASE] — [one-line description]
 
-`dev-pipeline-frontend:[next-phase]`
+`/dev:[next-phase]`
 
 /clear first → fresh context window
 ```

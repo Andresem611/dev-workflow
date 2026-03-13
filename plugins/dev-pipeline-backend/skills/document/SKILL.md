@@ -303,7 +303,7 @@ Present summary, then display:
 > Next Up
 
 Phase: BUILD — Wave-by-wave task execution
-`dev-pipeline-backend:build`
+`/dev:build`
 
 /clear first — fresh context window
 ```

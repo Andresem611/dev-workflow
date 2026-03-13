@@ -314,7 +314,7 @@ Display `Next Up` block and **STOP**:
 
 Phase: DOCUMENT — Technical documentation + wave execution plans
 
-`dev-pipeline-backend:document`
+`/dev:document`
 
 /clear first -> fresh context window
 ```

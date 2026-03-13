@@ -309,7 +309,7 @@ Present summary, then display:
 ### Next Up
 
 Phase: BUILD — Wave-by-wave task execution
-`dev-pipeline-frontend:build`
+`/dev:build`
 
 /clear first — fresh context window
 ```

@@ -259,7 +259,7 @@ Next Up
 
 Phase: DOCUMENT — 5-layer docs + wave execution plans
 
-dev-pipeline-frontend:document
+/dev:document
 
 /clear first — fresh context window
 ```

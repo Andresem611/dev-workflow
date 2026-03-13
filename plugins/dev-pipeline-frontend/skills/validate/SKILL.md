@@ -315,7 +315,7 @@ Update MANIFEST phase to VALIDATE complete. Display and STOP:
 Next Up
 
 Phase: SHIP — Changelog + commit + deployment
-Command: dev-pipeline-frontend:ship
+/dev:ship
 /clear first — fresh context window
 ```
 

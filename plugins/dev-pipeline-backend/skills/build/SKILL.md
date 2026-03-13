@@ -345,7 +345,7 @@ Display and STOP:
 
 Phase: VALIDATE — RSpec full suite, security audit, domain checks
 
-`dev-pipeline-backend:validate`
+`/dev:validate`
 
 /clear first -> fresh context window
 ```

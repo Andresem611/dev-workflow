@@ -178,7 +178,7 @@ If FAIL → Update MANIFEST before ending session.
 
 Phase: SHIP — Publish to production
 
-`dev-pipeline-backend:ship`
+`/dev:ship`
 
 /clear first → fresh context window
 

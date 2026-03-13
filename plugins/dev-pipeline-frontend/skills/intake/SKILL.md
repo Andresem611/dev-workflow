@@ -172,7 +172,7 @@ Options:
 
 Phase: [NEXT PHASE] — [one-line description]
 
-`dev-pipeline-frontend:[next-phase]`
+`/dev:[next-phase]`
 
 /clear first -> fresh context window
 ```

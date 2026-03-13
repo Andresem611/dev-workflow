@@ -304,7 +304,7 @@ Display the Next Up block and STOP:
 
 Phase: VALIDATE — Type-check, lint, QA, domain audits
 
-`dev-pipeline-frontend:validate`
+`/dev:validate`
 
 /clear first -> fresh context window
 ```

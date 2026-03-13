@@ -287,7 +287,7 @@ Next Up
 
 Phase: PLAN — Architecture decisions + task breakdown
 
-dev-pipeline-frontend:plan
+/dev:plan
 
 /clear first — fresh context window
 ```
