@@ -51,7 +51,10 @@ On the first wave, move the Dev Tracker card to "Frontend Dev". Read the Card ID
 
 2. Display: `📋 Notion: Moved — "[Feature Name]" → Frontend Dev`
 
-**Error handling:** If Notion MCP tools are unavailable, the Card ID is missing, or the update fails, warn but do NOT block the pipeline. Log the failure and continue.
+**Notion Protocol:** Follow the Retry + Warning Protocol in `references/notion-integration.md`.
+- Phase type: Downstream (status update — check Card ID first)
+- Target status: `Frontend Dev`
+- Persist warning in: `.dev/build/wave-01/discuss-implementation-path.md`
 
 **First wave only:** Read `.dev/document/review-documentation-quality.md` (context bridge from DOCUMENT). If missing, read MANIFEST + wave plans to reconstruct context.
 
@@ -208,6 +211,47 @@ npm run lint          # ESLint
 
 Both must pass. If either fails, treat as a simple error — self-fix with one retry before escalating.
 
+### must_haves Verification Gate (Every Wave)
+
+**MANDATORY.** Run the mechanical verification tool before any semantic checks:
+
+```bash
+node ${PLUGIN_ROOT}/../shared/tools/dev-pipeline-tools.js verify-must-haves <feature-dir> --plugin frontend --wave N
+```
+
+This checks:
+1. Every file in `must_haves.artifacts` exists on disk
+2. Component/page references in `must_haves.key_links` resolve to existing files
+3. No anti-stub patterns (`TODO`, `placeholder`, `() => {}`, `console.log`) in listed artifacts
+
+**If FAIL:** Treat as a blocking issue in Review. The orchestrator must fix missing artifacts or stubs before proceeding.
+
+**If PASS:** Proceed to independent semantic verification.
+
+### Independent Semantic Verification (Every Wave)
+
+After the verification gate passes, dispatch an independent verification agent. This agent has NO context from the build process — it reads the must_haves and independently checks the codebase.
+
+**Agent:** `code-reviewer`
+**Input:** The wave's `must_haves` block (truths, artifacts, key_links) + codebase access (Read, Grep, Glob)
+**NOT provided:** Build artifacts, execute results, architect prompts, or any context from earlier stages
+
+**Prompt pattern:**
+```
+You are independently verifying work you did NOT build. You have no context about how this code was written.
+
+Here are the must_haves for Wave [N]:
+[paste must_haves block from wave file]
+
+For each truth: verify it is actually true in the codebase. Check the actual code, not just file existence.
+For each artifact: verify it exists AND is substantive (not a stub or placeholder).
+For each key_link: verify the connection is wired (component imports, route definitions, state connections, etc.).
+
+Report PASS/FAIL per item with file:line evidence. Be skeptical — assume nothing works until you verify it.
+```
+
+**Results:** Feed into the Review verdict. Semantic verification failures are surfaced to the user but are NOT auto-blocking — the user decides whether to accept or fix.
+
 ### Validation Tool
 
 ```bash
@@ -233,6 +277,8 @@ Verify every wave: files match Architect plan, all tasks completed or failures l
 - [ ] All artifacts listed in must_haves exist and are substantive (not stubs)
 - [ ] Key links in must_haves are wired (components connected, not orphaned)
 - [ ] Requirement IDs for this wave are on track to be satisfied
+- [ ] `verify-must-haves` tool gate passed (zero issues)
+- [ ] Independent `code-reviewer` verification completed
 
 ### Surfacing Gaps
 
@@ -289,7 +335,10 @@ After updating tracking files, update the Dev Tracker card with wave progress. R
 
 2. Display: `📋 Notion: Updated notes — "[Feature Name]" (Wave X/Y complete)`
 
-**Error handling:** If Notion MCP tools are unavailable, the Card ID is missing, or the update fails, warn but do NOT block the pipeline. Log the failure and continue.
+**Notion Protocol:** Follow the Retry + Warning Protocol in `references/notion-integration.md`.
+- Phase type: Downstream (status update — check Card ID first)
+- Target status: (notes update, no status change)
+- Persist warning in: `.dev/build/wave-NN/review-code-quality.md`
 
 ### 3. Session Break (Recommended)
 

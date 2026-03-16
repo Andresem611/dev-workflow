@@ -184,6 +184,50 @@ Evidence: route-by-route comparison with pass/fail per endpoint.
 1. Curl/API verification — status codes, response shapes, access control
 2. Rails console spot checks (if user opted in) — verify data integrity
 
+### 3.1.1 Independent Verification Agent
+
+**MANDATORY.** Before running domain-specific checks, dispatch an independent verification agent. This agent has a CLEAN CONTEXT — it receives only the requirements contract and codebase access, with NO build history or phase context.
+
+**Agent:** `qa-expert`
+**Input:**
+1. Full contents of `requirements.md` (all requirement IDs)
+2. All wave files' `must_haves` blocks (truths, artifacts, key_links)
+3. Codebase access (Read, Grep, Glob)
+
+**NOT provided:** Build artifacts, execute results, architect prompts, wave review artifacts, or any context from BUILD phase. The agent must form its own assessment from the requirements and code alone.
+
+**Prompt pattern:**
+```
+You are independently verifying a feature you did NOT build. You have no context about the build process.
+
+## Requirements Contract
+[paste full requirements.md content]
+
+## must_haves (all waves)
+[paste concatenated must_haves from all wave files]
+
+## Your Task
+1. For each requirement ID (API-01, AUTH-01, etc.): verify it is SATISFIED, BLOCKED, or NEEDS HUMAN
+2. For each truth in must_haves: verify it is actually true in the codebase
+3. For each artifact: verify it exists AND is substantive (not a stub)
+4. For each key_link: verify the connection is wired end-to-end
+5. Scan all listed artifacts for anti-patterns: TODO, FIXME, raise NotImplementedError, placeholder, empty method bodies
+
+Produce a Requirements Coverage table:
+| Requirement | Status | Evidence |
+|-------------|--------|----------|
+
+And a must_haves Verification table:
+| Category | Item | Status | Evidence |
+|----------|------|--------|----------|
+
+Be skeptical. Assume nothing works until you verify it with file:line evidence.
+```
+
+**Results:** The independent verifier's Requirements Coverage table becomes the PRIMARY source of truth for the Review stage's requirements assessment. Domain-specific agents (Section 3.2) provide additional depth but do not override the independent verifier's findings.
+
+If the independent verifier finds BLOCKED requirements, these are treated as blocking issues in Review regardless of other check results.
+
 ### 3.2 Domain-Triggered Checks
 
 Run ONLY when corresponding domain tag exists in MANIFEST.
@@ -398,7 +442,10 @@ node ${PLUGIN_ROOT}/../shared/tools/dev-pipeline-tools.js validate-manifest <fea
 
 Move the Dev Tracker card to "Code Review". Reference `references/notion-integration.md` for property names and MCP tool patterns.
 
-**If Notion MCP tools are unavailable or the update fails, warn but do NOT block the pipeline.**
+**Notion Protocol:** Follow the Retry + Warning Protocol in `references/notion-integration.md`.
+- Phase type: Downstream (status update — check Card ID first)
+- Target status: `Code Review`
+- Persist warning in: `.dev/validate/review-ship-readiness.md`
 
 1. Read the Notion card page ID from MANIFEST's `## Notion Integration > Card ID`
 2. **Update Dev Tracker card** using `mcp__plugin_Notion_notion__notion-update-page`:

@@ -148,6 +148,50 @@ Evidence: actual tsc and eslint output. Both must pass.
 
 Evidence: every match with file:line and surrounding context. Errors block, warnings inform.
 
+### 3.1.1 Independent Verification Agent
+
+**MANDATORY.** Before running domain-specific checks, dispatch an independent verification agent. This agent has a CLEAN CONTEXT — it receives only the requirements contract and codebase access, with NO build history or phase context.
+
+**Agent:** `code-reviewer`
+**Input:**
+1. Full contents of `requirements.md` (all requirement IDs)
+2. All wave files' `must_haves` blocks (truths, artifacts, key_links)
+3. Codebase access (Read, Grep, Glob)
+
+**NOT provided:** Build artifacts, execute results, architect prompts, wave review artifacts, or any context from BUILD phase. The agent must form its own assessment from the requirements and code alone.
+
+**Prompt pattern:**
+```
+You are independently verifying a feature you did NOT build. You have no context about the build process.
+
+## Requirements Contract
+[paste full requirements.md content]
+
+## must_haves (all waves)
+[paste concatenated must_haves from all wave files]
+
+## Your Task
+1. For each requirement ID (UI-01, A11Y-01, etc.): verify it is SATISFIED, BLOCKED, or NEEDS HUMAN
+2. For each truth in must_haves: verify it is actually true in the codebase
+3. For each artifact: verify it exists AND is substantive (not a stub)
+4. For each key_link: verify the connection is wired end-to-end
+5. Scan all listed artifacts for anti-patterns: TODO, FIXME, placeholder, empty handlers, console.log
+
+Produce a Requirements Coverage table:
+| Requirement | Status | Evidence |
+|-------------|--------|----------|
+
+And a must_haves Verification table:
+| Category | Item | Status | Evidence |
+|----------|------|--------|----------|
+
+Be skeptical. Assume nothing works until you verify it with file:line evidence.
+```
+
+**Results:** The independent verifier's Requirements Coverage table becomes the PRIMARY source of truth for the Review stage's requirements assessment. Domain-specific agents (Section 3.2) provide additional depth but do not override the independent verifier's findings.
+
+If the independent verifier finds BLOCKED requirements, these are treated as blocking issues in Review regardless of other check results.
+
 **Docs Drift Scan** — check changed symbols against `CLAUDE.md`, `docs/**/*.md`, `CHANGELOG.md [Unreleased]`, `types/*.ts`, inline comments near changes (5 lines above/below each hunk). Evidence: list of stale references or explicit "0 found" with search scope.
 
 **Code Quality Review** — dispatch `code-reviewer`: pattern adherence, separation of concerns, no direct fetch in components (must use `lib/*-api.ts`), error/loading/empty states. Evidence: file:line findings.
@@ -338,7 +382,10 @@ After approval, move the Dev Tracker card to "Code Review". Read the Card ID fro
 
 2. Display: `📋 Notion: Moved — "[Feature Name]" → Code Review`
 
-**Error handling:** If Notion MCP tools are unavailable, the Card ID is missing, or the update fails, warn but do NOT block the pipeline. Log the failure and continue.
+**Notion Protocol:** Follow the Retry + Warning Protocol in `references/notion-integration.md`.
+- Phase type: Downstream (status update — check Card ID first)
+- Target status: `Code Review`
+- Persist warning in: `.dev/validate/review-ship-readiness.md`
 
 ### 4.7 After Approval
 

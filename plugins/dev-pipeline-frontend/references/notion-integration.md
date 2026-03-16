@@ -181,3 +181,86 @@ Examples:
 - If a card update fails, log the failure in the phase artifact and continue
 - Never let a Notion error prevent code from being built/tested/shipped
 - The pipeline is the source of truth; Notion is a read-only reflection
+
+---
+
+## Retry + Warning Protocol
+
+This section replaces all inline "warn but don't block" instructions in phase skills. Every phase skill references this protocol instead of defining its own Notion error handling.
+
+### Principle
+
+**Never silently skip.** If Notion is unavailable or Card ID is missing, the user must see a prominent warning every time — not just the first time.
+
+### INTAKE — Card Creation (Retry Pattern)
+
+When creating the Dev Tracker card and Sprint List entry:
+
+1. **Attempt 1:** Call `mcp__plugin_Notion_notion__notion-create-pages`
+2. **If fails:** Wait 2 seconds, then **Attempt 2** (retry once)
+3. **If retry fails:** Display the loud warning below and continue the pipeline
+4. **If succeeds on either attempt:** Store Card ID in MANIFEST, display success summary
+
+### Downstream Phases — Status Updates (Check + Retry Pattern)
+
+When updating an existing card (all phases after INTAKE):
+
+1. **Check:** Read Card ID from MANIFEST's `## Notion Integration > Card ID`
+2. **If Card ID is missing or empty:** Display the Card ID Missing warning below — do NOT attempt the API call
+3. **If Card ID exists:** Attempt the update via `mcp__plugin_Notion_notion__notion-update-page`
+4. **If update fails:** Wait 2 seconds, retry once
+5. **If retry fails:** Display the Update Failed warning below and continue
+6. **If succeeds:** Display the standard status summary line
+
+### Warning Templates
+
+Skills MUST use these exact formats. Warnings are displayed inline AND persisted in the phase's review artifact under a `## Notion Status` heading.
+
+**Card Creation Failed (INTAKE only):**
+
+```
+## Notion Status
+- **WARNING:** Card not created — Notion MCP unavailable after 2 attempts
+- **Attempts:** 2/2 failed
+- **Impact:** All downstream Notion updates will be skipped for this feature
+- **Fix:** Create card manually in Dev Tracker, then add the page UUID to MANIFEST's `Notion Integration > Card ID`
+```
+
+**Card ID Missing (downstream phases):**
+
+```
+## Notion Status
+- **WARNING:** Card ID missing from MANIFEST — skipping Notion update
+- **Impact:** Dev Tracker card not updated for this phase
+- **Fix:** Add Card ID to MANIFEST's `Notion Integration > Card ID` section
+```
+
+**Update Failed (downstream phases):**
+
+```
+## Notion Status
+- **WARNING:** Notion update failed after 2 attempts
+- **Attempts:** 2/2 failed
+- **Impact:** Dev Tracker card not updated for this phase
+- **Card ID:** [card-id-from-manifest]
+```
+
+**Success (all phases):**
+
+```
+## Notion Status
+- **OK:** [Action description] — "[Feature Name]" → [Status Column]
+```
+
+### How Phase Skills Reference This Protocol
+
+Instead of inline Notion error handling, phase skills should include:
+
+```markdown
+**Notion Protocol:** Follow the Retry + Warning Protocol in `references/notion-integration.md`.
+- Phase type: [INTAKE (card creation) | Downstream (status update)]
+- Target status: [Speccing | Backend Dev | Frontend Dev | Code Review | Published]
+- Persist warning in: [this phase's review artifact filename]
+```
+
+This replaces all instances of "If Notion MCP tools are unavailable or the update fails, warn but do NOT block the pipeline." in phase skills.

@@ -206,7 +206,10 @@ Env Vars: All set / None required
 
 Update the Dev Tracker card based on publication status. Reference `references/notion-integration.md` for property names and MCP tool patterns.
 
-**If Notion MCP tools are unavailable or the update fails, warn but do NOT block the pipeline.**
+**Notion Protocol:** Follow the Retry + Warning Protocol in `references/notion-integration.md`.
+- Phase type: Downstream (status update — check Card ID first)
+- Target status: `Published`
+- Persist warning in: `.dev/ship/review-release-confirmation.md`
 
 1. Read the Notion card page ID from MANIFEST's `## Notion Integration > Card ID`
 2. **If published:** Update Dev Tracker card using `mcp__plugin_Notion_notion__notion-update-page`:

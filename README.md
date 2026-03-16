@@ -55,9 +55,11 @@ Each phase runs in a fresh context window with only the artifacts it needs. Spec
 ## Key Features
 
 - **Domain-specific agent routing** -- Frontend skills dispatch to React/TypeScript agents; backend skills dispatch to Rails/ActiveRecord agents.
-- **Requirements-driven development** -- Every feature gets checkable requirement IDs (e.g., `R-001`). Build and validate phases trace back to them.
+- **Requirements-driven development** -- Every feature gets checkable requirement IDs (e.g., `API-01`, `AUTH-03`). Build and validate phases trace back to them.
+- **Independent verification** -- Two-layer verification in BUILD:Review (mechanical tool gate + independent agent) and VALIDATE (comprehensive agent with clean context). The verifier never sees build artifacts — it checks must_haves against the actual codebase with fresh eyes.
 - **Goal-backward verification** -- Phase completion requires `must_haves` (truths that must hold, artifacts that must exist, key links that must resolve).
 - **Anti-stub detection** -- Placeholders, TODOs, and empty implementations are flagged as failures during build and validate.
+- **Notion Dev Tracker integration** -- Automatic Kanban card creation at INTAKE, status updates at every phase. Retry + warning protocol ensures Notion failures are always visible, never silently skipped.
 - **Session boundary enforcement** -- Each phase runs in its own context window to prevent stale context and token bloat.
 - **User control at every gate** -- No auto-looping. The user approves before the pipeline advances (D08 design constraint).
 
@@ -99,6 +101,12 @@ To resume interrupted work:
 ```
 /pause                            # Save state before ending a session
 /dev                              # Picks up where you left off next time
+```
+
+To update to the latest version:
+
+```
+/dev:update                       # Check for updates, show changelog, pull with confirmation
 ```
 
 ## Requirements

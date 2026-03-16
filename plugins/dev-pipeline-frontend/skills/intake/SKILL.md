@@ -197,7 +197,10 @@ After acceptance, create the Dev Tracker card and Sprint List entry. Reference `
 
 4. Display: `📋 Notion: Created card — "[Feature Name]" → Speccing`
 
-**Error handling:** If Notion MCP tools are unavailable or the update fails, warn but do NOT block the pipeline. Log the failure and continue to the Next Up block.
+**Notion Protocol:** Follow the Retry + Warning Protocol in `references/notion-integration.md`.
+- Phase type: INTAKE (card creation — retry pattern with 2-second wait)
+- Target status: `Speccing`
+- Persist warning in: `.dev/intake/review-classification-confirmed.md`
 
 3. Display `Next Up` block and **STOP**:
 

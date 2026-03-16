@@ -81,7 +81,10 @@ Update the Dev Tracker card with pause context. Read the Card ID from MANIFEST's
 
 2. Display: `📋 Notion: Updated notes — "[Feature Name]" (paused at [phase]/[stage])`
 
-**Error handling:** If Notion MCP tools are unavailable, the Card ID is missing, or the update fails, warn but do NOT block the pipeline. Log the failure and continue.
+**Notion Protocol:** Follow the Retry + Warning Protocol in `references/notion-integration.md`.
+- Phase type: Downstream (status update — check Card ID first)
+- Target status: (notes update, no status change)
+- Persist warning in: `.dev/pause-handoff.md`
 
 ## Step 4: Update MANIFEST
 

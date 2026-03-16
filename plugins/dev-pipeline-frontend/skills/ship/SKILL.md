@@ -191,7 +191,10 @@ After confirmation, update the Dev Tracker card based on publication status. Rea
 
 2. Display: `📋 Notion: Updated notes — "[Feature Name]" (staged — not yet published)`
 
-**Error handling:** If Notion MCP tools are unavailable, the Card ID is missing, or the update fails, warn but do NOT block the pipeline. Log the failure and continue.
+**Notion Protocol:** Follow the Retry + Warning Protocol in `references/notion-integration.md`.
+- Phase type: Downstream (status update — check Card ID first)
+- Target status: `Published`
+- Persist warning in: `.dev/ship/review-release-confirmation.md`
 
 Update MANIFEST to COMPLETE with commit hash and version. Display deployment reminder.
 

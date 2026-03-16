@@ -112,6 +112,30 @@ When a task touches one of these domains, the listed agents are automatically su
 
 ---
 
+## Verification Agents
+
+Independent verification agents dispatched during BUILD:Review and VALIDATE:Execute. These agents receive must_haves and requirements only — no build context.
+
+### BUILD:Review (Per Wave)
+
+| Layer | Agent | Purpose |
+|-------|-------|---------|
+| Mechanical gate | `dev-pipeline-tools.js verify-must-haves` | File existence, route matching, spec non-empty, anti-stub scan |
+| Semantic check | `qa-expert` | Independent must_haves verification against actual code |
+
+### VALIDATE:Execute (Comprehensive)
+
+| Agent | Purpose |
+|-------|---------|
+| `qa-expert` (primary) | Independent verification of ALL requirements.md + ALL must_haves — clean context, no build history |
+| `rails-expert` (domain) | Convention compliance, N+1 detection (always runs) |
+| `security-engineer` (domain) | Auth, COPPA, payment security (domain-triggered) |
+| `performance-engineer` (domain) | Query plans, index coverage (domain-triggered) |
+
+The independent `qa-expert` verifier runs BEFORE domain-specific agents. Its Requirements Coverage table is the primary source of truth for the Review verdict.
+
+---
+
 ## Domain Combination Patterns
 
 Common domain combinations and their implications:

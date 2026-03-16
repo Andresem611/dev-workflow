@@ -302,7 +302,10 @@ node ${PLUGIN_ROOT}/../shared/tools/dev-pipeline-tools.js validate-manifest docs
 
 Update the Dev Tracker card with wave count and task summary. Reference `references/notion-integration.md` for property names and MCP tool patterns.
 
-**If Notion MCP tools are unavailable or the update fails, warn but do NOT block the pipeline.**
+**Notion Protocol:** Follow the Retry + Warning Protocol in `references/notion-integration.md`.
+- Phase type: Downstream (status update — check Card ID first)
+- Target status: (notes update, no status change)
+- Persist warning in: `.dev/document/review-documentation-quality.md`
 
 1. Read the Notion card page ID from MANIFEST's `## Notion Integration > Card ID`
 2. **Update Dev Tracker card** using `mcp__plugin_Notion_notion__notion-update-page`:

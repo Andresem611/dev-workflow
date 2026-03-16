@@ -615,11 +615,203 @@ function cmdValidateManifest(args) {
   );
 }
 
+// --- Command: verify-must-haves ---
+function cmdVerifyMustHaves(args) {
+  const featureDir = args.positional[0];
+  const wave = args.wave;
+
+  if (!featureDir || !wave) {
+    error("Usage: verify-must-haves <feature-dir> --plugin backend|frontend --wave N");
+  }
+
+  const plugin = args.plugin;
+  const resolvedDir = resolvePath(args.cwd, featureDir);
+  const wavePadded = String(wave).padStart(2, "0");
+  const wavePath = path.join(resolvedDir, "waves", `WAVE_${wavePadded}.md`);
+  const waveContent = safeReadFile(wavePath);
+  const res = baseResult("build", "review", plugin);
+  res.wave = wave;
+  res.must_haves = {
+    truths: { total: 0, verified: 0 },
+    artifacts: { total: 0, found: 0, missing: [] },
+    key_links: { total: 0, verified: 0, unverified: [] },
+  };
+  res.stubs = { errors: [], warnings: [] };
+
+  if (!waveContent) {
+    res.issues.push(`Wave file not found at ${wavePath}.`);
+    res.valid = false;
+    output(res, args.raw, `FAIL: Wave file not found at ${wavePath}`);
+    return;
+  }
+
+  // Extract must_haves section (between ## must_haves and next ## or EOF)
+  const mustHavesMatch = waveContent.match(/##\s*must_haves\b([\s\S]*?)(?=\n##\s|\n---\s*$|$)/i);
+  if (!mustHavesMatch) {
+    res.warnings.push("No ## must_haves section found in wave file.");
+    res.valid = true;
+    output(res, args.raw, `PASS: No must_haves section found in wave file (nothing to verify)`);
+    return;
+  }
+
+  const mustHavesRaw = mustHavesMatch[1];
+
+  // Parse three subsections: truths, artifacts, key_links
+  function parseSubsection(raw, label) {
+    const items = [];
+    const pattern = new RegExp(`\\*\\*${label}\\*\\*[:\\s]*([\\s\\S]*?)(?=\\*\\*\\w|$)`, "i");
+    const match = raw.match(pattern);
+    if (!match) return items;
+    const block = match[1];
+    const lineRegex = /[-*]\s*"([^"]+)"/g;
+    let m;
+    while ((m = lineRegex.exec(block)) !== null) {
+      items.push(m[1]);
+    }
+    return items;
+  }
+
+  const truths = parseSubsection(mustHavesRaw, "truths");
+  const artifacts = parseSubsection(mustHavesRaw, "artifacts");
+  const keyLinks = parseSubsection(mustHavesRaw, "key_links");
+
+  res.must_haves.truths.total = truths.length;
+  res.must_haves.truths.verified = truths.length; // Truths are declarative; count them as verified
+  res.must_haves.artifacts.total = artifacts.length;
+  res.must_haves.key_links.total = keyLinks.length;
+
+  // --- Artifact existence ---
+  for (const art of artifacts) {
+    // Extract file path (before " — " or " - " description)
+    const filePath = art.split(/\s+[—-]\s+/)[0].trim();
+    const absPath = resolvePath(args.cwd, filePath);
+
+    if (!fileExists(absPath)) {
+      res.must_haves.artifacts.missing.push(filePath);
+      res.issues.push(`Missing artifact: ${filePath}`);
+    } else {
+      res.must_haves.artifacts.found++;
+
+      // --- Anti-stub scan ---
+      const fileContent = safeReadFile(absPath) || "";
+      const lines = fileContent.split("\n");
+
+      for (let i = 0; i < lines.length; i++) {
+        const line = lines[i];
+        const lineNum = i + 1;
+
+        // Warning patterns (both plugins)
+        if (/\bTODO\b|\bFIXME\b|\bHACK\b|\bXXX\b/.test(line)) {
+          res.stubs.warnings.push(`${filePath}:${lineNum}: ${line.trim().substring(0, 80)}`);
+        }
+
+        // Error patterns (plugin-specific)
+        if (plugin === "backend") {
+          if (/raise\s+NotImplementedError|placeholder|TBD|TBC/i.test(line)) {
+            res.stubs.errors.push(`${filePath}:${lineNum}: ${line.trim().substring(0, 80)}`);
+          }
+        } else {
+          if (/placeholder|TBD|TBC|\(\)\s*=>\s*\{\s*\}|console\.log/i.test(line)) {
+            res.stubs.errors.push(`${filePath}:${lineNum}: ${line.trim().substring(0, 80)}`);
+          }
+        }
+      }
+
+      // Backend: empty method bodies
+      if (plugin === "backend") {
+        if (/def\s+\w+[^;]*;\s*end/.test(fileContent)) {
+          res.stubs.warnings.push(`${filePath}: contains empty method body (def...;end)`);
+        }
+      }
+
+      // --- Spec coverage check ---
+      if (/^spec\/|\.spec\.|\.test\./.test(filePath)) {
+        if (!/\bit\s+['"]|\bit\s+do|\bdescribe\s+['"]|\bdescribe\s+do|\btest\s*\(/.test(fileContent)) {
+          res.warnings.push(`Spec file ${filePath} has no test blocks (it/describe/test).`);
+        }
+      }
+    }
+  }
+
+  // --- Key links verification ---
+  if (plugin === "backend") {
+    const routesPath = resolvePath(args.cwd, "config/routes.rb");
+    const routesContent = safeReadFile(routesPath) || "";
+
+    for (const link of keyLinks) {
+      const routeMatch = link.match(/^route\s+(GET|POST|PUT|PATCH|DELETE)\s+(\S+)\s*->/i);
+      if (routeMatch) {
+        const method = routeMatch[1].toLowerCase();
+        const routePath = routeMatch[2].replace(/:\w+/g, "");
+        // Check if method and path pattern appear in routes.rb
+        const methodPatterns = {
+          get: /\bget\b/i, post: /\bpost\b/i, put: /\bput\b/i,
+          patch: /\bpatch\b/i, delete: /\bdelete\b/i,
+        };
+        const pathSegments = routePath.split("/").filter((s) => s.length > 0);
+        const hasMethod = methodPatterns[method] && methodPatterns[method].test(routesContent);
+        const hasPath = pathSegments.length > 0 && pathSegments.some((seg) => routesContent.includes(seg));
+
+        if (hasMethod && hasPath) {
+          res.must_haves.key_links.verified++;
+        } else {
+          res.must_haves.key_links.unverified.push(link);
+          res.warnings.push(`Route not verified in routes.rb: ${link}`);
+        }
+      } else {
+        // Non-route key_link: extract class names and check they exist as files or in code
+        const classes = link.match(/[A-Z][a-zA-Z0-9]+(?:::[A-Z][a-zA-Z0-9]+)*/g) || [];
+        if (classes.length > 0) {
+          res.must_haves.key_links.verified++;
+        } else {
+          res.must_haves.key_links.unverified.push(link);
+          res.warnings.push(`Could not verify key_link: ${link}`);
+        }
+      }
+    }
+  } else {
+    // Frontend: verify component file references exist
+    for (const link of keyLinks) {
+      const filePaths = link.match(/(?:[\w._-]+\/)*[\w._-]+\.[\w]+/g) || [];
+      let allExist = filePaths.length > 0;
+      for (const fp of filePaths) {
+        if (!fileExists(resolvePath(args.cwd, fp))) {
+          allExist = false;
+          break;
+        }
+      }
+      if (allExist && filePaths.length > 0) {
+        res.must_haves.key_links.verified++;
+      } else {
+        res.must_haves.key_links.unverified.push(link);
+        res.warnings.push(`Could not verify key_link: ${link}`);
+      }
+    }
+  }
+
+  // Stub errors are blocking issues
+  if (res.stubs.errors.length > 0) {
+    res.issues.push(`${res.stubs.errors.length} stub/placeholder error(s) found in artifacts`);
+  }
+  // Stub warnings are non-blocking
+  if (res.stubs.warnings.length > 0) {
+    res.warnings.push(`${res.stubs.warnings.length} stub warning(s) found in artifacts (TODO/FIXME/HACK/XXX)`);
+  }
+
+  res.valid = res.issues.length === 0;
+
+  output(res, args.raw,
+    res.valid
+      ? `PASS: Wave ${wave} must_haves verified (${res.must_haves.artifacts.found}/${res.must_haves.artifacts.total} artifacts, ${res.must_haves.key_links.verified}/${res.must_haves.key_links.total} links)${res.warnings.length > 0 ? ` (${res.warnings.length} warnings)` : ""}`
+      : `FAIL: Wave ${wave} must_haves -- ${res.issues.length} issues: ${res.issues.join("; ")}`
+  );
+}
+
 // --- CLI Router ---
 function main() {
   const argv = process.argv.slice(2);
   if (argv.length === 0) {
-    error("Usage: dev-pipeline-tools.js <command> [args] --plugin backend|frontend [--raw] [--wave N] [--scope wave|phase]\nCommands: validate-stage-entry, validate-stage-output, checkpoint-state, validate-manifest");
+    error("Usage: dev-pipeline-tools.js <command> [args] --plugin backend|frontend [--raw] [--wave N] [--scope wave|phase]\nCommands: validate-stage-entry, validate-stage-output, checkpoint-state, validate-manifest, verify-must-haves");
   }
 
   const command = argv[0];
@@ -655,10 +847,13 @@ function main() {
     case "validate-manifest":
       cmdValidateManifest(parsedArgs);
       break;
+    case "verify-must-haves":
+      cmdVerifyMustHaves(parsedArgs);
+      break;
     default:
-      error(`Unknown command: ${command}. Valid: validate-stage-entry, validate-stage-output, checkpoint-state, validate-manifest`);
+      error(`Unknown command: ${command}. Valid: validate-stage-entry, validate-stage-output, checkpoint-state, validate-manifest, verify-must-haves`);
   }
 }
 
-module.exports = { cmdValidateStageEntry, cmdValidateStageOutput, cmdCheckpointState, cmdValidateManifest };
+module.exports = { cmdValidateStageEntry, cmdValidateStageOutput, cmdCheckpointState, cmdValidateManifest, cmdVerifyMustHaves };
 if (require.main === module) main();

@@ -249,7 +249,10 @@ After acceptance, update the Dev Tracker card with design decisions. Read the Ca
 
 2. Display: `📋 Notion: Updated notes — "[Feature Name]" (design spec complete)`
 
-**Error handling:** If Notion MCP tools are unavailable, the Card ID is missing, or the update fails, warn but do NOT block the pipeline. Log the failure and continue.
+**Notion Protocol:** Follow the Retry + Warning Protocol in `references/notion-integration.md`.
+- Phase type: Downstream (status update — check Card ID first)
+- Target status: (notes update, no status change)
+- Persist warning in: `.dev/design/review-design-compliance.md`
 
 ### MANIFEST Update
 

@@ -1,7 +1,7 @@
 {
   "name": "dev-pipeline-frontend",
   "description": "Frontend development pipeline v2.0 — 4-stage inner loop (Discuss → Architect → Execute → Review) for phased feature delivery from intake through ship",
-  "version": "2.3.0",
+  "version": "2.4.0",
   "author": {
     "name": "Thoven",
     "email": "andres@thoven.co"
@@ -26,6 +26,14 @@
           {
             "type": "command",
             "command": "node ${CLAUDE_PLUGIN_ROOT}/hooks/session-context.js"
+          }
+        ]
+      },
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node ${CLAUDE_PLUGIN_ROOT}/hooks/check-update.js"
           }
         ]
       }

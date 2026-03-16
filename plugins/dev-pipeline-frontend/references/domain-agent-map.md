@@ -130,6 +130,31 @@ When a task touches one of these domains, the listed agents are automatically su
 
 ---
 
+## Verification Agents
+
+Independent verification agents dispatched during BUILD:Review and VALIDATE:Execute. These agents receive must_haves and requirements only — no build context.
+
+### BUILD:Review (Per Wave)
+
+| Layer | Agent | Purpose |
+|-------|-------|---------|
+| Mechanical gate | `dev-pipeline-tools.js verify-must-haves` | File existence, import resolution, anti-stub scan |
+| Semantic check | `code-reviewer` | Independent must_haves verification against actual code |
+
+### VALIDATE:Execute (Comprehensive)
+
+| Agent | Purpose |
+|-------|---------|
+| `code-reviewer` (primary) | Independent verification of ALL requirements.md + ALL must_haves — clean context, no build history |
+| `security-engineer` (domain) | Auth UI, XSS scan (domain-triggered) |
+| `performance-analyzer` (domain) | Lighthouse, bundle size, CWV (domain-triggered) |
+| `ui-designer` (domain) | Design system compliance (domain-triggered) |
+| `frontend-developer` (domain) | Accessibility audit, WCAG (domain-triggered) |
+
+The independent `code-reviewer` verifier runs BEFORE domain-specific agents. Its Requirements Coverage table is the primary source of truth for the Review verdict.
+
+---
+
 ## Domain Combination Patterns
 
 Common domain combinations and their implications:

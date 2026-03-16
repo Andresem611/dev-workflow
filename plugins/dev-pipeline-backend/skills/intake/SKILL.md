@@ -181,7 +181,10 @@ Options:
 
 Create the Dev Tracker card and Sprint List entry. Reference `references/notion-integration.md` for database IDs, property names, and MCP tool patterns.
 
-**If Notion MCP tools are unavailable or the update fails, warn but do NOT block the pipeline.**
+**Notion Protocol:** Follow the Retry + Warning Protocol in `references/notion-integration.md`.
+- Phase type: INTAKE (card creation — retry pattern with 2-second wait)
+- Target status: `Speccing`
+- Persist warning in: `.dev/intake/review-classification-confirmed.md`
 
 1. **Create Dev Tracker card** using `mcp__plugin_Notion_notion__notion-create-pages`:
    - Parent: `03b93a05-93eb-433b-94f8-6697dd0a602d` (Dev Tracker database)

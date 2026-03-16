@@ -47,7 +47,10 @@ If FAIL, fix missing prerequisites before proceeding.
 
 Move the Dev Tracker card to "Backend Dev". Reference `references/notion-integration.md` for property names and MCP tool patterns.
 
-**If Notion MCP tools are unavailable or the update fails, warn but do NOT block the pipeline.**
+**Notion Protocol:** Follow the Retry + Warning Protocol in `references/notion-integration.md`.
+- Phase type: Downstream (status update — check Card ID first)
+- Target status: `Backend Dev`
+- Persist warning in: `.dev/build/wave-01/discuss-implementation-path.md`
 
 1. Read the Notion card page ID from MANIFEST's `## Notion Integration > Card ID`
 2. **Update Dev Tracker card** using `mcp__plugin_Notion_notion__notion-update-page`:
@@ -242,6 +245,48 @@ bundle exec rspec
 
 RSpec MUST pass. If it fails, treat as a simple error — self-fix with one retry before escalating.
 
+### must_haves Verification Gate (Every Wave)
+
+**MANDATORY.** Run the mechanical verification tool before any semantic checks:
+
+```bash
+node ${PLUGIN_ROOT}/../shared/tools/dev-pipeline-tools.js verify-must-haves <feature-dir> --plugin backend --wave N
+```
+
+This checks:
+1. Every file in `must_haves.artifacts` exists on disk
+2. Routes in `must_haves.key_links` exist in `config/routes.rb`
+3. Spec files have at least one `it`/`describe` block (not empty)
+4. No anti-stub patterns (`TODO`, `FIXME`, `raise NotImplementedError`, `placeholder`) in listed artifacts
+
+**If FAIL:** Treat as a blocking issue in Review. The orchestrator must fix missing artifacts or stubs before proceeding.
+
+**If PASS:** Proceed to independent semantic verification.
+
+### Independent Semantic Verification (Every Wave)
+
+After the verification gate passes, dispatch an independent verification agent. This agent has NO context from the build process — it reads the must_haves and independently checks the codebase.
+
+**Agent:** `qa-expert`
+**Input:** The wave's `must_haves` block (truths, artifacts, key_links) + codebase access (Read, Grep, Glob)
+**NOT provided:** Build artifacts, execute results, architect prompts, or any context from earlier stages
+
+**Prompt pattern:**
+```
+You are independently verifying work you did NOT build. You have no context about how this code was written.
+
+Here are the must_haves for Wave [N]:
+[paste must_haves block from wave file]
+
+For each truth: verify it is actually true in the codebase. Check the actual code, not just file existence.
+For each artifact: verify it exists AND is substantive (not a stub or placeholder).
+For each key_link: verify the connection is wired (controller calls service, route maps to controller, etc.).
+
+Report PASS/FAIL per item with file:line evidence. Be skeptical — assume nothing works until you verify it.
+```
+
+**Results:** Feed into the Review verdict. Semantic verification failures are surfaced to the user but are NOT auto-blocking — the user decides whether to accept or fix.
+
 ### Migration Verification (When Applicable)
 
 If this wave included migrations, verify both databases show all migrations as "up". Any discrepancy is a blocking issue.
@@ -278,6 +323,8 @@ Verify every wave: files match Architect plan, all tasks completed or failures l
 - [ ] Key links in must_haves are wired (controller→service→model connections verified)
 - [ ] RSpec specs exist for testable requirements in this wave
 - [ ] Requirement IDs for this wave are on track to be satisfied
+- [ ] `verify-must-haves` tool gate passed (zero issues)
+- [ ] Independent `qa-expert` verification completed
 
 ### Surfacing Gaps
 
@@ -328,7 +375,10 @@ If FAIL, fix listed issues before proceeding.
 
 Update the Dev Tracker card with wave progress. Reference `references/notion-integration.md` for property names and MCP tool patterns.
 
-**If Notion MCP tools are unavailable or the update fails, warn but do NOT block the pipeline.**
+**Notion Protocol:** Follow the Retry + Warning Protocol in `references/notion-integration.md`.
+- Phase type: Downstream (status update — check Card ID first)
+- Target status: (notes update, no status change)
+- Persist warning in: `.dev/build/wave-NN/review-code-quality.md`
 
 1. Read the Notion card page ID from MANIFEST's `## Notion Integration > Card ID`
 2. **Update Dev Tracker card** using `mcp__plugin_Notion_notion__notion-update-page`:

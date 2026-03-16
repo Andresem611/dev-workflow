@@ -5,6 +5,38 @@ All notable changes to the dev-pipeline plugin marketplace will be documented in
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.4.0] - 2026-03-16
+
+### Added
+- **Independent verification system** — Two-layer verification enforces must_haves compliance:
+  - `verify-must-haves` tool command in `dev-pipeline-tools.js` — mechanical gate checking file existence, route matching (BE) / import resolution (FE), spec non-empty, anti-stub scan
+  - Independent semantic verification agent dispatched in BUILD:Review — `qa-expert` (backend) or `code-reviewer` (frontend) with clean context, no build history
+  - Independent verifier in VALIDATE:Execute — comprehensive requirements.md + all must_haves verification by agent with no build phase context
+- **Verification Agents section** — Both domain-agent-map.md files document the verification agent assignments for BUILD:Review and VALIDATE:Execute
+- **`/dev:update` command** — Check for updates, show changelog diff, pull latest with user confirmation. Registered in both plugins.
+- **`check-update.js` SessionStart hook** — Background update check on session start. Writes cache file for update-available banner. Runs detached, does not block startup.
+
+### Changed
+- **Notion retry + warning protocol** — All phase skills now reference `references/notion-integration.md` Retry + Warning Protocol instead of inline error handling:
+  - INTAKE: try → wait 2s → retry once → loud warning if both fail
+  - Downstream phases: check Card ID first → try → retry → warn if fails
+  - Warnings persisted in review artifacts under `## Notion Status` heading
+  - Never silently skip — missing Card ID produces visible warning every phase
+- **Both plugin.json** — Version bumped to 2.4.0, `check-update.js` hook registered
+
+## [2.3.0] - 2026-03-15
+
+### Added
+- **Handover skill v2.0** — Complete rewrite of backend HANDOVER phase to 4-stage inner loop (Discuss → Architect → Execute → Review), replacing legacy v1.x RESEARCH>EXECUTE>DOCUMENT>GATE pattern
+- **Cross-stack detection** — INTAKE and PLAN phases detect frontend dependencies and tag MANIFEST with `Cross-Stack: frontend`
+- **D04 enforcement protocol** — `/prompt-generator` is a hard gate in every Architect stage. Orchestration Log section mandatory in all architect artifacts.
+- **Agent maps v3.0** — Extended domain-agent-map.md to cover ALL pipeline phases (INTAKE through SHIP), not just BUILD and VALIDATE
+- **Notion Dev Tracker auto-sync** — All phase skills update Notion Dev Tracker card with status changes and notes. Card created at INTAKE, moved through Kanban columns per phase.
+
+### Fixed
+- **Kanban column order** — Corrected to: Code Review before Replit Staging (was reversed)
+- **Next Up blocks** — Now show `/dev:[phase]` slash commands for easy copy-paste
+
 ## [2.2.0] - 2026-03-12
 
 ### Added

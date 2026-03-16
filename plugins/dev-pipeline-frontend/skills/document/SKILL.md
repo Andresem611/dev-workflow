@@ -242,7 +242,10 @@ After acceptance, update the Dev Tracker card with wave/task summary. Read the C
 
 2. Display: `📋 Notion: Updated notes — "[Feature Name]" (X waves, Y tasks planned)`
 
-**Error handling:** If Notion MCP tools are unavailable, the Card ID is missing, or the update fails, warn but do NOT block the pipeline. Log the failure and continue.
+**Notion Protocol:** Follow the Retry + Warning Protocol in `references/notion-integration.md`.
+- Phase type: Downstream (status update — check Card ID first)
+- Target status: (notes update, no status change)
+- Persist warning in: `.dev/document/review-documentation-quality.md`
 
 ### 4.7 MANIFEST Update
 
