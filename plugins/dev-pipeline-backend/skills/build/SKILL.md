@@ -114,6 +114,8 @@ node ${PLUGIN_ROOT}/../shared/tools/dev-pipeline-tools.js validate-stage-entry b
 
 ### Prompt Crafting (MANDATORY)
 
+**D04 ENFORCEMENT:** Follow the D04 Enforcement Protocol from `inner-loop-reference.md`. Every subagent prompt MUST go through `/prompt-generator`. Log status in the Orchestration Log section of this artifact.
+
 Use `/prompt-generator` to craft EVERY subagent prompt. No exceptions. Prompt quality determines build quality.
 
 For each task in this wave, define:
@@ -149,7 +151,7 @@ When MANIFEST domains include `auth`, `payments`, `student_data`, or `coppa`: ad
 .dev/build/wave-NN/architect-subagent-prompts.md
 ```
 
-Contains: all subagent assignments, prompts, execution order, success criteria, escalation rules.
+Contains: all subagent assignments, prompts, execution order, success criteria, escalation rules. Must include the Orchestration Log section.
 
 ```bash
 node ${PLUGIN_ROOT}/../shared/tools/dev-pipeline-tools.js validate-stage-output build architect <feature-dir> --plugin backend --wave N
@@ -390,18 +392,7 @@ State persists to disk (MANIFEST + stage artifacts). Nothing is lost on `/clear`
 
 ## BUILD Agent Map
 
-| Task Type | Agent | Skills |
-|-----------|-------|--------|
-| Models/migrations | `master-backend-ai-rails` | `/safe-migrate` |
-| Controllers/routes | `rails-expert` | -- |
-| Services | `rails-expert` or `backend-service-developer` | -- |
-| Auth/security | `security-engineer` | `/security-review` |
-| Background jobs | `rails-expert` | -- |
-| Mailers | `rails-expert` | `/email` |
-| API design | `api-designer` | -- |
-| Tests (RSpec) | `rails-expert` or `test-automator` | -- |
-| Complex bugs | `bug-hunter` | `/investigate` |
-| Performance | `performance-engineer` | -- |
+See `references/domain-agent-map.md` for agent assignments per task type.
 
 Select agent during Architect based on task type. When a task spans multiple types, use the primary type's agent and include secondary concerns in the prompt.
 

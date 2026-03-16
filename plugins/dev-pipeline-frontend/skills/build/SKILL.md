@@ -109,6 +109,8 @@ node ${PLUGIN_ROOT}/../shared/tools/dev-pipeline-tools.js validate-stage-entry b
 
 ### Prompt Crafting (MANDATORY)
 
+**D04 ENFORCEMENT:** Follow the D04 Enforcement Protocol from `inner-loop-reference.md`. Every subagent prompt MUST go through `/prompt-generator`. Log status in the Orchestration Log section of this artifact.
+
 Use `/prompt-generator` to craft EVERY subagent prompt. No exceptions. Prompt quality determines build quality.
 
 For each task in this wave, define:
@@ -136,7 +138,7 @@ Every subagent prompt MUST include: architecture decisions from MANIFEST, releva
 .dev/build/wave-NN/architect-subagent-prompts.md
 ```
 
-Contains: all subagent assignments, prompts, execution order, success criteria, escalation rules.
+Contains: all subagent assignments, prompts, execution order, success criteria, escalation rules. Must include the Orchestration Log section.
 
 ```bash
 node ${PLUGIN_ROOT}/../shared/tools/dev-pipeline-tools.js validate-stage-output build architect <feature-dir> --plugin frontend --wave N
@@ -341,18 +343,7 @@ State persists to disk (MANIFEST + stage artifacts). Nothing is lost on `/clear`
 
 ## BUILD Agent Map
 
-| Task Type | Agent | Notes |
-|-----------|-------|-------|
-| TypeScript types | `typescript-pro` | Type definitions, interfaces, generics |
-| API layer | `frontend-developer` | Fetch hooks, API clients, error handling |
-| State management | `react-specialist` | Zustand stores, React Query, context |
-| UI components | `frontend-developer` or `react-specialist` | Based on complexity — simple = frontend-developer, stateful = react-specialist |
-| Pages/routing | `frontend-developer` | Next.js pages, layouts, navigation |
-| Animation/motion | `ui-designer` | Framer Motion, CSS transitions |
-| Accessibility | `accessibility-tester` | ARIA, keyboard nav, screen reader |
-| Design system | `ui-designer` + `frontend-developer` | Shared components, design tokens |
-| Tests | `test-automator` | Unit, integration, E2E |
-| Complex bugs | `bug-hunter` + `/investigate` | Hypothesis-driven debugging |
+See `references/domain-agent-map.md` for agent assignments per task type.
 
 Select agent type during Architect stage based on the task. When a task spans multiple types, use the primary type's agent and include secondary concerns in the prompt.
 

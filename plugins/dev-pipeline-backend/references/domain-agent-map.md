@@ -1,6 +1,48 @@
-# Domain-Agent Map v2.0 — Backend
+# Domain-Agent Map v3.0 — Backend
 
 Agent assignments by phase and domain for the backend dev pipeline.
+
+---
+
+## INTAKE Phase Agents
+
+| Task Type | Agent | Purpose |
+|-----------|-------|---------|
+| Codebase scan | `Explore` | Search for similar features, existing patterns |
+| Pattern detection | `rails-expert` | Identify Rails conventions relevant to the feature |
+
+---
+
+## DISCOVER Phase Agents
+
+| Task Type | Agent | Purpose |
+|-----------|-------|---------|
+| Codebase exploration | `Explore` (multiple, parallel) | Scan models, services, routes, tests separately |
+| Schema analysis | `master-backend-ai-rails` | Database structure, existing tables, migration history |
+| Architecture review | `architecture-reviewer` | Evaluate design approach against existing system |
+| Pattern research | `rails-expert` | Find reusable patterns in existing codebase |
+
+---
+
+## PLAN Phase Agents
+
+| Task Type | Agent | Purpose |
+|-----------|-------|---------|
+| Migration planning | `postgres-pro` | Index strategy, constraint design, zero-downtime |
+| API contract design | `api-designer` | Endpoint design, response shapes, versioning |
+| Architecture validation | `architecture-reviewer` | Validate decisions against system architecture |
+| Security assessment | `security-engineer` | Auth boundaries, COPPA, threat model (if auth/payments domain) |
+| Rails patterns | `rails-expert` | Service layer design, model associations |
+
+---
+
+## DOCUMENT Phase Agents
+
+| Task Type | Agent | Purpose |
+|-----------|-------|---------|
+| Technical documentation | `technical-writer` or `documentation-engineer` | Master plan, API contract docs |
+| Code examples | `rails-expert` | Usage examples, service call patterns |
+| API contract docs | `api-designer` | Endpoint documentation with request/response shapes |
 
 ---
 
@@ -21,12 +63,23 @@ Agent assignments by phase and domain for the backend dev pipeline.
 
 ---
 
-## DISCOVER / PLAN Phase Agents
+## VALIDATE Phase Agents
 
-| Phase | Agents | Purpose |
-|-------|--------|---------|
-| DISCOVER | `rails-expert`, `master-backend-ai-rails`, `Explore` | Codebase research, schema analysis |
-| PLAN | `rails-expert`, `security-engineer`, `postgres-pro` | Technical design, migration planning, security review |
+| Agent | Use For |
+|-------|---------|
+| `qa-expert` | Test strategy review, QA runbook validation |
+| `rails-expert` | Rails convention compliance, N+1 detection |
+| `security-engineer` | Auth boundary testing, Brakeman scan, COPPA (domain: auth, security) |
+| `performance-engineer` | N+1 query scan, index coverage (domain: performance) |
+
+---
+
+## SHIP Phase Agents
+
+| Task Type | Agent | Purpose |
+|-----------|-------|---------|
+| Pre-commit review | `code-reviewer` | Final code quality check |
+| Secrets scan | `security-engineer` | Credential leak prevention |
 
 ---
 
@@ -74,11 +127,15 @@ Common domain combinations and their implications:
 
 ---
 
-## VALIDATE Phase Agents
+## Multi-Domain Resolution Rule
 
-| Agent | Use For |
-|-------|---------|
-| `qa-expert` | Test strategy review, QA runbook validation |
-| `rails-expert` | Rails convention compliance, N+1 detection |
-| `security-engineer` | Auth boundary testing, Brakeman scan, COPPA (domain: auth, security) |
-| `performance-engineer` | N+1 query scan, index coverage (domain: performance) |
+When a task touches multiple domains, dispatch ONE agent per domain in PARALLEL.
+Synthesize outputs in Review stage.
+
+Example: Task touches `auth` + `database/models`
+- Dispatch `security-engineer` (auth concerns) in parallel with `master-backend-ai-rails` (schema concerns)
+- Review synthesizes both outputs, flags conflicts
+
+Example: Task touches `payments` + `external-api`
+- Dispatch `security-engineer` (PCI compliance) in parallel with `backend-service-developer` (integration design)
+- Review checks for conflicting recommendations before proceeding
