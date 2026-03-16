@@ -237,6 +237,18 @@ This artifact IS the context bridge to the DOCUMENT phase. It must contain:
 node ${PLUGIN_ROOT}/../shared/tools/dev-pipeline-tools.js validate-stage-output design review docs/[feature] --plugin frontend
 ```
 
+### Notion Update
+
+After acceptance, update the Dev Tracker card with design decisions. Read the Card ID from MANIFEST's `## Notion Integration > Card ID`.
+
+1. **Update card** using `mcp__plugin_Notion_notion__notion-update-page`:
+   - Page ID: Card ID from MANIFEST
+   - Properties: Notes = append design spec summary (visual direction, component inventory, responsive strategy, brand compliance verdict), Last Updated = today's ISO date
+
+2. Display: `📋 Notion: Updated notes — "[Feature Name]" (design spec complete)`
+
+**Error handling:** If Notion MCP tools are unavailable, the Card ID is missing, or the update fails, warn but do NOT block the pipeline. Log the failure and continue.
+
 ### MANIFEST Update
 
 After Review acceptance, update MANIFEST with:

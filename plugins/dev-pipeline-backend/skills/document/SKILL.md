@@ -296,6 +296,22 @@ node ${PLUGIN_ROOT}/../shared/tools/dev-pipeline-tools.js validate-manifest docs
 
 ## After Review Acceptance
 
+### Notion Update
+
+Update the Dev Tracker card with wave count and task summary. Reference `references/notion-integration.md` for property names and MCP tool patterns.
+
+**If Notion MCP tools are unavailable or the update fails, warn but do NOT block the pipeline.**
+
+1. Read the Notion card page ID from MANIFEST's `## Notion Integration > Card ID`
+2. **Update Dev Tracker card** using `mcp__plugin_Notion_notion__notion-update-page`:
+   - Page ID: card ID from MANIFEST
+   - Properties: Notes = append wave count and task summary (e.g., "DOCUMENT complete: X waves, Y tasks, Z estimated hours"), Last Updated = today's ISO date
+3. Display status summary:
+
+```
+📋 Notion: Updated notes — "[Feature Name]" (X waves, Y tasks planned)
+```
+
 Present summary, then display:
 
 ```

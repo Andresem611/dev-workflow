@@ -258,9 +258,35 @@ Final checklist:
 - No N+1 queries in new endpoints
 - No regressions in existing features
 
-### 3.6 Artifact
+### 3.6 Failure Mode Analysis
 
-Write `.dev/validate/execute-validation-results.md` — every check with pass/fail and actual evidence.
+**MANDATORY.** For each new codepath or integration point identified during validation, document:
+
+1. **One realistic production failure scenario** — timeout, nil reference, race condition, stale data, missing auth, N+1 under load, migration partial failure, webhook replay, etc.
+2. **Three checks per failure:**
+
+| Codepath | Failure Scenario | Test Covers? | Error Handling? | User Sees Clear Error? |
+|----------|-----------------|-------------|----------------|----------------------|
+| `BookingService#create` | Stripe API timeout after 30s | YES (VCR cassette) | YES (rescue + retry) | YES (422 with message) |
+| `StudentPolicy#show?` | Student accessing other student's data | NO | NO | NO — returns 200 ← **CRITICAL GAP** |
+
+**Critical gap** = no test + no error handling + silent failure. Flag as BLOCKER in Review.
+
+**Not a critical gap** (document but don't block):
+- Has RSpec coverage OR has rescue/error handling OR returns appropriate HTTP error
+- Theoretical failures requiring extraordinary conditions
+
+**Backend-specific failure scenarios to always check:**
+- Migration rollback: does `rails db:rollback` work cleanly on both helium + Neon?
+- Auth boundary: can a User access Student-only endpoints (or vice versa)?
+- N+1: does the endpoint degrade under 100x data?
+- Webhook idempotency: what happens on replay?
+
+Focus on codepaths that are NEW in this feature — don't audit the entire codebase.
+
+### 3.7 Artifact
+
+Write `.dev/validate/execute-validation-results.md` — every check with pass/fail and actual evidence. Include failure mode analysis table.
 
 ```bash
 node ${PLUGIN_ROOT}/../shared/tools/dev-pipeline-tools.js validate-stage-output validate execute <feature-dir> --plugin backend
@@ -365,6 +391,22 @@ node ${PLUGIN_ROOT}/../shared/tools/dev-pipeline-tools.js validate-manifest <fea
 ```
 
 ### 4.6 After Approval
+
+### Notion Update
+
+Move the Dev Tracker card to "Replit Staging". Reference `references/notion-integration.md` for property names and MCP tool patterns.
+
+**If Notion MCP tools are unavailable or the update fails, warn but do NOT block the pipeline.**
+
+1. Read the Notion card page ID from MANIFEST's `## Notion Integration > Card ID`
+2. **Update Dev Tracker card** using `mcp__plugin_Notion_notion__notion-update-page`:
+   - Page ID: card ID from MANIFEST
+   - Properties: Status = `Replit Staging`, Last Updated = today's ISO date
+3. Display status summary:
+
+```
+📋 Notion: Moved — "[Feature Name]" → Replit Staging
+```
 
 Update MANIFEST phase to VALIDATE complete. Display and STOP:
 

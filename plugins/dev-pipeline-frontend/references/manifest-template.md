@@ -62,6 +62,11 @@ Status: not-started / in-progress / complete / skipped
 | Artifact | Path | Created By |
 |----------|------|------------|
 
+## Notion Integration
+- **Card ID:** [notion-page-uuid — populated by INTAKE after card creation]
+- **Sprint:** [sprint-name — populated by INTAKE]
+- **Created:** [ISO-date — populated by INTAKE]
+
 ## Pause Context
 [Only present when status = paused]
 - **Paused At:** [phase] / [stage]

@@ -41,6 +41,18 @@ Before starting any wave, load `requirements.md` from the feature docs directory
 
 ### Context Reading
 
+### Notion Update (First Wave Only)
+
+On the first wave, move the Dev Tracker card to "Frontend Dev". Read the Card ID from MANIFEST's `## Notion Integration > Card ID`.
+
+1. **Update card** using `mcp__plugin_Notion_notion__notion-update-page`:
+   - Page ID: Card ID from MANIFEST
+   - Properties: Status = `Frontend Dev`, Last Updated = today's ISO date
+
+2. Display: `📋 Notion: Moved — "[Feature Name]" → Frontend Dev`
+
+**Error handling:** If Notion MCP tools are unavailable, the Card ID is missing, or the update fails, warn but do NOT block the pipeline. Log the failure and continue.
+
 **First wave only:** Read `.dev/document/review-documentation-quality.md` (context bridge from DOCUMENT). If missing, read MANIFEST + wave plans to reconstruct context.
 
 **All waves:** Read before starting each wave.
@@ -264,6 +276,18 @@ If FAIL, fix listed issues before proceeding.
 | **MANIFEST** | `current_wave`, `build_progress`, task completion status, strike count |
 | **01_IMPLEMENTATION_STATUS.md** | Mark completed tasks, note deviations |
 | **CURRENT_STATUS.md** | Current wave, what is done, what remains |
+
+### Notion Update (Between Waves)
+
+After updating tracking files, update the Dev Tracker card with wave progress. Read the Card ID from MANIFEST's `## Notion Integration > Card ID`.
+
+1. **Update card** using `mcp__plugin_Notion_notion__notion-update-page`:
+   - Page ID: Card ID from MANIFEST
+   - Properties: Notes = append wave progress (e.g., "Wave 2/3 complete — [summary of tasks completed]"), Last Updated = today's ISO date
+
+2. Display: `📋 Notion: Updated notes — "[Feature Name]" (Wave X/Y complete)`
+
+**Error handling:** If Notion MCP tools are unavailable, the Card ID is missing, or the update fails, warn but do NOT block the pipeline. Log the failure and continue.
 
 ### 3. Session Break (Recommended)
 

@@ -200,6 +200,23 @@ Env Vars: All set / None required
 
 ### On Confirmation
 
+### Notion Update
+
+Update the Dev Tracker card based on publication status. Reference `references/notion-integration.md` for property names and MCP tool patterns.
+
+**If Notion MCP tools are unavailable or the update fails, warn but do NOT block the pipeline.**
+
+1. Read the Notion card page ID from MANIFEST's `## Notion Integration > Card ID`
+2. **If published:** Update Dev Tracker card using `mcp__plugin_Notion_notion__notion-update-page`:
+   - Page ID: card ID from MANIFEST
+   - Properties: Status = `Published`, Last Updated = today's ISO date, Notes = append "Published vX.Y.Z on YYYY-MM-DD"
+   - Display: `📋 Notion: Moved — "[Feature Name]" → Published`
+3. **If staging only:** Update Dev Tracker card using `mcp__plugin_Notion_notion__notion-update-page`:
+   - Page ID: card ID from MANIFEST
+   - Properties: Notes = append "Staged — not yet published (commit: [hash])", Last Updated = today's ISO date
+   - Keep Status at `Replit Staging`
+   - Display: `📋 Notion: Updated notes — "[Feature Name]" (staged, not yet published)`
+
 Update MANIFEST to COMPLETE with commit hash and version. Display deployment reminder.
 
 ### Artifact: `.dev/ship/review-release-confirmation.md`

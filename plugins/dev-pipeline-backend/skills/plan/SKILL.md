@@ -162,7 +162,7 @@ For each subagent: dispatch with crafted prompt, wait, collect results, check ag
 
 ### Required Outputs
 
-Execute must produce ALL seven sections:
+Execute must produce ALL eight sections (seven planning sections + diagrams):
 
 #### 1. Locked Decision Log
 
@@ -230,6 +230,17 @@ Feature done-definition: decisions implemented, migrations clean in both environ
 
 If no existing models affected: "New tables only — no production data impact."
 
+#### 8. Architecture Diagrams (ASCII)
+
+For any non-trivial feature, subagents MUST produce ASCII diagrams:
+
+- **Data flow diagram** — How data moves through services/controllers/models (required if feature has >2 services or new API endpoints)
+- **State machine** — For models with >3 states or complex lifecycle (required if feature has stateful models)
+- **Dependency graph** — Before/after showing new coupling (required if feature touches >4 files)
+- **Migration dependency chain** — Order of operations for multi-migration features (required if >2 migrations)
+
+These diagrams go in the Execute artifact AND should be embedded as inline comments in the corresponding implementation files during BUILD (Models for state transitions, Services for pipelines, Controllers for request flow). Stale diagrams are worse than no diagrams — if BUILD modifies a diagrammed flow, the diagram MUST be updated in the same wave.
+
 **MANDATORY: must_haves in Wave Files**
 
 Each wave file produced by Execute MUST include a `must_haves` section:
@@ -289,6 +300,30 @@ node ${PLUGIN_ROOT}/../shared/tools/dev-pipeline-tools.js validate-stage-output 
 node ${PLUGIN_ROOT}/../shared/tools/dev-pipeline-tools.js validate-manifest <feature-dir> --plugin backend
 ```
 
+### Eng Review Gate
+
+After running validation checks but before presenting results, offer a comprehensive engineering review via `AskUserQuestion`:
+
+> "Plan validation complete. Want a comprehensive engineering review before locking?"
+>
+> We recommend **A** for complex features (>4 waves, new subsystems, external integrations), **B** for straightforward work:
+>
+> - **A) Eng Review** — Full architecture + error/rescue map + test diagram + failure modes + performance review. Invokes `/plan-eng-review` against the Execute outputs. Catches edge cases, silent failures, and architectural smells before BUILD starts.
+> - **B) Skip** — Accept plan based on validation checks alone.
+> - **C) Quick failure check** — Just failure mode analysis: for each new codepath, one realistic production failure scenario + is it tested/handled/visible? Lighter than full eng review.
+
+If user selects A: invoke `Skill(plan-eng-review)` with the Execute artifact as context. After the review completes, return here and present the plan summary below.
+
+If user selects C: run the quick failure check inline, then present the plan summary.
+
+### NOT in Scope (MANDATORY)
+
+Before presenting the plan summary, produce a "NOT in scope" section listing work that was considered during DISCOVER/PLAN and explicitly deferred. One-line rationale per item. This section MUST appear in the review artifact.
+
+If no items were deferred, state: "No scope deferrals identified — all DISCOVER requirements are addressed in this plan."
+
+This section acts as a guardrail during BUILD — anything listed here is intentionally excluded and should NOT be added by subagents.
+
 ### Surface Gaps
 
 Use `AskUserQuestion` for gaps. Present summary with:
@@ -305,6 +340,22 @@ Use `AskUserQuestion` for gaps. Present summary with:
 
 1. Update MANIFEST: PLAN = complete
 2. Write review artifact with bridge context for DOCUMENT
+
+### Notion Update
+
+Update the Dev Tracker card with locked architecture decisions. Reference `references/notion-integration.md` for property names and MCP tool patterns.
+
+**If Notion MCP tools are unavailable or the update fails, warn but do NOT block the pipeline.**
+
+1. Read the Notion card page ID from MANIFEST's `## Notion Integration > Card ID`
+2. **Update Dev Tracker card** using `mcp__plugin_Notion_notion__notion-update-page`:
+   - Page ID: card ID from MANIFEST
+   - Properties: Notes = append summary of locked architecture decisions (decision count, key choices), Last Updated = today's ISO date
+3. Display status summary:
+
+```
+📋 Notion: Updated notes — "[Feature Name]" (architecture decisions locked)
+```
 
 Display `Next Up` block and **STOP**:
 

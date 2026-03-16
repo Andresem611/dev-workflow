@@ -230,7 +230,19 @@ Options: Retry Execute | Back to Architect | Back to Discuss | Accept
 
 User decides. No auto-looping (D08).
 
-### 4.6 MANIFEST Update
+### 4.6 Notion Update
+
+After acceptance, update the Dev Tracker card with wave/task summary. Read the Card ID from MANIFEST's `## Notion Integration > Card ID`.
+
+1. **Update card** using `mcp__plugin_Notion_notion__notion-update-page`:
+   - Page ID: Card ID from MANIFEST
+   - Properties: Notes = append documentation summary (X waves, Y tasks planned, estimated hours, key wave descriptions), Last Updated = today's ISO date
+
+2. Display: `📋 Notion: Updated notes — "[Feature Name]" (X waves, Y tasks planned)`
+
+**Error handling:** If Notion MCP tools are unavailable, the Card ID is missing, or the update fails, warn but do NOT block the pipeline. Log the failure and continue.
+
+### 4.7 MANIFEST Update
 
 On acceptance, update MANIFEST:
 
@@ -251,7 +263,7 @@ wave_count: [N]
 total_estimated_hours: [X]
 ```
 
-### 4.7 Stage Artifact
+### 4.8 Stage Artifact
 
 Write `docs/[Feature]/.dev/document/review-documentation-quality.md` — bridges to BUILD:
 

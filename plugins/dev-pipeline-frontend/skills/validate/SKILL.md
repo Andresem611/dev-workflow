@@ -222,9 +222,29 @@ Stub detection (from GSD verification-patterns):
 - Hardcoded returns: `return null`, `return []`, `return {}`
 - TODO markers: `grep -E "TODO|FIXME|XXX|HACK"`
 
-### 3.6 Artifact
+### 3.6 Failure Mode Analysis
 
-Write `.dev/validate/execute-validation-results.md` — every check with pass/fail and actual evidence.
+**MANDATORY.** For each new codepath or integration point identified during validation, document:
+
+1. **One realistic production failure scenario** — timeout, nil reference, race condition, stale data, missing auth, network partition, malformed response, etc.
+2. **Three checks per failure:**
+
+| Codepath | Failure Scenario | Test Covers? | Error Handling? | User Sees Clear Error? |
+|----------|-----------------|-------------|----------------|----------------------|
+| `BookingForm.submit()` | Stripe API timeout after 30s | NO | YES (catch block) | YES ("Payment failed, try again") |
+| `useTeacherProfile()` | Teacher deleted between list and detail view | NO | NO | NO — blank page ← **CRITICAL GAP** |
+
+**Critical gap** = no test + no error handling + silent failure. Flag as BLOCKER in Review.
+
+**Not a critical gap** (document but don't block):
+- Has test OR has error handling OR user sees a clear error message
+- Theoretical failures that require extraordinary conditions
+
+Focus on codepaths that are NEW in this feature — don't audit the entire codebase.
+
+### 3.7 Artifact
+
+Write `.dev/validate/execute-validation-results.md` — every check with pass/fail and actual evidence. Include failure mode analysis table.
 
 ```bash
 node ${PLUGIN_ROOT}/../shared/tools/dev-pipeline-tools.js validate-stage-output validate execute <feature-dir> --plugin frontend
@@ -306,7 +326,19 @@ node ${PLUGIN_ROOT}/../shared/tools/dev-pipeline-tools.js validate-stage-output 
 node ${PLUGIN_ROOT}/../shared/tools/dev-pipeline-tools.js validate-manifest <feature-dir> --plugin frontend
 ```
 
-### 4.6 After Approval
+### 4.6 Notion Update
+
+After approval, move the Dev Tracker card to "Replit Staging". Read the Card ID from MANIFEST's `## Notion Integration > Card ID`.
+
+1. **Update card** using `mcp__plugin_Notion_notion__notion-update-page`:
+   - Page ID: Card ID from MANIFEST
+   - Properties: Status = `Replit Staging`, Last Updated = today's ISO date
+
+2. Display: `📋 Notion: Moved — "[Feature Name]" → Replit Staging`
+
+**Error handling:** If Notion MCP tools are unavailable, the Card ID is missing, or the update fails, warn but do NOT block the pipeline. Log the failure and continue.
+
+### 4.7 After Approval
 
 Update MANIFEST phase to VALIDATE complete. Display and STOP:
 

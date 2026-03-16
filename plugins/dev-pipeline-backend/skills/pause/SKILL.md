@@ -85,6 +85,23 @@ Add pause context block to MANIFEST:
 
 Set MANIFEST status field to `paused`.
 
+### Notion Update
+
+Update the Dev Tracker card with pause context. Reference `references/notion-integration.md` for property names and MCP tool patterns.
+
+**If Notion MCP tools are unavailable or the update fails, warn but do NOT block the pipeline.**
+
+1. Read the Notion card page ID from MANIFEST's `## Notion Integration > Card ID`
+2. **Update Dev Tracker card** using `mcp__plugin_Notion_notion__notion-update-page`:
+   - Page ID: card ID from MANIFEST
+   - Properties: Notes = append pause context ("Paused at [phase]/[stage] on [date]. Blockers: [blockers or 'None']. Resume: run /dev to pick up from [phase]:[stage]"), Last Updated = today's ISO date
+   - Do NOT change the Status column — keep it at whatever column it was in before pause
+3. Display status summary:
+
+```
+📋 Notion: Updated notes — "[Feature Name]" (paused at [phase]/[stage])
+```
+
 ---
 
 ## Step 4: Checkpoint

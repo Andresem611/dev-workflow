@@ -43,6 +43,22 @@ If FAIL, fix missing prerequisites before proceeding.
 
 **First wave only:** Read `.dev/document/review-documentation-quality.md` (context bridge from DOCUMENT). If missing, read MANIFEST + wave plans to reconstruct context.
 
+### Notion Update (First Wave Only)
+
+Move the Dev Tracker card to "Backend Dev". Reference `references/notion-integration.md` for property names and MCP tool patterns.
+
+**If Notion MCP tools are unavailable or the update fails, warn but do NOT block the pipeline.**
+
+1. Read the Notion card page ID from MANIFEST's `## Notion Integration > Card ID`
+2. **Update Dev Tracker card** using `mcp__plugin_Notion_notion__notion-update-page`:
+   - Page ID: card ID from MANIFEST
+   - Properties: Status = `Backend Dev`, Last Updated = today's ISO date
+3. Display status summary:
+
+```
+📋 Notion: Moved — "[Feature Name]" → Backend Dev
+```
+
 **All waves:** Read before starting each wave.
 
 | File | Extract |
@@ -306,7 +322,23 @@ If FAIL, fix listed issues before proceeding.
 | **01_IMPLEMENTATION_STATUS.md** | Mark completed tasks, note deviations |
 | **CURRENT_STATUS.md** | Current wave, what is done, what remains |
 
-### 3. Session Break (Recommended)
+### 3. Notion Update (Between Waves)
+
+Update the Dev Tracker card with wave progress. Reference `references/notion-integration.md` for property names and MCP tool patterns.
+
+**If Notion MCP tools are unavailable or the update fails, warn but do NOT block the pipeline.**
+
+1. Read the Notion card page ID from MANIFEST's `## Notion Integration > Card ID`
+2. **Update Dev Tracker card** using `mcp__plugin_Notion_notion__notion-update-page`:
+   - Page ID: card ID from MANIFEST
+   - Properties: Notes = append wave progress (e.g., "Wave X/Y complete — [summary of completed tasks]"), Last Updated = today's ISO date
+3. Display status summary:
+
+```
+📋 Notion: Updated notes — "[Feature Name]" (Wave X/Y complete)
+```
+
+### 4. Session Break (Recommended)
 
 Recommend `/clear` between waves for fresh context (especially after 3+ waves or complex escalations). Next session resumes from MANIFEST via `/dev`.
 

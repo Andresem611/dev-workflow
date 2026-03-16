@@ -71,7 +71,19 @@ Create `.dev/pause-handoff.md` in the feature's `.dev/` root directory:
 
 ---
 
-## Step 3: Update MANIFEST
+## Step 3: Notion Update
+
+Update the Dev Tracker card with pause context. Read the Card ID from MANIFEST's `## Notion Integration > Card ID`.
+
+1. **Update card** using `mcp__plugin_Notion_notion__notion-update-page`:
+   - Page ID: Card ID from MANIFEST
+   - Properties: Notes = append "Paused at [phase]/[stage] on [date]. Reason: [blocker or user-initiated]. Resume from [phase]:[stage].", Last Updated = today's ISO date
+
+2. Display: `📋 Notion: Updated notes — "[Feature Name]" (paused at [phase]/[stage])`
+
+**Error handling:** If Notion MCP tools are unavailable, the Card ID is missing, or the update fails, warn but do NOT block the pipeline. Log the failure and continue.
+
+## Step 4: Update MANIFEST
 
 Add pause context block to MANIFEST:
 
@@ -87,7 +99,7 @@ Set MANIFEST status field to `paused`.
 
 ---
 
-## Step 4: Checkpoint
+## Step 5: Checkpoint
 
 Run the checkpoint tool to persist state:
 
@@ -97,7 +109,7 @@ node ${PLUGIN_ROOT}/../shared/tools/dev-pipeline-tools.js checkpoint-state <feat
 
 ---
 
-## Step 5: WIP Commit
+## Step 6: WIP Commit
 
 Stage all changes and create a WIP commit:
 
@@ -120,7 +132,7 @@ Co-Authored-By: Claude <noreply@anthropic.com>
 
 ---
 
-## Step 6: Confirm
+## Step 7: Confirm
 
 Use `AskUserQuestion` to confirm:
 

@@ -166,6 +166,26 @@ Options:
 
 1. Update MANIFEST phase progress: INTAKE = complete
 2. Determine routing based on entry mode (see Entry Mode Detection table)
+
+### Notion Update
+
+Create the Dev Tracker card and Sprint List entry. Reference `references/notion-integration.md` for database IDs, property names, and MCP tool patterns.
+
+**If Notion MCP tools are unavailable or the update fails, warn but do NOT block the pipeline.**
+
+1. **Create Dev Tracker card** using `mcp__plugin_Notion_notion__notion-create-pages`:
+   - Parent: `03b93a05-93eb-433b-94f8-6697dd0a602d` (Dev Tracker database)
+   - Properties: Feature / Item = MANIFEST feature name, Status = `Speccing`, Priority from MANIFEST, Stage from MANIFEST, Notes = "Created via /dev:intake", Last Updated = today's ISO date, Link to PRD = path to `docs/[Feature]/`
+2. **Create Sprint List entry** using `mcp__plugin_Notion_notion__notion-create-pages`:
+   - Parent: `3ca149ea-4550-4f99-941f-9ae3b36bd194` (Sprint List database)
+   - Properties: Sprint = MANIFEST feature/sprint name, Status = `Active`, Focus = MANIFEST description
+3. **Store the returned Notion card page ID** in MANIFEST's `## Notion Integration` section under `Card ID`
+4. Display status summary:
+
+```
+📋 Notion: Created card — "[Feature Name]" → Speccing
+```
+
 3. Display `Next Up` block and **STOP**:
 
 ```

@@ -165,7 +165,7 @@ For each subagent defined in Architect:
 
 ### Required Outputs
 
-Execute must produce ALL five of these sections:
+Execute must produce ALL six of these sections (five planning sections + diagrams):
 
 #### 1. Locked Decision Log
 
@@ -216,6 +216,16 @@ Overall feature done-definition: locked decisions implemented, API integrations 
 ```
 
 If ANY endpoint is MISSING: flag as blocker, record expected contracts, surface in Review for user decision (proceed with mocks vs PAUSE).
+
+#### 6. Architecture Diagrams (ASCII)
+
+For any non-trivial feature, subagents MUST produce ASCII diagrams:
+
+- **Data flow diagram** — How data moves through new components (required if feature has >2 components)
+- **State machine** — For components with >3 states (required if feature has stateful UI)
+- **Dependency graph** — Before/after showing new coupling (required if feature touches >4 files)
+
+These diagrams go in the Execute artifact AND should be embedded as inline comments in the corresponding implementation files during BUILD. Stale diagrams are worse than no diagrams — if BUILD modifies a diagrammed flow, the diagram MUST be updated in the same wave.
 
 **MANDATORY: must_haves in Wave Files**
 
@@ -278,6 +288,30 @@ node ${PLUGIN_ROOT}/../shared/tools/dev-pipeline-tools.js validate-stage-output 
 node ${PLUGIN_ROOT}/../shared/tools/dev-pipeline-tools.js validate-manifest <feature-dir> --plugin frontend
 ```
 
+### Eng Review Gate
+
+After running validation checks but before presenting results, offer a comprehensive engineering review via `AskUserQuestion`:
+
+> "Plan validation complete. Want a comprehensive engineering review before locking?"
+>
+> We recommend **A** for complex features (>4 waves, new subsystems, external integrations), **B** for straightforward work:
+>
+> - **A) Eng Review** — Full architecture + error/rescue map + test diagram + failure modes + performance review. Invokes `/plan-eng-review` against the Execute outputs. Catches edge cases, silent failures, and architectural smells before BUILD starts.
+> - **B) Skip** — Accept plan based on validation checks alone.
+> - **C) Quick failure check** — Just failure mode analysis: for each new codepath, one realistic production failure scenario + is it tested/handled/visible? Lighter than full eng review.
+
+If user selects A: invoke `Skill(plan-eng-review)` with the Execute artifact as context. After the review completes, return here and present the plan summary below.
+
+If user selects C: run the quick failure check inline, then present the plan summary.
+
+### NOT in Scope (MANDATORY)
+
+Before presenting the plan summary, produce a "NOT in scope" section listing work that was considered during DISCOVER/PLAN and explicitly deferred. One-line rationale per item. This section MUST appear in the review artifact.
+
+If no items were deferred, state: "No scope deferrals identified — all DISCOVER requirements are addressed in this plan."
+
+This section acts as a guardrail during BUILD — anything listed here is intentionally excluded and should NOT be added by subagents.
+
 ### Surface Gaps
 
 Use `AskUserQuestion` for any gaps found. Present the plan summary:
@@ -320,6 +354,18 @@ Options:
 
 1. Update MANIFEST phase progress: PLAN = complete
 2. Write review artifact with bridge context for DESIGN
+
+### Notion Update
+
+After acceptance, update the Dev Tracker card with architecture decisions. Read the Card ID from MANIFEST's `## Notion Integration > Card ID`.
+
+1. **Update card** using `mcp__plugin_Notion_notion__notion-update-page`:
+   - Page ID: Card ID from MANIFEST
+   - Properties: Notes = append locked architecture decisions summary (decision IDs, choices, and WHY), Last Updated = today's ISO date
+
+2. Display: `📋 Notion: Updated notes — "[Feature Name]" (architecture decisions locked)`
+
+**Error handling:** If Notion MCP tools are unavailable, the Card ID is missing, or the update fails, warn but do NOT block the pipeline. Log the failure and continue.
 
 Display `Next Up` block and **STOP**:
 
