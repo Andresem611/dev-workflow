@@ -24,9 +24,9 @@ Shared reference for all pipeline skills that update Notion. All skills read thi
 | `Speccing` | INTAKE through DOCUMENT | Feature being specified/designed |
 | `Backend Dev` | BUILD starts (backend) | Backend implementation in progress |
 | `Frontend Dev` | HANDOVER or frontend BUILD | Frontend implementation in progress |
-| `Replit Staging` | VALIDATE passes | Pushed to Replit, not yet published |
-| `Code Review` | `/review` or validate review | Under code review |
-| `Manual QA` | Manual step | Flow testing in Replit |
+| `Code Review` | VALIDATE passes | Code review after build |
+| `Manual QA` | Manual step | Flow testing by dev |
+| `Replit Staging` | Manual step | Final environment check in Replit pre-production |
 | `Keri Review` | Manual step | Keri's testing pass |
 | `Published` | SHIP (published) or `/publish` | Live in production |
 

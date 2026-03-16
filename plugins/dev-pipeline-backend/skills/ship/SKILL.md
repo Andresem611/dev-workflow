@@ -214,7 +214,7 @@ Update the Dev Tracker card based on publication status. Reference `references/n
 3. **If staging only:** Update Dev Tracker card using `mcp__plugin_Notion_notion__notion-update-page`:
    - Page ID: card ID from MANIFEST
    - Properties: Notes = append "Staged — not yet published (commit: [hash])", Last Updated = today's ISO date
-   - Keep Status at `Replit Staging`
+   - Keep current Status unchanged
    - Display: `📋 Notion: Updated notes — "[Feature Name]" (staged, not yet published)`
 
 Update MANIFEST to COMPLETE with commit hash and version. Display deployment reminder.

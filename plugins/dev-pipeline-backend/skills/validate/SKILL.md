@@ -394,18 +394,18 @@ node ${PLUGIN_ROOT}/../shared/tools/dev-pipeline-tools.js validate-manifest <fea
 
 ### Notion Update
 
-Move the Dev Tracker card to "Replit Staging". Reference `references/notion-integration.md` for property names and MCP tool patterns.
+Move the Dev Tracker card to "Code Review". Reference `references/notion-integration.md` for property names and MCP tool patterns.
 
 **If Notion MCP tools are unavailable or the update fails, warn but do NOT block the pipeline.**
 
 1. Read the Notion card page ID from MANIFEST's `## Notion Integration > Card ID`
 2. **Update Dev Tracker card** using `mcp__plugin_Notion_notion__notion-update-page`:
    - Page ID: card ID from MANIFEST
-   - Properties: Status = `Replit Staging`, Last Updated = today's ISO date
+   - Properties: Status = `Code Review`, Last Updated = today's ISO date
 3. Display status summary:
 
 ```
-📋 Notion: Moved — "[Feature Name]" → Replit Staging
+📋 Notion: Moved — "[Feature Name]" → Code Review
 ```
 
 Update MANIFEST phase to VALIDATE complete. Display and STOP:
