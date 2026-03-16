@@ -13,6 +13,7 @@ Use this template when creating a new MANIFEST in `dev-pipeline-frontend:intake`
 | **Created** | [YYYY-MM-DD] |
 | **Entry Mode** | [idea dump / tech spec / backend handoff / design handoff / bug/issue] |
 | **Domains** | [comma-separated: routing, state, forms, animation, a11y, responsive, api-integration, auth-ui, design-system, performance, seo, analytics] |
+| **Cross-Stack** | [none / frontend / backend — detected during INTAKE, confirmed in PLAN] |
 
 ## Pipeline Status
 | Field | Value |
