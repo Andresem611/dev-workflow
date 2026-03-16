@@ -70,6 +70,8 @@ node ${PLUGIN_ROOT}/../shared/tools/dev-pipeline-tools.js validate-stage-output 
 
 ## Stage 2: Architect — Design Plan
 
+**D04 ENFORCEMENT:** Follow the D04 Enforcement Protocol from `inner-loop-reference.md`. Every subagent prompt MUST go through `/prompt-generator`. Log status in the Orchestration Log section of this artifact.
+
 **MANDATORY:** Use `/prompt-generator` skill to craft every subagent prompt. No exceptions.
 
 ### Subagent Assignments
@@ -125,7 +127,7 @@ Explore agent runs first (or in parallel with ui-designer if independent). Dedup
 
 **File:** `.dev/design/architect-design-plan.md`
 
-Contents: subagent assignments with prompts, success criteria, execution order, spec structure.
+Contents: subagent assignments with prompts, success criteria, execution order, spec structure. Must include the Orchestration Log section.
 
 ```bash
 node ${PLUGIN_ROOT}/../shared/tools/dev-pipeline-tools.js validate-stage-output design architect docs/[feature] --plugin frontend

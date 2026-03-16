@@ -72,6 +72,8 @@ node ${PLUGIN_ROOT}/../shared/tools/dev-pipeline-tools.js validate-stage-output 
 
 ### 2.2 Craft Subagent Prompts
 
+**D04 ENFORCEMENT:** Follow the D04 Enforcement Protocol from `inner-loop-reference.md`. Every subagent prompt MUST go through `/prompt-generator`. Log status in the Orchestration Log section of this artifact.
+
 **MANDATORY:** Use `/prompt-generator` for every subagent prompt.
 
 | Agent | Validation Area | When |
@@ -110,7 +112,7 @@ The verification report MUST include a **Requirements Coverage** table:
 
 ### 2.4 Artifact
 
-Write `.dev/validate/architect-validation-plan.md` — ordered checklist, subagent assignments with prompts, success criteria, execution dependencies.
+Write `.dev/validate/architect-validation-plan.md` — ordered checklist, subagent assignments with prompts, success criteria, execution dependencies. Must include the Orchestration Log section.
 
 ```bash
 node ${PLUGIN_ROOT}/../shared/tools/dev-pipeline-tools.js validate-stage-output validate architect <feature-dir> --plugin backend

@@ -40,6 +40,14 @@ Use `AskUserQuestion` for EVERY question. One question at a time. NEVER batch mu
 - UI references or mockups?
 - Existing patterns in the codebase to follow?
 
+**CROSS-STACK questions** — Detect backend dependencies:
+- Does this feature need new backend API endpoints that don't exist yet?
+- Does this require changes to existing API response shapes?
+- Does this need new authentication or authorization on the backend?
+- Does this require new background jobs, webhooks, or server-side processing?
+
+If ANY cross-stack signal detected: tag MANIFEST metadata with `Cross-Stack: backend` and document what the backend needs in the classification artifact.
+
 **HOW meta-questions** — Execution strategy:
 - "How deep should classification go?"
 - "Want me to do a quick codebase scan first?"
@@ -71,6 +79,8 @@ node ${PLUGIN_ROOT}/../shared/tools/dev-pipeline-tools.js validate-stage-entry i
 
 ### Mechanics (per inner-loop-reference.md Section 2.2)
 
+**D04 ENFORCEMENT:** Follow the D04 Enforcement Protocol from `inner-loop-reference.md`. Every subagent prompt MUST go through `/prompt-generator`. Log status in the Orchestration Log section of this artifact.
+
 **MANDATORY:** Use `/prompt-generator` to craft the subagent prompt for MANIFEST creation.
 
 Plan these elements:
@@ -81,7 +91,7 @@ Plan these elements:
 
 ### Artifact
 
-`.dev/intake/architect-manifest-plan.md` — MANIFEST structure plan, domain tags, entry mode, subagent prompt crafted via `/prompt-generator`.
+`.dev/intake/architect-manifest-plan.md` — MANIFEST structure plan, domain tags, entry mode, subagent prompt crafted via `/prompt-generator`. Must include the Orchestration Log section.
 
 ```bash
 node ${PLUGIN_ROOT}/../shared/tools/dev-pipeline-tools.js validate-stage-output intake architect <feature-dir> --plugin frontend

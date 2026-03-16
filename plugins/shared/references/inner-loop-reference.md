@@ -56,7 +56,7 @@ Define for the phase overall:
 - Overall success criteria (what the combined output must achieve)
 - Escalation rules (what happens if a subagent fails)
 
-**Stage artifact:** `architect-<descriptive-name>.md` — the execution plan with all subagent assignments.
+**Stage artifact:** `architect-<descriptive-name>.md` — the execution plan with all subagent assignments. Must include an Orchestration Log section (see D04 Enforcement Protocol in Section 9).
 
 ### 2.3 Execute
 
@@ -224,7 +224,7 @@ These decisions from the design doc govern the inner loop. Referenced by ID thro
 | D01 | Inner loop stages | Discuss → Architect → Execute → Review |
 | D02 | Question mechanic | AskUserQuestion for every question, one at a time |
 | D03 | Subagent dispatch | Mandatory in Execute — orchestrator never executes inline |
-| D04 | Prompt crafting | `/prompt-generator` in every Architect stage |
+| D04 | Prompt crafting | `/prompt-generator` in every Architect stage (see D04 Enforcement Protocol below) |
 | D05 | Tier system | Removed — user decides depth via Discuss meta-questions |
 | D06 | User role | Team lead — Discuss asks WHAT and HOW |
 | D07 | Question cap | No cap — user says "enough" |
@@ -232,3 +232,26 @@ These decisions from the design doc govern the inner loop. Referenced by ID thro
 | D09 | Research pre-step | Optional, user opts in during Discuss |
 | D14 | BUILD structure | Inner loop per wave |
 | D16 | PAUSE | Operational, no inner loop |
+
+---
+
+## 10. D04 Enforcement Protocol
+
+The orchestrator MUST follow this sequence in every Architect stage:
+
+1. **Attempt** `/prompt-generator` for every subagent prompt
+2. **If unavailable** (skill not loaded, MCP issue): WARN the user, craft prompt inline using `references/agent-prompt-template.md` as fallback, log "prompt-generator: UNAVAILABLE — used fallback template" in Architect artifact
+3. **If user says "skip"**: Explain: "Prompt quality determines subagent output quality. Poor prompts produce shallow work that requires manual correction." Ask once more. If user insists: proceed, log "prompt-generator: USER-SKIPPED" in Architect artifact
+4. **Never silently skip** — every Architect artifact must document prompt-generator status
+
+### Orchestration Log (MANDATORY in every Architect artifact)
+
+Every `architect-*.md` file MUST include this section:
+
+```markdown
+## Orchestration Log
+- **Agents selected:** [list with domain justification]
+- **Prompt generator:** used / unavailable (fallback) / user-skipped
+- **Cross-stack signals:** none / detected ([details])
+- **Multi-domain dispatch:** N/A / parallel ([agents listed])
+```

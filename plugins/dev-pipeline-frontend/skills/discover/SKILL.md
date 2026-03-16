@@ -94,6 +94,8 @@ node ${PLUGIN_ROOT}/../shared/tools/dev-pipeline-tools.js validate-stage-entry d
 
 ### 1. Craft Subagent Prompts (MANDATORY — D04)
 
+**D04 ENFORCEMENT:** Follow the D04 Enforcement Protocol from `inner-loop-reference.md`. Every subagent prompt MUST go through `/prompt-generator`. Log status in the Orchestration Log section of this artifact.
+
 Use `/prompt-generator` to craft every subagent prompt. Prompt quality IS architecture.
 
 ### 2. Define Agents
@@ -136,6 +138,7 @@ Contents:
 - Overall success criteria
 - Execution order and dependencies
 - Escalation rules (what happens if an agent fails)
+- Orchestration Log (prompt-generator status, agents selected, cross-stack signals)
 
 ```bash
 node ${PLUGIN_ROOT}/../shared/tools/dev-pipeline-tools.js validate-stage-output discover architect <feature-dir> --plugin frontend
@@ -277,9 +280,25 @@ node ${PLUGIN_ROOT}/../shared/tools/dev-pipeline-tools.js validate-stage-output 
 
 ---
 
-## After Review Approval
+## After Review Approval — Comprehensive Review Gate
 
-Display the Next Up block and STOP:
+Before displaying the Next Up block, offer a comprehensive review via `AskUserQuestion`:
+
+> "DISCOVER is complete. Before locking architecture in PLAN, want a comprehensive review of the feature direction?"
+>
+> We recommend **A** for ambitious or unfamiliar features, **B** for well-understood work:
+>
+> - **A) CEO Review** — Challenge premises, find the 10-star version, validate scope direction. Invokes `/plan-ceo-review` against the DISCOVER outputs. Best for: new features, strategic bets, anything where "should we even build this?" is worth 10 minutes.
+> - **B) Skip** — Proceed directly to PLAN. Best for: well-scoped features where direction is clear.
+> - **C) Quick scope check** — Just 3 questions: (1) What existing code already solves sub-problems? (2) What's the minimum change set? (3) Complexity smell check (>8 files or >2 new classes = challenge it). Lighter than full CEO review.
+
+If user selects A: invoke `Skill(plan-ceo-review)` with the DISCOVER review artifact as context. After the review completes, return here and display the Next Up block.
+
+If user selects C: ask the 3 scope questions via `AskUserQuestion` (one at a time), then display Next Up.
+
+---
+
+## Display Next Up and STOP
 
 ```
 ---

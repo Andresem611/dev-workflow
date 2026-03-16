@@ -77,6 +77,8 @@ node ${PLUGIN_ROOT}/../shared/tools/dev-pipeline-tools.js validate-stage-entry p
 
 ### Mechanics (per inner-loop-reference.md Section 2.2)
 
+**D04 ENFORCEMENT:** Follow the D04 Enforcement Protocol from `inner-loop-reference.md`. Every subagent prompt MUST go through `/prompt-generator`. Log status in the Orchestration Log section of this artifact.
+
 **MANDATORY:** Use `/prompt-generator` to craft every subagent prompt.
 
 ### Subagent Definitions
@@ -136,7 +138,7 @@ The requirements doc is the HARD CONTRACT that VALIDATE verifies against. Withou
 
 ### Artifact
 
-`.dev/plan/architect-decision-framework.md`
+`.dev/plan/architect-decision-framework.md` — Must include the Orchestration Log section.
 
 ```bash
 node ${PLUGIN_ROOT}/../shared/tools/dev-pipeline-tools.js validate-stage-output plan architect <feature-dir> --plugin backend
@@ -323,6 +325,17 @@ Before presenting the plan summary, produce a "NOT in scope" section listing wor
 If no items were deferred, state: "No scope deferrals identified — all DISCOVER requirements are addressed in this plan."
 
 This section acts as a guardrail during BUILD — anything listed here is intentionally excluded and should NOT be added by subagents.
+
+### Cross-Stack Confirmation
+
+Review the architecture decisions for frontend dependencies:
+
+1. Check MANIFEST for `Cross-Stack: frontend` tag from INTAKE
+2. Review locked decisions — do any require frontend changes? (new endpoints, changed response shapes, WebSocket channels, auth flow changes)
+3. If cross-stack work is confirmed: ensure the review artifact documents what the frontend pipeline needs to build
+4. If cross-stack tag is missing but architecture reveals frontend needs: add the tag now and document the dependency
+
+Cross-stack work does NOT block the backend pipeline — it flags that a `/dev:handover` will be needed after VALIDATE.
 
 ### Surface Gaps
 

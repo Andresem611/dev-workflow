@@ -80,9 +80,16 @@ Where `<phase>` is one of: intake, discover, plan, document, build, validate, sh
 
 ---
 
+## D04 Enforcement
+
+D04 enforcement protocol (prompt-generator hard gate) is defined in the shared inner-loop-reference.md Section 10. All backend phases MUST follow it. Every `architect-*.md` artifact MUST include the Orchestration Log section.
+
+---
+
 ## Key Decision Reminder
 
 | ID | Rule |
 |----|------|
 | D14 | BUILD runs inner loop per wave, not once for the whole phase |
 | D16 | PAUSE is operational only -- no inner loop |
+| D17 | **Opinionated recommendations.** Every `AskUserQuestion` MUST lead with "We recommend [X]: [reason]" before listing options. No balanced menus — state a directive, explain WHY, then list alternatives. Map reasoning to engineering preferences: DRY, tests non-negotiable, explicit > clever, minimal diff, handle edge cases over speed. If the fix is obvious with no real tradeoff, just state what you'll do and move on — don't waste a question. |

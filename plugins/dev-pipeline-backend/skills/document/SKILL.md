@@ -51,6 +51,8 @@ Write `docs/[Feature]/.dev/document/discuss-documentation-scope.md` — all Q&A,
 
 ### 2.1 Prompt Generation (MANDATORY)
 
+**D04 ENFORCEMENT:** Follow the D04 Enforcement Protocol from `inner-loop-reference.md`. Every subagent prompt MUST go through `/prompt-generator`. Log status in the Orchestration Log section of this artifact.
+
 Use `/prompt-generator` to craft every subagent prompt. No exceptions.
 
 ### 2.2 Doc Inventory with Agent Assignments
@@ -87,7 +89,7 @@ Overall: every PLAN requirement has a task, every task in exactly one wave, cros
 
 ### 2.5 Stage Artifact
 
-Write `docs/[Feature]/.dev/document/architect-documentation-plan.md` — full inventory, execution order, success criteria, escalation rules, subagent prompts.
+Write `docs/[Feature]/.dev/document/architect-documentation-plan.md` — full inventory, execution order, success criteria, escalation rules, subagent prompts. Must include the Orchestration Log section.
 
 ---
 

@@ -76,6 +76,8 @@ node ${PLUGIN_ROOT}/../shared/tools/dev-pipeline-tools.js validate-stage-entry p
 
 ### Mechanics (per inner-loop-reference.md Section 2.2)
 
+**D04 ENFORCEMENT:** Follow the D04 Enforcement Protocol from `inner-loop-reference.md`. Every subagent prompt MUST go through `/prompt-generator`. Log status in the Orchestration Log section of this artifact.
+
 **MANDATORY:** Use `/prompt-generator` to craft every subagent prompt. Prompt quality IS architecture.
 
 ### Subagent Definitions
@@ -132,7 +134,7 @@ The requirements doc is the HARD CONTRACT that VALIDATE verifies against. Withou
 
 ### Artifact
 
-`.dev/plan/architect-decision-framework.md` — Subagent assignments, decision categories, success criteria, task breakdown format, execution order.
+`.dev/plan/architect-decision-framework.md` — Subagent assignments, decision categories, success criteria, task breakdown format, execution order. Must include the Orchestration Log section.
 
 `.dev/plan/requirements.md` — Checkable requirements with category IDs, verification methods, and traceability to waves/tasks.
 
@@ -311,6 +313,17 @@ Before presenting the plan summary, produce a "NOT in scope" section listing wor
 If no items were deferred, state: "No scope deferrals identified — all DISCOVER requirements are addressed in this plan."
 
 This section acts as a guardrail during BUILD — anything listed here is intentionally excluded and should NOT be added by subagents.
+
+### Cross-Stack Confirmation
+
+Review the architecture decisions for backend dependencies:
+
+1. Check MANIFEST for `Cross-Stack: backend` tag from INTAKE
+2. Review locked decisions — do any require backend changes? (new endpoints, auth changes, new models, webhooks)
+3. If cross-stack work is confirmed: ensure the review artifact documents what the backend pipeline needs to build
+4. If cross-stack tag is missing but architecture reveals backend needs: add the tag now and document the dependency
+
+Cross-stack work does NOT block the frontend pipeline — it flags that backend work should be coordinated (either already done or needs a separate `/dev` run on the backend).
 
 ### Surface Gaps
 

@@ -43,6 +43,8 @@ All Q&A, locked decisions (publish vs staging, version bump, exclusions), user p
 
 ## Stage 2: Architect — Release Plan
 
+**D04 ENFORCEMENT:** Follow the D04 Enforcement Protocol from `inner-loop-reference.md`. Every subagent prompt MUST go through `/prompt-generator`. Log status in the Orchestration Log section of this artifact.
+
 **MANDATORY:** Use `/prompt-generator` to craft the subagent prompt.
 
 ### Define the Release Plan
@@ -80,7 +82,7 @@ Co-Authored-By: Claude <noreply@anthropic.com>
 
 ### Artifact: `.dev/ship/architect-release-plan.md`
 
-Changelog entries, commit message draft, staging plan, deployment checklist, subagent prompt.
+Changelog entries, commit message draft, staging plan, deployment checklist, subagent prompt. Must include the Orchestration Log section.
 
 **Tool:** `validate-stage-output ship architect <feature-dir> --plugin frontend`
 
