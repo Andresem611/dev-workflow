@@ -7,6 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [3.0.0] - 2026-03-18
 
+### Added (Frontend)
+- **Mandatory context loading (Step 0)** — Every phase's Discuss stage now has explicit `Read(filepath) → extract:` blocks that force the Read tool on context bridges, domain-agent-map.md, inner-loop-reference.md, and codebase-context-block.md before any questions. Root cause fix for stale-memory decisions.
+- **Architect context verification (Step 0)** — Every Architect stage verifies domain-agent-map.md was loaded, lists ALL agents as dispatched or skipped with reason. Map compliance field added to Orchestration Log.
+- **Hard Rules section** — Front-loaded in first 30 lines of all 8 phase skills with reasoning-based enforcement (WHY dispatch matters, not just demands).
+- **GROUND step (Stage 0)** — DISCOVER, PLAN, BUILD automatically dispatch Explore agents before Discuss. Questions informed by codebase reality instead of memory. Was opt-in (D09), now mandatory.
+- **Anti-rationalization checklists** — Added to BUILD and DISCOVER Execute stages. Names common rationalizations for inline execution and preemptively rejects them.
+- **Dispatch Mandate in context bridges** — Every Review artifact includes "Dispatch Mandate for [NEXT_PHASE]" listing mandatory and conditional agents from domain-agent-map.md for the next phase.
+- **Mandatory code-reviewer in BUILD.Review** — Moved from optional to mandatory every wave. Catches N+1 queries, convention violations, auth boundary issues.
+- **Exact must_haves passthrough** — BUILD.Execute requires copy-pasting must_haves verbatim into agent prompts — summarizing prohibited.
+- **agent-prompt-template.md** — New reference file providing standard template for ALL subagent prompts. Fixes D04 dead letter — serves as fallback when /prompt-generator unavailable.
+- **D04 fallback explicit Read** — When /prompt-generator unavailable, orchestrator must Read agent-prompt-template.md using the Read tool.
+- **Template reads in Step 0** — BUILD loads agent-prompt-template.md, PLAN loads requirements-template.md in context loading.
+- **Visual mockup enforcement** — DISCOVER, PLAN, DESIGN Hard Rules require inline ASCII mockups confirmed via AskUserQuestion with preview field (D17).
+- **Domain Combination checking** — All Architect stages check Domain Combination Patterns table from domain-agent-map.md.
+- **Agent dispatch count in validate-stage-output** — Execute stage validation now warns if artifact mentions zero agent dispatches (D03 enforcement).
+- **Minimum review content requirements** — DOCUMENT Hard Rules specify review artifacts must contain decisions, requirements addressed, gaps, and context-for-next-phase.
+
+### Changed (Frontend)
+- **Frontend plugin.json** — Version bumped to 3.0.0
+- **Frontend inner-loop-reference.md** — Added Step 0 Load Context, Verify Context Loaded, auto-research mandatory, expanded Orchestration Log with map compliance
+- **dev/SKILL.md router** — Updated to v3.0, added GROUND step to inner loop description, added agent-prompt-template.md to reference table
+
 ### Added (Backend)
 - **Mandatory context loading (Step 0)** — Every phase's Discuss stage now explicitly Reads `domain-agent-map.md`, `inner-loop-reference.md`, and `codebase-context-block.md` using the Read tool before any other work. This is the root cause fix — reference files were previously invisible to the orchestrator because they were only passively referenced ("See references/...") and never actually opened.
 - **Architect context verification (Step 0)** — Every Architect stage verifies domain-agent-map.md was loaded and lists ALL agents from the map as either dispatched or skipped with reason.

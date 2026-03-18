@@ -7,6 +7,12 @@ description: Ships a validated feature — handles changelog, commit creation, a
 
 Terminal phase of the /dev pipeline. Takes a validated feature through changelog update, commit creation, and deployment guidance. Pipeline is COMPLETE after SHIP — there is no next phase.
 
+## Hard Rules
+
+1. **Read before acting.** Use the Read tool on MANIFEST, CHANGELOG, and the validate review artifact before any commit action. Shipping from memory risks wrong version numbers and missed changelog entries.
+2. **Never skip the publish/staging gate.** Always ask the user — they decide deployment intent.
+3. **Stage specific files only.** Never `git add -A` or `git add .` — list files explicitly.
+
 ## Inner Loop: Discuss > Architect > Execute > Review
 
 ---
@@ -18,6 +24,14 @@ Terminal phase of the /dev pipeline. Takes a validated feature through changelog
 ### Context Bridge
 
 Read `.dev/validate/review-ship-readiness.md` for validation results and caveats.
+
+### MANDATORY CONTEXT LOADING — Step 0
+
+Use the Read tool on each file. Do not proceed until all reads complete.
+
+1. `Read(.dev/validate/review-ship-readiness.md)` → extract: validation results, any caveats, ship readiness assessment
+2. `Read(CHANGELOG.md)` → extract: current [Unreleased] section, last published version number
+3. `Read(docs/[feature]/.dev/MANIFEST.md)` → extract: feature name, domains, all completed phases
 
 ### WHAT Questions (AskUserQuestion, one at a time)
 
@@ -46,6 +60,15 @@ All Q&A, locked decisions (publish vs staging, version bump, exclusions), user p
 **D04 ENFORCEMENT:** Follow the D04 Enforcement Protocol from `inner-loop-reference.md`. Every subagent prompt MUST go through `/prompt-generator`. Log status in the Orchestration Log section of this artifact.
 
 **MANDATORY:** Use `/prompt-generator` to craft the subagent prompt.
+
+#### Architect Step 0: Verify Context Loaded
+
+Before designing agent prompts, confirm:
+- [ ] `domain-agent-map.md` was Read in Step 0 — list ALL agents from the map for this phase as either "dispatched" or "skipped (reason)"
+- [ ] Domain Combination Patterns checked — read the Domain Combination Patterns table from domain-agent-map.md and apply any extra considerations (e.g., `routing + auth-ui` = test both authenticated and unauthenticated access)
+- [ ] Previous phase review artifact was Read — decisions and context carried forward
+
+This verification appears in the Orchestration Log under `Map compliance`.
 
 ### Define the Release Plan
 

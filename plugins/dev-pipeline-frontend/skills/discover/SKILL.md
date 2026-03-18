@@ -9,6 +9,31 @@ Explore UI requirements, user flows, interaction patterns, and component reuse. 
 
 **Inner loop:** Discuss → Architect → Execute → Review
 
+## Hard Rules
+
+1. **Read before acting.** Use the Read tool on every context bridge and MANIFEST file before Discuss. Operating from memory causes stale decisions and missed reuse opportunities.
+2. **Dispatch agents for Execute work.** The orchestrator discusses and reviews — agents explore and audit. Inline execution contaminates your review context: if you searched the codebase, you can't objectively assess whether the search was thorough.
+3. **Use agent-prompt-template for dispatches.** Follow `references/agent-prompt-template.md` for every agent prompt.
+4. **Show visual mockups inline.** When discussing layouts, page flows, or component structures during brainstorming, render ASCII mockups in chat and confirm via AskUserQuestion with preview. The user should SEE the design, not open a file.
+5. **Lead with recommendations.** Every AskUserQuestion should start with "We recommend [X] because [reason]" — give the user your informed opinion, not just open-ended questions (D17).
+
+## GROUND — Stage 0 (Codebase Grounding)
+
+Before entering Discuss, dispatch an Explore agent to ground the conversation in codebase reality. This prevents asking questions about patterns that don't exist or missing patterns that do.
+
+```
+Agent tool:
+  subagent_type: "Explore"
+  prompt: "Scan the Thoven frontend for patterns related to [feature from MANIFEST]:
+    1. Similar UI patterns in components/
+    2. Related API modules in lib/*-api.ts
+    3. Existing hooks, contexts, types that overlap
+    4. Past feature docs in docs/*/00_MASTER_PLAN.md
+    Report: 10-line findings summary with exact file paths"
+```
+
+Use GROUND findings to inform Discuss questions. Skip GROUND only if: PAUSE resume, DEV router override, or user explicitly says "skip ground".
+
 ---
 
 ## Stage 1: Discuss — UI Requirements Discussion
@@ -22,15 +47,16 @@ node ${PLUGIN_ROOT}/../shared/tools/dev-pipeline-tools.js validate-stage-entry d
 If FAIL → read error output and fix missing prerequisites before proceeding.
 If PASS → continue.
 
-### 1. Read Previous Phase Context
+### MANDATORY CONTEXT LOADING — Step 0
 
-Read the INTAKE context bridge: `.dev/intake/review-classification-confirmed.md`
+Use the Read tool on each file. Do not proceed to WHAT questions until all reads complete.
 
-Extract:
-- Feature name, description, domains
-- Entry mode and routing rationale
-- Requirements captured during INTAKE
-- Codebase scan findings (shallow)
+1. `Read(.dev/intake/review-classification-confirmed.md)` → extract: feature name, description, domains, entry mode, requirements from INTAKE
+2. `Read(references/domain-agent-map.md)` → extract: agent assignments for DISCOVER phase, domain combination patterns
+3. `Read(references/inner-loop-reference.md)` → extract: D02, D04, D06, D07, D09, D17, D18 decision rules
+4. `Read(references/codebase-context-block.md)` → extract: stack details for agent prompts
+
+If any file is missing, STOP and surface the gap to the user.
 
 ### 2. Ask WHAT Questions (one at a time)
 
@@ -97,6 +123,15 @@ node ${PLUGIN_ROOT}/../shared/tools/dev-pipeline-tools.js validate-stage-entry d
 **D04 ENFORCEMENT:** Follow the D04 Enforcement Protocol from `inner-loop-reference.md`. Every subagent prompt MUST go through `/prompt-generator`. Log status in the Orchestration Log section of this artifact.
 
 Use `/prompt-generator` to craft every subagent prompt. Prompt quality IS architecture.
+
+#### Architect Step 0: Verify Context Loaded
+
+Before designing agent prompts, confirm:
+- [ ] `domain-agent-map.md` was Read in Step 0 — list ALL agents from the map for this phase as either "dispatched" or "skipped (reason)"
+- [ ] Domain Combination Patterns checked — read the Domain Combination Patterns table from domain-agent-map.md and apply any extra considerations (e.g., `routing + auth-ui` = test both authenticated and unauthenticated access)
+- [ ] Previous phase review artifact was Read — decisions and context carried forward
+
+This verification appears in the Orchestration Log under `Map compliance`.
 
 ### 2. Define Agents
 
@@ -167,6 +202,17 @@ Explore scans:
 - Similar features — analogous UI patterns
 
 Collect results. Check against Explore success criteria from Architect.
+
+### Anti-Rationalization Checklist (Execute Stage)
+
+Before moving to Review, verify you haven't rationalized away agent dispatch:
+
+| Thought | Reality |
+|---------|---------|
+| "This is simple, I'll just search myself" | Even simple searches benefit from Explore agents — they search more thoroughly |
+| "I already know the codebase" | You know what you REMEMBER. The codebase may have changed. Dispatch the agent. |
+| "The reuse audit is obvious" | If obvious, the agent confirms quickly. If not, you just caught a missed component. |
+| "I'll do it faster inline" | Speed is not the goal. Independence of verification is. |
 
 ### Reuse Decision Tree
 
@@ -267,6 +313,15 @@ Present options via `AskUserQuestion`:
    ```
 
 3. Write review artifact (context bridge to PLAN).
+
+#### Dispatch Mandate for Next Phase
+
+The review artifact's context bridge MUST include a "Dispatch Mandate" section listing:
+- **Mandatory agents** from domain-agent-map.md for the NEXT phase
+- **Conditional agents** with their trigger conditions
+- **Skipped agents** with reason
+
+The next phase's Architect must address each listed agent — silent omission is not allowed.
 
 ### Stage Artifact (Context Bridge)
 

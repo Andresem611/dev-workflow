@@ -9,6 +9,14 @@ Evidence-based validation gate. Every check produces concrete evidence — "shou
 
 **Iron Law:** No claims without evidence in THIS message. Run the check, show the output.
 
+## Hard Rules
+
+1. **Read before acting.** Use the Read tool on MANIFEST, requirements.md, build review artifacts, and domain-agent-map before running any checks. Validating against stale assumptions misses real issues.
+2. **Evidence, not claims.** "Should work" is not evidence. Run the check, show the output, cite the file:line. This is the Iron Law.
+3. **Dispatch domain specialists from domain-agent-map.** Use `Read(references/domain-agent-map.md)` to select VALIDATE agents per domain — the correct agents are: `typescript-pro` (type safety), `accessibility-tester` (a11y), `code-reviewer` (universal), `ui-designer` (design-system), `seo-specialist` (seo), `performance-analyzer` (performance), `security-engineer` (auth-ui), `next-js-developer` (routing).
+4. **Use agent-prompt-template for dispatches.** Follow `references/agent-prompt-template.md` with domain-specific VALIDATE prompt templates from `references/domain-agent-map.md`.
+5. **Verify against must_haves, not assumptions.** Every must_have from requirements.md must have evidence of pass/fail in this message.
+
 ## Inner Loop: Discuss > Architect > Execute > Review
 
 Reference: `${PLUGIN_ROOT}/../shared/references/inner-loop-reference.md`
@@ -29,6 +37,18 @@ Reference: `${PLUGIN_ROOT}/../shared/references/inner-loop-reference.md`
 **MANDATORY: Load Requirements Contract**
 
 Load `requirements.md` from the feature docs directory. This is the HARD CONTRACT — every requirement ID must be checked. Also load all wave files' `must_haves` blocks. VALIDATE's job is to verify these, not just "do tests pass."
+
+### MANDATORY CONTEXT LOADING — Step 0
+
+Use the Read tool on each file. Do not proceed until all reads complete.
+
+1. `Read(.dev/build/wave-NN/review-code-quality.md)` → extract: build summary for each wave, deviations, issues found
+2. `Read(docs/[feature]/requirements.md)` → extract: ALL must_haves — this is the verification contract
+3. `Read(references/domain-agent-map.md)` → extract: VALIDATE agents per domain, verification agent assignments
+4. `Read(references/agent-prompt-template.md)` → extract: prompt structure for validation agent dispatches
+5. `Read(docs/[feature]/.dev/MANIFEST.md)` → extract: domains, decision log, completed phases
+
+If any file is missing, STOP and surface the gap to the user.
 
 Goal-backward verification (from GSD):
 1. What must be TRUE for the feature to be done? → Check truths from must_haves
@@ -76,6 +96,15 @@ node ${PLUGIN_ROOT}/../shared/tools/dev-pipeline-tools.js validate-stage-output 
 **D04 ENFORCEMENT:** Follow the D04 Enforcement Protocol from `inner-loop-reference.md`. Every subagent prompt MUST go through `/prompt-generator`. Log status in the Orchestration Log section of this artifact.
 
 **MANDATORY:** Use `/prompt-generator` for every subagent prompt.
+
+#### Architect Step 0: Verify Context Loaded
+
+Before designing agent prompts, confirm:
+- [ ] `domain-agent-map.md` was Read in Step 0 — list ALL agents from the map for this phase as either "dispatched" or "skipped (reason)"
+- [ ] Domain Combination Patterns checked — read the Domain Combination Patterns table from domain-agent-map.md and apply any extra considerations (e.g., `routing + auth-ui` = test both authenticated and unauthenticated access)
+- [ ] Previous phase review artifact was Read — decisions and context carried forward
+
+This verification appears in the Orchestration Log under `Map compliance`.
 
 | Agent | Validation Area | When |
 |-------|----------------|------|

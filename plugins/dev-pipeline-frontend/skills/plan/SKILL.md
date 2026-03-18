@@ -7,6 +7,28 @@ description: Makes architecture decisions, creates task breakdowns, and defines 
 
 Lock architecture decisions (with WHY + alternatives rejected), break work into tasks, group tasks into waves, and define acceptance criteria. Uses the 4-stage inner loop: Discuss, Architect, Execute, Review.
 
+## Hard Rules
+
+1. **Read before acting.** Use the Read tool on context bridges, MANIFEST, and domain-agent-map before Discuss. Architecture decisions made from memory cause wrong patterns and rework in BUILD.
+2. **Read domain-agent-map before agent dispatch.** Use `Read(references/domain-agent-map.md)` during Architect to select the right specialist agents for this feature's domains — not just the default code-architect.
+3. **Use agent-prompt-template for dispatches.** Follow `references/agent-prompt-template.md`. Include decision log context, file paths, and must_haves.
+4. **Show visual mockups inline.** When discussing component hierarchies, state flows, or page structures, render ASCII diagrams in chat and confirm via AskUserQuestion with preview (D17).
+
+## GROUND — Stage 0 (Architecture Grounding)
+
+Before entering Discuss, dispatch an Explore agent to understand the current codebase state for this feature's domains:
+
+```
+Agent tool:
+  subagent_type: "Explore"
+  prompt: "Analyze Thoven frontend architecture for [feature domains from MANIFEST]:
+    1. Current state management patterns (contexts/, hooks/, store/)
+    2. API layer structure (lib/*-api.ts) for related endpoints
+    3. Component patterns for similar features
+    4. Route structure in app/ for related pages
+    Report: architecture constraints, patterns to follow, patterns to avoid"
+```
+
 ---
 
 ## Stage 1: Discuss — Architecture Direction
@@ -19,11 +41,17 @@ Lock architecture decisions (with WHY + alternatives rejected), break work into 
 node ${PLUGIN_ROOT}/../shared/tools/dev-pipeline-tools.js validate-stage-entry plan discuss <feature-dir> --plugin frontend
 ```
 
-### Context Bridge
+### MANDATORY CONTEXT LOADING — Step 0
 
-Read the previous phase's review artifact: `.dev/discover/review-design-approval.md`
+Use the Read tool on each file. Do not proceed to WHAT questions until all reads complete.
 
-Extract: confirmed requirements, reuse audit findings, codebase patterns, key decisions from DISCOVER.
+1. `Read(.dev/discover/review-design-approval.md)` → extract: confirmed requirements, reuse decisions, boardroom synthesis
+2. `Read(references/domain-agent-map.md)` → extract: agent assignments for PLAN phase, specialist agents per domain
+3. `Read(references/requirements-template.md)` → extract: requirement ID format, must_haves structure
+4. `Read(references/inner-loop-reference.md)` → extract: D04, D14, D15 decision rules
+5. `Read(references/codebase-context-block.md)` → extract: stack details, design system rules
+
+If any file is missing, STOP and surface the gap to the user.
 
 ### Mechanics (per inner-loop-reference.md Section 2.1)
 
@@ -79,6 +107,15 @@ node ${PLUGIN_ROOT}/../shared/tools/dev-pipeline-tools.js validate-stage-entry p
 **D04 ENFORCEMENT:** Follow the D04 Enforcement Protocol from `inner-loop-reference.md`. Every subagent prompt MUST go through `/prompt-generator`. Log status in the Orchestration Log section of this artifact.
 
 **MANDATORY:** Use `/prompt-generator` to craft every subagent prompt. Prompt quality IS architecture.
+
+#### Architect Step 0: Verify Context Loaded
+
+Before designing agent prompts, confirm:
+- [ ] `domain-agent-map.md` was Read in Step 0 — list ALL agents from the map for this phase as either "dispatched" or "skipped (reason)"
+- [ ] Domain Combination Patterns checked — read the Domain Combination Patterns table from domain-agent-map.md and apply any extra considerations (e.g., `routing + auth-ui` = test both authenticated and unauthenticated access)
+- [ ] Previous phase review artifact was Read — decisions and context carried forward
+
+This verification appears in the Orchestration Log under `Map compliance`.
 
 ### Subagent Definitions
 
@@ -382,6 +419,15 @@ After acceptance, update the Dev Tracker card with architecture decisions. Read 
 - Phase type: Downstream (status update — check Card ID first)
 - Target status: (notes update, no status change)
 - Persist warning in: `.dev/plan/review-plan-approval.md`
+
+#### Dispatch Mandate for Next Phase
+
+The review artifact's context bridge MUST include a "Dispatch Mandate" section listing:
+- **Mandatory agents** from domain-agent-map.md for the NEXT phase
+- **Conditional agents** with their trigger conditions
+- **Skipped agents** with reason
+
+The next phase's Architect must address each listed agent — silent omission is not allowed.
 
 Display `Next Up` block and **STOP**:
 

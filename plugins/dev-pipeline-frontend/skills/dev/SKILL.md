@@ -3,7 +3,7 @@ name: dev
 description: Builds frontend features end-to-end — from idea through ship. Routes all multi-step frontend work through a linear phase chain (INTAKE through SHIP) and resumes paused pipelines. Triggers on "build this feature", "implement", "new page", "add X to Y", or any multi-step frontend work. Also triggers on "/dev" or when resuming a paused feature pipeline.
 ---
 
-# /dev — Frontend Development Pipeline v2.0
+# /dev — Frontend Development Pipeline v3.0
 
 Unified pipeline that routes all frontend feature work through a linear phase chain: INTAKE through SHIP. Single entry point replaces manual skill-hopping between brainstorming, feature-orchestrator, writing-plans, subagent-driven-development, verify, and publish.
 
@@ -57,7 +57,11 @@ INTAKE → DISCOVER → PLAN → DESIGN → DOCUMENT → BUILD → VALIDATE → 
                                                               PAUSE (any point)
 ```
 
-**Every phase runs the inner loop:** Discuss → Architect → Execute → Review
+**Every phase runs the inner loop:** GROUND → Discuss → Architect → Execute → Review
+
+**GROUND** (Stage 0, v3.0.0): Dispatch an Explore agent to scan the codebase before Discuss. Grounds questions in reality instead of memory. Mandatory for DISCOVER, PLAN, BUILD. Optional for other phases.
+
+**MANDATORY CONTEXT LOADING** (v3.0.0): Every Discuss stage begins with explicit `Read()` calls on context bridges, domain-agent-map, and reference files. Natural language references are insufficient — the orchestrator must use the Read tool.
 See `references/inner-loop-reference.md` for the canonical 4-stage pattern definition.
 
 **Every Review offers:** Accept (next phase) / Retry Execute / Back to Architect / Back to Discuss
@@ -308,3 +312,5 @@ Call these at the specified points. Tool location: `${PLUGIN_ROOT}/../shared/too
 | `references/validation-checklists.md` | Per-domain validation criteria |
 | `references/codebase-context-block.md` | Standard codebase context for subagent prompts |
 | `references/inner-loop-reference.md` | 4-stage inner loop pattern definition |
+| `references/agent-prompt-template.md` | Standard template for ALL subagent prompts — D04 fallback when /prompt-generator unavailable |
+| `references/requirements-template.md` | Requirement ID format and must_haves structure |

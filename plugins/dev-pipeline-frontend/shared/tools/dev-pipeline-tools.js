@@ -368,6 +368,11 @@ function cmdValidateStageOutput(args) {
       }
     }
   } else if (stage === "execute") {
+    // D03 enforcement (v3.0.0): warn if no agent dispatches mentioned
+    const agentMentions = (content.match(/Agent tool|subagent_type|dispatched?\b/gi) || []).length;
+    if (agentMentions === 0) {
+      res.warnings.push(`D03 WARNING: Execute artifact '${found.name}' mentions zero agent dispatches. The orchestrator should dispatch subagents for Execute work, not build inline.`);
+    }
     const refs = extractFilePaths(content);
     if (refs.length === 0) {
       res.warnings.push(`Execute artifact '${found.name}' does not reference any file paths. Expected artifact references.`);

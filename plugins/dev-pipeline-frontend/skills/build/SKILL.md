@@ -7,6 +7,41 @@ description: Executes implementation tasks wave-by-wave for a feature. Runs the 
 
 Execute implementation tasks wave by wave. Each wave runs its own full 4-stage inner loop: Discuss, Architect, Execute, Review. Subagents are dispatched for every task — the orchestrator never builds inline.
 
+## Hard Rules
+
+1. **Read before every wave.** Use the Read tool on MANIFEST, wave file, requirements.md, and domain-agent-map before each wave — not just the first. The codebase changes between waves. Stale reads cause conflicting implementations.
+2. **Dispatch agents for all Execute work.** Inline execution contaminates your review context. If you wrote the code, you can't objectively verify it in Review. The subagent writes with fresh eyes; you review with fresh eyes. This is what makes the verification layer trustworthy.
+3. **Read domain-agent-map before dispatching.** Use `Read(references/domain-agent-map.md)` to select the right specialist for each task's domain — not just `frontend-developer` for everything.
+4. **Use agent-prompt-template for every dispatch.** Follow `references/agent-prompt-template.md`. Include: codebase context block, decision log entries, must_haves from requirements.md, exact file paths, verification criteria.
+5. **Include must_haves in every agent prompt.** Paste the specific must_haves from requirements.md that this task addresses. Without them, the agent can't verify its own output.
+
+### Anti-Rationalization Checklist (before Execute)
+
+If you catch yourself thinking any of these, STOP and dispatch the agent instead:
+
+| Thought | Reality |
+|---------|---------|
+| "This task is too simple for a subagent" | Dispatch anyway. Simplicity is not the criterion — independent verification is. |
+| "I already know what code to write" | You know what you REMEMBER. The agent will read the actual files. |
+| "It's faster to do it inline" | Speed is not the goal. Review integrity is. |
+| "I'll just do this one task inline and dispatch the rest" | One inline task creates precedent for the next. Dispatch all. |
+| "The agent will just do what I would do" | Then the review will confirm that. If it wouldn't, you just caught a bug. |
+
+### GROUND — Per-Wave Codebase State Check
+
+Before executing any wave, dispatch an Explore agent to verify the current state of files this wave will modify:
+
+```
+Agent tool:
+  subagent_type: "Explore"
+  prompt: "Check current state of files for Wave [N] of [feature]:
+    Files to check: [list from wave plan]
+    1. Do they exist? What's their current content?
+    2. Any changes since previous wave?
+    3. Any conflicts with previous wave output?
+    Report: 5-line state summary"
+```
+
 ## Inner Loop (Per Wave)
 
 ```
@@ -38,6 +73,19 @@ If FAIL, fix missing prerequisites before proceeding.
 **MANDATORY: Load Requirements Context**
 
 Before starting any wave, load `requirements.md` from the feature docs directory. This is the hard contract defining "done" — every build task must work toward satisfying these requirements. Pass relevant requirement IDs to build agents so they know what they're building toward.
+
+### MANDATORY CONTEXT LOADING — Step 0 (Every Wave)
+
+Use the Read tool on each file before this wave. Do not proceed until all reads complete.
+
+1. `Read(docs/[feature]/requirements.md)` → extract: must_haves for this wave's tasks, requirement IDs
+2. `Read(docs/[feature]/waves/WAVE_NN.md)` → extract: tasks, agent assignments, dependencies, completion criteria
+3. `Read(docs/[feature]/.dev/MANIFEST.md)` → extract: current wave number, domains, decision log
+4. `Read(references/domain-agent-map.md)` → extract: correct agent types for this wave's domain tags
+5. `Read(references/agent-prompt-template.md)` → extract: prompt structure for agent dispatches
+6. `Read(references/codebase-context-block.md)` → extract: standard context block to embed in all agent prompts
+
+If any file is missing, STOP and surface the gap to the user.
 
 ### Context Reading
 
@@ -116,6 +164,21 @@ node ${PLUGIN_ROOT}/../shared/tools/dev-pipeline-tools.js validate-stage-entry b
 
 Use `/prompt-generator` to craft EVERY subagent prompt. No exceptions. Prompt quality determines build quality.
 
+#### Architect Step 0: Verify Context Loaded
+
+Before designing agent prompts, confirm:
+- [ ] `domain-agent-map.md` was Read in Step 0 — list ALL agents from the map for this phase as either "dispatched" or "skipped (reason)"
+- [ ] Domain Combination Patterns checked — read the Domain Combination Patterns table from domain-agent-map.md and apply any extra considerations (e.g., `routing + auth-ui` = test both authenticated and unauthenticated access)
+- [ ] Previous phase review artifact was Read — decisions and context carried forward
+
+This verification appears in the Orchestration Log under `Map compliance`.
+
+#### BUILD Architect: Template Loading
+
+Before crafting agent prompts:
+- `Read(references/agent-prompt-template.md)` — use this structure for every agent prompt
+- If `/prompt-generator` unavailable: the template IS the fallback (D04)
+
 For each task in this wave, define:
 
 | Field | Description |
@@ -184,6 +247,8 @@ When crafting the subagent prompt for Execute, include:
 1. The `must_haves` block from the current wave file (truths, artifacts, key_links)
 2. The requirement IDs this wave covers (from traceability table in requirements.md)
 3. This instruction: "Your implementation is verified against these must_haves. Stubs, placeholders, and TODO comments will be flagged as failures. Every truth must be demonstrably true in the code you write."
+
+**Exact must_haves passthrough rule:** Copy-paste must_haves and requirements from requirements.md VERBATIM into subagent prompts. Summarizing is prohibited — the agent needs the exact wording to verify its own output against the contract.
 
 ### Dispatch Rules
 
@@ -283,9 +348,11 @@ node ${PLUGIN_ROOT}/../shared/tools/dev-pipeline-tools.js validate-stage-output 
 
 Based on HOW answers from Discuss, optionally run:
 
+**Mandatory: code-reviewer dispatch** — Dispatch `code-reviewer` agent every wave to review all changes. This catches N+1 queries, convention violations, and auth boundary issues that automated tests miss. Not optional.
+
 | Check | Agent | When |
 |-------|-------|------|
-| Code review | `code-reviewer` | User opted for end-of-wave review |
+| Code review | `code-reviewer` | Every wave (mandatory) |
 | Design system compliance | `ui-designer` | MANIFEST domains include `design-system` |
 | Test coverage assessment | `test-automator` | User opted for coverage check |
 | Accessibility audit | `accessibility-tester` | MANIFEST domains include `accessibility` |
@@ -315,6 +382,15 @@ User picks one:
 | **Retry Execute** | Re-dispatch failed tasks with adjusted prompts |
 | **Back to Architect** | Redesign subagent prompts for this wave |
 | **Back to Discuss** | Revisit implementation approach for this wave |
+
+#### Dispatch Mandate for Next Phase
+
+The review artifact's context bridge MUST include a "Dispatch Mandate" section listing:
+- **Mandatory agents** from domain-agent-map.md for the NEXT phase
+- **Conditional agents** with their trigger conditions
+- **Skipped agents** with reason
+
+The next phase's Architect must address each listed agent — silent omission is not allowed.
 
 ### Artifact
 

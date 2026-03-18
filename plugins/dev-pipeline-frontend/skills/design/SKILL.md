@@ -7,6 +7,13 @@ description: Creates visual specifications for a frontend feature. Produces full
 
 **Phase 4 of /dev pipeline. ALWAYS RUNS in the frontend pipeline (D15).** This phase is not conditional on domain tags. Every frontend feature gets a design spec.
 
+## Hard Rules
+
+1. **Read before acting.** Use the Read tool on context bridges, MANIFEST, and design system references before Discuss. Designing from memory produces specs that conflict with existing patterns.
+2. **Dispatch agents for spec creation.** The orchestrator reviews and confirms — agents (ui-designer, Explore) produce specs and audit for dedup. Inline spec-writing means you review your own design.
+3. **Use agent-prompt-template for dispatches.** Follow `references/agent-prompt-template.md`. Include design system references and decision log.
+4. **Show visual mockups inline.** When presenting design options, render ASCII mockups in chat and confirm via AskUserQuestion with preview. The user should SEE the design before it's written to the spec file (D17).
+
 ---
 
 ## Inner Loop: Discuss > Architect > Execute > Review
@@ -30,6 +37,16 @@ node ${PLUGIN_ROOT}/../shared/tools/dev-pipeline-tools.js validate-stage-entry d
 ```
 
 If FAIL, fix missing prerequisites before proceeding.
+
+### MANDATORY CONTEXT LOADING — Step 0
+
+Use the Read tool on each file. Do not proceed to WHAT questions until all reads complete.
+
+1. `Read(.dev/plan/review-plan-approval.md)` → extract: locked decisions, architecture, component hierarchy
+2. `Read(references/domain-agent-map.md)` → extract: agent assignments for DESIGN phase (ui-designer, Explore)
+3. `Read(references/codebase-context-block.md)` → extract: design system rules, color palette, typography, 3D button pattern
+
+If any file is missing, STOP and surface the gap to the user.
 
 ### WHAT Questions
 
@@ -73,6 +90,15 @@ node ${PLUGIN_ROOT}/../shared/tools/dev-pipeline-tools.js validate-stage-output 
 **D04 ENFORCEMENT:** Follow the D04 Enforcement Protocol from `inner-loop-reference.md`. Every subagent prompt MUST go through `/prompt-generator`. Log status in the Orchestration Log section of this artifact.
 
 **MANDATORY:** Use `/prompt-generator` skill to craft every subagent prompt. No exceptions.
+
+#### Architect Step 0: Verify Context Loaded
+
+Before designing agent prompts, confirm:
+- [ ] `domain-agent-map.md` was Read in Step 0 — list ALL agents from the map for this phase as either "dispatched" or "skipped (reason)"
+- [ ] Domain Combination Patterns checked — read the Domain Combination Patterns table from domain-agent-map.md and apply any extra considerations (e.g., `routing + auth-ui` = test both authenticated and unauthenticated access)
+- [ ] Previous phase review artifact was Read — decisions and context carried forward
+
+This verification appears in the Orchestration Log under `Map compliance`.
 
 ### Subagent Assignments
 
@@ -221,6 +247,15 @@ Surface any gaps or failures to the user via `AskUserQuestion`. The user decides
 | **Accept** | Approve and advance to DOCUMENT |
 
 No auto-looping (D08). User decides.
+
+#### Dispatch Mandate for Next Phase
+
+The review artifact's context bridge MUST include a "Dispatch Mandate" section listing:
+- **Mandatory agents** from domain-agent-map.md for the NEXT phase
+- **Conditional agents** with their trigger conditions
+- **Skipped agents** with reason
+
+The next phase's Architect must address each listed agent — silent omission is not allowed.
 
 ### Stage Artifact
 

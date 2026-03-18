@@ -7,6 +7,12 @@ description: Starts new features through the /dev pipeline. Handles initial clas
 
 Classifies incoming work, tags domains, creates the MANIFEST, and routes to the correct starting phase. Uses the 4-stage inner loop: Discuss, Architect, Execute, Review.
 
+## Hard Rules
+
+1. **Read before acting.** Use the Read tool on context files before classifying. Operating from memory causes stale classifications. Do not proceed to Discuss until MANIFEST check and domain-agent-map are loaded.
+2. **Dispatch Explore agent for codebase scans.** The orchestrator classifies and scopes — agents search. This keeps classification grounded in real code, not assumptions about what exists.
+3. **Use agent-prompt-template for dispatches.** Follow `references/agent-prompt-template.md` for any agent prompts. Ad-hoc prompts miss context and produce inconsistent output.
+
 ---
 
 ## Resume Mode
@@ -28,6 +34,16 @@ If an existing MANIFEST is found at `docs/[feature]/.dev/MANIFEST.md`:
 ```bash
 node ${PLUGIN_ROOT}/../shared/tools/dev-pipeline-tools.js validate-stage-entry intake discuss <feature-dir> --plugin frontend
 ```
+
+### MANDATORY CONTEXT LOADING — Step 0
+
+Use the Read tool on each file before proceeding. Do not start Discuss until all reads complete.
+
+1. `Read(references/domain-agent-map.md)` → extract: domain definitions, agent assignments for INTAKE phase
+2. `Read(references/codebase-context-block.md)` → extract: stack details, design system rules, critical rules
+3. `Read(references/inner-loop-reference.md)` → extract: stage mechanics, decision IDs
+
+If resuming: also `Read(docs/[feature]/.dev/MANIFEST.md)` → extract: current phase, domains, pause context.
 
 ### Mechanics (per inner-loop-reference.md Section 2.1)
 
@@ -201,6 +217,15 @@ After acceptance, create the Dev Tracker card and Sprint List entry. Reference `
 - Phase type: INTAKE (card creation — retry pattern with 2-second wait)
 - Target status: `Speccing`
 - Persist warning in: `.dev/intake/review-classification-confirmed.md`
+
+#### Dispatch Mandate for Next Phase
+
+The review artifact's context bridge MUST include a "Dispatch Mandate" section listing:
+- **Mandatory agents** from domain-agent-map.md for the NEXT phase
+- **Conditional agents** with their trigger conditions
+- **Skipped agents** with reason
+
+The next phase's Architect must address each listed agent — silent omission is not allowed.
 
 3. Display `Next Up` block and **STOP**:
 

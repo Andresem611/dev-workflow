@@ -67,6 +67,32 @@ docs/[Feature]/.dev/
 
 See `references/domain-agent-map.md` for frontend agent assignments per phase.
 
+**Mandatory Read enforcement:** Every Architect stage MUST `Read(references/domain-agent-map.md)` using the Read tool before designing agent prompts. Natural language references ("see domain-agent-map") are insufficient — the orchestrator must actually open the file and extract agent assignments for the current phase.
+
+---
+
+## Step 0: Load Context (v3.0.0)
+
+Every Discuss stage begins with MANDATORY CONTEXT LOADING:
+1. Use the Read tool on each required file (context bridge, domain-agent-map, inner-loop-reference, codebase-context-block)
+2. Extract the noted fields from each file
+3. DO NOT proceed to questions until all reads complete
+4. If any file is missing, STOP and surface the gap to the user
+
+Every Architect stage begins with VERIFY CONTEXT LOADED:
+1. Confirm domain-agent-map was Read — list ALL agents from the map for this phase
+2. Each agent listed as "dispatched" or "skipped (reason)" — silent omission not allowed
+3. Check Domain Combination Patterns table for extra considerations
+4. This verification appears in the Orchestration Log under `Map compliance`
+
+---
+
+## Auto-Research (v3.0.0)
+
+DISCOVER, PLAN, and BUILD Discuss stages automatically dispatch Explore agents before asking questions. This was opt-in (D09) in v2.x; it is now mandatory. Questions are informed by codebase reality instead of asked "blind."
+
+The GROUND step dispatches an Explore agent to scan relevant files BEFORE the orchestrator formulates questions. Skip only if: PAUSE resume, DEV router override, or user explicitly says "skip ground."
+
 ---
 
 ## Skill Invocation
@@ -82,6 +108,21 @@ Where `<phase>` is one of: intake, discover, plan, design, document, build, vali
 ## D04 Enforcement
 
 D04 enforcement protocol (prompt-generator hard gate) is defined in the shared inner-loop-reference.md Section 10. All frontend phases MUST follow it. Every `architect-*.md` artifact MUST include the Orchestration Log section.
+
+**D04 fallback (v3.0.0):** When `/prompt-generator` is unavailable, the orchestrator must `Read(references/agent-prompt-template.md)` using the Read tool instead of passively referencing it. The template IS the fallback — ad-hoc prompt crafting is not acceptable.
+
+## Orchestration Log (v3.0.0 expansion)
+
+Every `architect-*.md` artifact includes an Orchestration Log with these mandatory fields:
+
+```markdown
+### Orchestration Log
+- Prompt method: `/prompt-generator` | `agent-prompt-template.md` fallback
+- Map compliance: [list every agent from domain-agent-map for this phase — dispatched or skipped with reason]
+- Domain combinations: [any domain-combo patterns that apply, with extra considerations]
+- Agents dispatched: [agent-type: task description]
+- Agents skipped: [agent-type: reason]
+```
 
 ---
 

@@ -7,6 +7,12 @@ description: Produces all documentation artifacts for a feature — master plan,
 
 Produce all planning documentation needed for BUILD. Dispatches multiple subagents to create 8 doc types, then verifies cohesion before handing off.
 
+## Hard Rules
+
+1. **Read before acting.** Use the Read tool on context bridges, MANIFEST, requirements.md, and all prior phase outputs before writing any documentation. Writing from memory produces artifacts that conflict with locked decisions.
+2. **Use agent-prompt-template for dispatches.** Follow `references/agent-prompt-template.md` for any documentation agents.
+3. **Minimum content requirements for review artifacts.** Every review artifact and transition file must contain: feature summary, locked decisions carried forward, domain tags, specific instructions for the next phase, and at least 3 context items. A 2-line "Pass. No issues." is not acceptable — it leaves the next phase blind after `/clear`.
+
 ## Inner Loop: Discuss > Architect > Execute > Review
 
 Reference: `${PLUGIN_ROOT}/../shared/references/inner-loop-reference.md`
@@ -14,6 +20,16 @@ Reference: `${PLUGIN_ROOT}/../shared/references/inner-loop-reference.md`
 ---
 
 ## Stage 1: Discuss — Documentation Scope
+
+### MANDATORY CONTEXT LOADING — Step 0
+
+Use the Read tool on each file. Do not proceed until all reads complete.
+
+1. `Read(.dev/design/review-design-compliance.md)` → extract: design decisions, component inventory, responsive behavior, accessibility requirements
+2. `Read(references/domain-agent-map.md)` → extract: agent assignments for DOCUMENT phase
+3. `Read(.dev/MANIFEST.md)` → extract: domains, decision log, wave groupings from PLAN
+
+If any file is missing, STOP and surface the gap to the user.
 
 ### 1.1 Read Context Bridge
 
@@ -53,6 +69,15 @@ Write `docs/[Feature]/.dev/document/discuss-documentation-scope.md` — all Q&A,
 **D04 ENFORCEMENT:** Follow the D04 Enforcement Protocol from `inner-loop-reference.md`. Every subagent prompt MUST go through `/prompt-generator`. Log status in the Orchestration Log section of this artifact.
 
 Use `/prompt-generator` to craft every subagent prompt. No exceptions.
+
+#### Architect Step 0: Verify Context Loaded
+
+Before designing agent prompts, confirm:
+- [ ] `domain-agent-map.md` was Read in Step 0 — list ALL agents from the map for this phase as either "dispatched" or "skipped (reason)"
+- [ ] Domain Combination Patterns checked — read the Domain Combination Patterns table from domain-agent-map.md and apply any extra considerations (e.g., `routing + auth-ui` = test both authenticated and unauthenticated access)
+- [ ] Previous phase review artifact was Read — decisions and context carried forward
+
+This verification appears in the Orchestration Log under `Map compliance`.
 
 ### 2.2 Doc Inventory with Agent Assignments
 
@@ -282,6 +307,15 @@ task_count: [N]
 wave_count: [N]
 total_estimated_hours: [X]
 ```
+
+#### Dispatch Mandate for Next Phase
+
+The review artifact's context bridge MUST include a "Dispatch Mandate" section listing:
+- **Mandatory agents** from domain-agent-map.md for the NEXT phase
+- **Conditional agents** with their trigger conditions
+- **Skipped agents** with reason
+
+The next phase's Architect must address each listed agent — silent omission is not allowed.
 
 ### 4.8 Stage Artifact
 
