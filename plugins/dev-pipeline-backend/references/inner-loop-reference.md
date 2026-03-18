@@ -68,6 +68,11 @@ docs/[Feature]/.dev/
 
 See `references/domain-agent-map.md` for backend agent assignments per phase.
 
+**MANDATORY:** Every phase's Discuss stage MUST Read `domain-agent-map.md` using the Read tool
+before any other work. Every Architect stage MUST list ALL agents from the map for that phase
+in the Orchestration Log — dispatched or skipped with reason. This is the primary enforcement
+mechanism for subagent dispatch. Passive references ("see domain-agent-map.md") are NOT sufficient.
+
 ---
 
 ## Skill Invocation

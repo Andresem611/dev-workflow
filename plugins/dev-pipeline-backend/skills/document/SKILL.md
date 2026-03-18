@@ -15,6 +15,22 @@ Reference: `${PLUGIN_ROOT}/../shared/references/inner-loop-reference.md`
 
 ## Stage 1: Discuss — Documentation Scope
 
+### 0. Load Context (MANDATORY — before anything else)
+
+Read these files using the Read tool. Do NOT proceed until all are loaded:
+
+1. **Read** `${PLUGIN_ROOT}/references/domain-agent-map.md` — agent assignments for DOCUMENT phase
+2. **Read** `${PLUGIN_ROOT}/references/inner-loop-reference.md` — stage mechanics and enforcement rules
+3. **Read** `${PLUGIN_ROOT}/references/codebase-context-block.md` — standard context for subagent prompts
+4. **Read** `${PLUGIN_ROOT}/references/wave-plan-template.md` — template for wave execution plans
+
+Extract from domain-agent-map.md for DOCUMENT:
+- MANDATORY agents: `rails-expert` (consistency verification)
+- CONDITIONAL agents: `api-documenter` (when `api-design` domain tagged)
+- Check Domain Combination Patterns against MANIFEST tags
+
+These agents MUST be addressed in the Architect stage — either dispatched or explicitly skipped with reason.
+
 ### 1.1 Read Context Bridge
 
 ```
@@ -48,6 +64,16 @@ Write `docs/[Feature]/.dev/document/discuss-documentation-scope.md` — all Q&A,
 ---
 
 ## Stage 2: Architect — Documentation Plan
+
+### 0. Verify Context Loaded (MANDATORY)
+
+Confirm `domain-agent-map.md` was Read in Discuss. If not, Read it now using the Read tool.
+List ALL agents defined for DOCUMENT in domain-agent-map.md: `rails-expert`, `api-documenter`.
+Each agent MUST appear in the Orchestration Log as either:
+- **Dispatched** — with prompt and success criteria
+- **Skipped** — with explicit reason (e.g., "no api-design domain = skip api-documenter")
+
+Also check the **Domain Combination Patterns** table. If MANIFEST domains match any combination, apply extra considerations.
 
 ### 2.1 Prompt Generation (MANDATORY)
 
@@ -163,7 +189,26 @@ docs/[Feature]/
 - **Unlocks:** [Next wave(s)]
 ```
 
-### 3.5 Stage Artifact
+### 3.5 Dispatch rails-expert for Consistency Check (MANDATORY)
+
+After all documentation subagents complete, dispatch `rails-expert` to verify document accuracy against the codebase:
+
+**Purpose:** This is a VERIFICATION dispatch, not a creation dispatch. The documentation subagents write the docs; the `rails-expert` checks them.
+
+**Verify:**
+- File paths in task files exist on disk (or are plausible new paths for CREATE operations)
+- Decision IDs referenced in tasks exist in the locked decision log
+- Wave dependencies don't create circular references
+- Agent assignments in wave files match `domain-agent-map.md` for the task types
+- API contract endpoints are consistent with existing routes in `config/routes.rb`
+- Migration sequencing in task files matches the migration plan from PLAN
+
+**Input:** All docs produced in steps 3.1-3.4, plus codebase access (Read, Grep, Glob).
+**Output:** Consistency report with PASS/FAIL per check and file:line evidence for failures.
+
+If the `rails-expert` finds critical inconsistencies (wrong file paths, broken cross-references, circular dependencies): flag as issues in Review. Non-critical findings (minor naming inconsistencies, style suggestions) are warnings.
+
+### 3.6 Stage Artifact
 
 Write `docs/[Feature]/.dev/document/execute-docs-manifest.md` — lists ALL files produced:
 
@@ -251,7 +296,19 @@ artifacts:
 task_count: [N]  wave_count: [N]  total_estimated_hours: [X]
 ```
 
-### 4.8 Stage Artifact
+### 4.8 Dispatch Mandate for BUILD (MANDATORY in context bridge)
+
+Include this section in the review artifact:
+
+```markdown
+## Dispatch Mandate for BUILD
+Agents from domain-agent-map.md for BUILD:
+- Per-task agents: `master-backend-ai-rails` (models/migrations), `rails-expert` (controllers/services/tests), `security-engineer` (auth/security tasks), `bug-hunter` (complex bugs)
+- Review stage: `code-reviewer` (MANDATORY every wave), `security-engineer` (if auth/payments domains)
+The BUILD Architect MUST address each agent per wave (dispatch or skip with reason in Orchestration Log).
+```
+
+### 4.9 Stage Artifact
 
 Write `docs/[Feature]/.dev/document/review-documentation-quality.md` — bridges to BUILD:
 

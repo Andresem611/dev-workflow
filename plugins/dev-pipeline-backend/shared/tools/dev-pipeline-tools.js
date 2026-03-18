@@ -88,6 +88,7 @@ const ARCHITECT_FIELDS = {
   subagent: /\b(subagent|agent\s+assign|agent\s+dispatch|agent\s+prompt)/im,
   success_criteria: /\b(success\s+criteria|acceptance\s+criteria|definition\s+of\s+done)/im,
   execution_order: /\b(execution\s+order|execution\s+plan|execution\s+sequence|step\s+order)/im,
+  map_compliance: /\b(map\s+compliance|dispatched|skipped\s*[-—])/im,
 };
 
 const REVIEW_FIELDS = {
@@ -379,6 +380,12 @@ function cmdValidateStageOutput(args) {
       if (missing.length > 0) {
         res.warnings.push(`Execute artifact references ${missing.length} missing path(s): ${missing.slice(0, 5).join(", ")}${missing.length > 5 ? "..." : ""}`);
       }
+    }
+    // Agent dispatch count check — Execute should reference agent dispatches
+    const agentDispatchPattern = /\b(dispatch|dispatched|agent.*dispatch|subagent)/gim;
+    const agentMatches = content.match(agentDispatchPattern);
+    if (!agentMatches || agentMatches.length === 0) {
+      res.warnings.push(`Execute artifact '${found.name}' does not mention any agent dispatches. The orchestrator should dispatch subagents, not execute work inline (D03).`);
     }
   } else if (stage === "review") {
     // Review must contain verdict

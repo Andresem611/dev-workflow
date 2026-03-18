@@ -17,6 +17,21 @@ Reference: `${PLUGIN_ROOT}/../shared/references/inner-loop-reference.md`
 
 ## Stage 1: Discuss — Validation Strategy
 
+### 0. Load Context (MANDATORY — before anything else)
+
+Read these files using the Read tool. Do NOT proceed until all are loaded:
+
+1. **Read** `${PLUGIN_ROOT}/references/domain-agent-map.md` — agent assignments for VALIDATE phase
+2. **Read** `${PLUGIN_ROOT}/references/inner-loop-reference.md` — stage mechanics and enforcement rules
+3. **Read** `${PLUGIN_ROOT}/references/codebase-context-block.md` — standard context for subagent prompts
+
+Extract from domain-agent-map.md for VALIDATE:
+- MANDATORY agents: `rails-expert` (independent verifier)
+- CONDITIONAL agents: `security-engineer` (auth/payments/students domains), `master-backend-ai-rails` (performance domain), `legal-compliance-checker` (students/coppa domains), `postgres-pro` (performance/database domains), `api-documenter` (api-design domain)
+- Check Domain Combination Patterns against MANIFEST tags
+
+These agents MUST be addressed in the Architect stage — either dispatched or explicitly skipped with reason.
+
 ### 1.1 Read Context Bridge
 
 ```
@@ -64,6 +79,16 @@ node ${PLUGIN_ROOT}/../shared/tools/dev-pipeline-tools.js validate-stage-output 
 ---
 
 ## Stage 2: Architect — Validation Plan
+
+### 0. Verify Context Loaded (MANDATORY)
+
+Confirm `domain-agent-map.md` was Read in Discuss. If not, Read it now using the Read tool.
+List ALL agents defined for VALIDATE in domain-agent-map.md: `rails-expert`, `security-engineer`, `master-backend-ai-rails`.
+Each agent MUST appear in the Orchestration Log as either:
+- **Dispatched** — with prompt and success criteria
+- **Skipped** — with explicit reason (e.g., "no performance domain = skip master-backend-ai-rails")
+
+Also check the **Domain Combination Patterns** table. If MANIFEST domains match any combination, apply extra considerations.
 
 ### 2.1 Read Inputs
 
@@ -446,7 +471,19 @@ node ${PLUGIN_ROOT}/../shared/tools/dev-pipeline-tools.js validate-stage-output 
 node ${PLUGIN_ROOT}/../shared/tools/dev-pipeline-tools.js validate-manifest <feature-dir> --plugin backend
 ```
 
-### 4.6 After Approval
+### 4.6 Dispatch Mandate for SHIP (MANDATORY in context bridge)
+
+Include this section in the review artifact:
+
+```markdown
+## Dispatch Mandate for SHIP
+Agents from domain-agent-map.md for SHIP:
+- MANDATORY: `security-engineer` (secrets scan before staging)
+- CONDITIONAL: `code-reviewer` (pre-commit final diff review)
+The SHIP Architect MUST address each agent (dispatch or skip with reason in Orchestration Log).
+```
+
+### 4.7 After Approval
 
 ### Notion Update
 

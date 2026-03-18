@@ -21,6 +21,21 @@ Every phase runs the same 4 stages. Same structure, different meaning per phase 
 
 ### 2.1 Discuss
 
+**Step 0: Load Context (MANDATORY — before anything else)**
+
+Before entry validation, before questions, before ANY other work, Read these files using the Read tool. Do NOT proceed until all are loaded:
+
+1. **Read** `${PLUGIN_ROOT}/references/domain-agent-map.md` — agent assignments for this phase
+2. **Read** `${PLUGIN_ROOT}/references/inner-loop-reference.md` — stage mechanics and enforcement rules (this file — skip if already in context)
+3. **Read** `${PLUGIN_ROOT}/references/codebase-context-block.md` — standard context for subagent prompts
+
+Extract from domain-agent-map.md for THIS phase:
+- Which agents are MANDATORY for this phase
+- Which agents are CONDITIONAL (and their triggers)
+- Which domain combinations apply based on MANIFEST tags
+
+These agents MUST be addressed in the Architect stage — either dispatched or explicitly skipped with reason logged in the Orchestration Log.
+
 **Tool:** `AskUserQuestion` for EVERY question. One question at a time. NEVER batch multiple questions into a single prompt.
 
 **No cap on questions.** The user says "enough" or "move on" to proceed. The orchestrator does not decide when questioning is sufficient.
@@ -34,11 +49,30 @@ Every phase runs the same 4 stages. Same structure, different meaning per phase 
 
 The user is the team lead. They control depth and direction through HOW answers.
 
-**Optional research pre-step:** At any point during Discuss, the user can opt in for codebase research before continuing. If opted in, dispatch an Explore agent to scan relevant code, then resume questioning with findings.
+**Automatic Research Pre-Step (DISCOVER, PLAN, BUILD):**
+
+Before asking WHAT questions, dispatch an Explore agent scoped to this phase's domain:
+- **DISCOVER:** Scan models, services, controllers for feature-relevant patterns
+- **PLAN:** Scan for architectural precedents relevant to design decisions
+- **BUILD (per wave):** Scan files that will change in this wave for recent modifications
+
+The orchestrator uses Explore findings to ask BETTER questions — questions informed by codebase reality rather than asked "blind."
+
+**For VALIDATE and SHIP:** Skip auto-research (context bridge from previous phase is sufficient). User can still opt in manually.
 
 **Stage artifact:** `discuss-<descriptive-name>.md` — captures all Q&A, locked decisions, and user preferences.
 
 ### 2.2 Architect
+
+**Step 0: Verify Context Loaded (MANDATORY)**
+
+Confirm `domain-agent-map.md` was Read in Discuss. If not, Read it now using the Read tool.
+List ALL agents defined for this phase in domain-agent-map.md.
+Each agent MUST appear in the Orchestration Log as either:
+- **Dispatched** — with prompt and success criteria
+- **Skipped** — with explicit reason (e.g., "domain not tagged in MANIFEST", "no data model changes")
+
+Also check the **Domain Combination Patterns** table in domain-agent-map.md. If the MANIFEST domains match any combination pattern, apply the extra considerations listed.
 
 **MANDATORY:** Use `/prompt-generator` skill to craft every subagent prompt. Prompt quality IS architecture.
 
@@ -240,7 +274,7 @@ These decisions from the design doc govern the inner loop. Referenced by ID thro
 The orchestrator MUST follow this sequence in every Architect stage:
 
 1. **Attempt** `/prompt-generator` for every subagent prompt
-2. **If unavailable** (skill not loaded, MCP issue): WARN the user, craft prompt inline using `references/agent-prompt-template.md` as fallback, log "prompt-generator: UNAVAILABLE — used fallback template" in Architect artifact
+2. **If unavailable** (skill not loaded, MCP issue): WARN the user, **Read** `${PLUGIN_ROOT}/references/agent-prompt-template.md` using the Read tool, craft prompt using that template as fallback, log "prompt-generator: UNAVAILABLE — used fallback template" in Architect artifact
 3. **If user says "skip"**: Explain: "Prompt quality determines subagent output quality. Poor prompts produce shallow work that requires manual correction." Ask once more. If user insists: proceed, log "prompt-generator: USER-SKIPPED" in Architect artifact
 4. **Never silently skip** — every Architect artifact must document prompt-generator status
 
@@ -251,7 +285,13 @@ Every `architect-*.md` file MUST include this section:
 ```markdown
 ## Orchestration Log
 - **Agents selected:** [list with domain justification]
+- **Map compliance:** [for each agent in domain-agent-map.md for this phase:]
+  - [agent-name]: dispatched — [1-line justification]
+  - [agent-name]: skipped — [explicit reason why not needed]
 - **Prompt generator:** used / unavailable (fallback) / user-skipped
 - **Cross-stack signals:** none / detected ([details])
 - **Multi-domain dispatch:** N/A / parallel ([agents listed])
+- **Domain combinations detected:** none / [list matched combinations + extra considerations applied]
 ```
+
+**Map compliance is the enforcement mechanism.** Every agent listed for this phase in `domain-agent-map.md` MUST appear — either dispatched or skipped with reason. Silent omission is not allowed. If an agent from the map is missing from the Orchestration Log, the Architect artifact is incomplete.

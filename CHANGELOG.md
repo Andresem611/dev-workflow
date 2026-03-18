@@ -5,6 +5,30 @@ All notable changes to the dev-pipeline plugin marketplace will be documented in
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.0.0] - 2026-03-18
+
+### Added (Backend)
+- **Mandatory context loading (Step 0)** — Every phase's Discuss stage now explicitly Reads `domain-agent-map.md`, `inner-loop-reference.md`, and `codebase-context-block.md` using the Read tool before any other work. This is the root cause fix — reference files were previously invisible to the orchestrator because they were only passively referenced ("See references/...") and never actually opened.
+- **Architect context verification (Step 0)** — Every Architect stage verifies domain-agent-map.md was loaded and lists ALL agents from the map as either dispatched or skipped with reason.
+- **Orchestration Log map compliance** — Expanded Orchestration Log template with mandatory `Map compliance` field. Every agent in domain-agent-map.md for the current phase must appear — silent omission is no longer possible.
+- **Dispatch Mandate in context bridges** — Every Review artifact's context bridge now includes a "Dispatch Mandate for [NEXT_PHASE]" section listing mandatory and conditional agents from domain-agent-map.md. The next phase's Architect must address each agent.
+- **Mandatory code-reviewer in BUILD.Review** — `code-reviewer` moved from "Optional (User Decides)" to mandatory every wave. Catches N+1 queries, convention violations, and auth boundary issues that automated tests miss.
+- **architecture-reviewer in DISCOVER.Execute** — New conditional agent for COMBINATION+ complexity or new subsystems. Validates design against system architecture before locking decisions in PLAN.
+- **rails-expert consistency check in DOCUMENT.Execute** — Verifies doc accuracy against codebase: file paths exist, decision IDs match, wave dependencies acyclic, agent assignments match domain-agent-map.
+- **Automatic research pre-step** — Discuss stages in DISCOVER, PLAN, and BUILD now automatically dispatch Explore agents before asking questions (was optional opt-in). Questions are informed by codebase reality instead of asked "blind."
+- **Inline diagram display** — PLAN.Review shows all architecture diagrams from Execute inline in chat. BUILD.Review shows updated diagrams when waves modify diagrammed flows. DISCOVER.Review shows design diagrams when present.
+- **Pre-commit code-reviewer in SHIP** — Conditional `code-reviewer` dispatch on full diff before staging, for COMBINATION+ features or >50 files changed.
+- **Domain Combination checking** — All Architect stages check the Domain Combination Patterns table from domain-agent-map.md (e.g., `auth + students` = COPPA) and apply extra considerations.
+- **Agent dispatch count in validation tool** — `validate-stage-output` for Execute stages now warns if no agent dispatches are mentioned in the artifact (D03 enforcement).
+- **Exact must_haves passthrough** — BUILD.Execute explicitly requires copy-pasting must_haves and requirements verbatim into subagent prompts — summarizing is prohibited.
+- **D04 fallback explicit Read** — When `/prompt-generator` is unavailable, the orchestrator must Read `agent-prompt-template.md` using the Read tool instead of passively referencing it.
+- **Template reads in Step 0** — PLAN loads `requirements-template.md`, DOCUMENT loads `wave-plan-template.md`, BUILD loads `agent-prompt-template.md` in their Step 0 context loading.
+
+### Changed (Backend)
+- **Backend plugin.json** — Version bumped to 3.0.0
+- **Backend inner-loop-reference.md** — Added mandatory Read enforcement note to Agent Lookup section
+- **Shared inner-loop-reference.md** — Step 0 Load Context added to Section 2.1, Verify Context Loaded added to Section 2.2, auto-research replaces optional research in Discuss, Orchestration Log expanded with map compliance
+
 ## [2.5.0] - 2026-03-18
 
 ### Added (Frontend)

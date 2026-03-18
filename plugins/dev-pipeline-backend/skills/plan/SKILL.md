@@ -13,6 +13,22 @@ Lock architecture decisions (with WHY + alternatives rejected), break work into 
 
 **Purpose:** Gather architecture preferences, constraints, and execution strategy before planning begins.
 
+### 0. Load Context (MANDATORY — before anything else)
+
+Read these files using the Read tool. Do NOT proceed until all are loaded:
+
+1. **Read** `${PLUGIN_ROOT}/references/domain-agent-map.md` — agent assignments for PLAN phase
+2. **Read** `${PLUGIN_ROOT}/references/inner-loop-reference.md` — stage mechanics and enforcement rules
+3. **Read** `${PLUGIN_ROOT}/references/codebase-context-block.md` — standard context for subagent prompts
+4. **Read** `${PLUGIN_ROOT}/references/requirements-template.md` — template for requirements artifact
+
+Extract from domain-agent-map.md for PLAN:
+- MANDATORY agents: `rails-expert`
+- CONDITIONAL agents: `postgres-pro` (migration planning), `architecture-reviewer` (validate decisions), `security-engineer` (auth/payments domains), `workflow-architect` (multi-step workflows)
+- Check Domain Combination Patterns against MANIFEST tags
+
+These agents MUST be addressed in the Architect stage — either dispatched or explicitly skipped with reason.
+
 ### Before Starting
 
 ```bash
@@ -51,7 +67,17 @@ Use `AskUserQuestion` for EVERY question. One at a time. NEVER batch. No cap —
 
 The orchestrator MUST ask at least 1 doneness question before advancing to Architect. These answers feed directly into the requirements artifact produced in Architect.
 
-**Optional research pre-step:** If user opts in, dispatch an Explore agent to analyze existing patterns, then resume questioning with findings.
+**Automatic Research Pre-Step (MANDATORY for PLAN):**
+
+Before asking WHAT questions, dispatch an Explore agent to scan for architectural precedents relevant to the design decisions ahead:
+
+```
+Dispatch: Explore subagent
+Purpose: Scan for architectural precedents relevant to [feature] design decisions
+Scope: Similar services, migration patterns, API designs, auth flows
+```
+
+Resume questioning with findings. The research informs architecture direction and prevents decisions disconnected from existing patterns.
 
 ### Artifact
 
@@ -74,6 +100,16 @@ node ${PLUGIN_ROOT}/../shared/tools/dev-pipeline-tools.js validate-stage-output 
 ```bash
 node ${PLUGIN_ROOT}/../shared/tools/dev-pipeline-tools.js validate-stage-entry plan architect <feature-dir> --plugin backend
 ```
+
+### 0. Verify Context Loaded (MANDATORY)
+
+Confirm `domain-agent-map.md` was Read in Discuss. If not, Read it now using the Read tool.
+List ALL agents defined for PLAN in domain-agent-map.md: `postgres-pro`, `rails-expert`, `architecture-reviewer`, `security-engineer`, `workflow-architect`.
+Each agent MUST appear in the Orchestration Log as either:
+- **Dispatched** — with prompt and success criteria
+- **Skipped** — with explicit reason (e.g., "no migrations = skip postgres-pro")
+
+Also check the **Domain Combination Patterns** table. If MANIFEST domains match any combination, apply extra considerations.
 
 ### Mechanics (per inner-loop-reference.md Section 2.2)
 
@@ -349,6 +385,19 @@ Review the architecture decisions for frontend dependencies:
 
 Cross-stack work does NOT block the backend pipeline — it flags that a `/dev:handover` will be needed after VALIDATE.
 
+### Present Architecture Diagrams (MANDATORY)
+
+Before presenting the plan summary via `AskUserQuestion`, display ALL diagrams from Execute Section 8 inline in the chat message:
+
+- Data flow diagram (if produced)
+- State machine (if produced)
+- Dependency graph (if produced)
+- Migration dependency chain (if produced)
+
+Use `AskUserQuestion` to present each diagram with a 1-line description and ask: "Does this accurately represent the architecture?"
+
+Diagrams MUST be shown in conversation — the user will NOT open artifact files to review them. If no diagrams were produced in Execute (e.g., trivial feature with <3 services and no stateful models), state: "No diagrams required for this feature scope."
+
 ### Surface Gaps
 
 Use `AskUserQuestion` for gaps. Present summary with:
@@ -365,6 +414,18 @@ Use `AskUserQuestion` for gaps. Present summary with:
 
 1. Update MANIFEST: PLAN = complete
 2. Write review artifact with bridge context for DOCUMENT
+
+**Dispatch Mandate for DOCUMENT (MANDATORY in context bridge):**
+
+Include this section in the review artifact. Read `domain-agent-map.md` DOCUMENT Phase Agents to populate:
+
+```markdown
+## Dispatch Mandate for DOCUMENT
+Agents from domain-agent-map.md for DOCUMENT:
+- MANDATORY: `rails-expert` (consistency verification of docs against codebase)
+- CONDITIONAL: `api-documenter` (if `api-design` domain tagged in MANIFEST)
+The DOCUMENT Architect MUST address each agent (dispatch or skip with reason in Orchestration Log).
+```
 
 ### Notion Update
 

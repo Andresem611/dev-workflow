@@ -13,7 +13,22 @@ Explore business logic requirements, data model needs, service boundaries, and A
 
 ## Stage 1: Discuss — Feature Requirements Discussion
 
-### 0. Validate Entry (MANDATORY)
+### 0. Load Context (MANDATORY — before anything else)
+
+Read these files using the Read tool. Do NOT proceed until all are loaded:
+
+1. **Read** `${PLUGIN_ROOT}/references/domain-agent-map.md` — agent assignments for DISCOVER phase
+2. **Read** `${PLUGIN_ROOT}/references/inner-loop-reference.md` — stage mechanics and enforcement rules
+3. **Read** `${PLUGIN_ROOT}/references/codebase-context-block.md` — standard context for subagent prompts
+
+Extract from domain-agent-map.md for DISCOVER:
+- MANDATORY agents: `Explore`, `rails-expert`
+- CONDITIONAL agents: `master-backend-ai-rails` (when data model changes involved), `architecture-reviewer` (when COMBINATION+ complexity or new subsystems)
+- Check Domain Combination Patterns against MANIFEST tags
+
+These agents MUST be addressed in the Architect stage — either dispatched or explicitly skipped with reason.
+
+### 0b. Validate Entry (MANDATORY)
 
 ```bash
 node ${PLUGIN_ROOT}/../shared/tools/dev-pipeline-tools.js validate-stage-entry discover discuss <feature-dir> --plugin backend
@@ -54,17 +69,17 @@ HOW questions let the user control execution depth (D06):
 | "Want codebase research before we continue?" | Triggers optional research pre-step (D09) |
 | "Any specific areas of the codebase to investigate?" | Targets Explore agent scope |
 
-### 4. Optional Research Pre-Step (D09)
+### 4. Automatic Research Pre-Step (MANDATORY for DISCOVER)
 
-If user opts in during questioning, dispatch an Explore agent to scan for existing patterns before continuing:
+Before asking WHAT questions, dispatch an Explore agent to scan for existing patterns. This is NOT optional in DISCOVER — the orchestrator asks better questions when it has codebase context.
 
 ```
 Dispatch: Explore subagent
 Purpose: Scan codebase for patterns related to [feature]
-Scope: User-directed (broad or focused)
+Scope: models, services, controllers, routes for feature-relevant patterns
 ```
 
-Resume Discuss questioning with findings. The research enriches remaining questions.
+Resume Discuss questioning with findings. The research enriches remaining questions and prevents "blind" questioning.
 
 ### Stage Artifact
 
@@ -90,6 +105,16 @@ node ${PLUGIN_ROOT}/../shared/tools/dev-pipeline-tools.js validate-stage-output 
 node ${PLUGIN_ROOT}/../shared/tools/dev-pipeline-tools.js validate-stage-entry discover architect <feature-dir> --plugin backend
 ```
 
+### 0b. Verify Context Loaded (MANDATORY)
+
+Confirm `domain-agent-map.md` was Read in Discuss. If not, Read it now using the Read tool.
+List ALL agents defined for DISCOVER in domain-agent-map.md.
+Each agent MUST appear in the Orchestration Log as either:
+- **Dispatched** — with prompt and success criteria
+- **Skipped** — with explicit reason (e.g., "domain not tagged in MANIFEST")
+
+Also check the **Domain Combination Patterns** table. If MANIFEST domains match any combination (e.g., `auth + students` = COPPA), apply extra considerations.
+
 ### 1. Craft Subagent Prompts (MANDATORY — D04)
 
 **D04 ENFORCEMENT:** Follow the D04 Enforcement Protocol from `inner-loop-reference.md`. Every subagent prompt MUST go through `/prompt-generator`. Log status in the Orchestration Log section of this artifact.
@@ -103,6 +128,7 @@ Use `/prompt-generator` to craft every subagent prompt. Prompt quality IS archit
 | Explore | `subagent_type` | Scan codebase for existing patterns, similar services, reusable models/concerns | Always |
 | rails-expert | agent | Produce design doc: business logic, data model, service boundaries, API design | Always |
 | master-backend-ai-rails | agent | Deep analysis of database schema, migration strategy, query patterns | When data model changes are involved |
+| architecture-reviewer | agent | Validate design against system architecture, assess coupling and scalability | COMBINATION+ complexity or new subsystems |
 
 ### 3. Define Success Criteria
 
@@ -183,7 +209,19 @@ Produces: migration strategy, index recommendations, query optimization notes, s
 
 Collect results. Check against success criteria from Architect.
 
-### 4. Handle Failures
+### 4. Dispatch architecture-reviewer Agent (CONDITIONAL)
+
+When MANIFEST complexity is COMBINATION or NOVEL, or when the design introduces new subsystems, services, or significant coupling changes:
+
+Dispatch `architecture-reviewer` with: feature requirements from Discuss, Explore findings, and rails-expert design doc output.
+
+Produces: architecture fit assessment, coupling analysis, scalability considerations, alignment with existing system patterns documented in `.claude/docs/ARCHITECTURE.md`.
+
+Collect results. Check against success criteria from Architect.
+
+**Skip condition:** KNOWN-tier features that extend existing patterns without new subsystems. Log "skipped — KNOWN complexity, extends existing pattern" in Orchestration Log.
+
+### 5. Handle Failures
 
 If any subagent fails: log the failure, continue with remaining agents, surface all failures in Review (D08).
 
@@ -218,11 +256,15 @@ For each criterion from Architect, provide evidence-based pass/fail:
 - Service boundaries and API contracts documented
 - Pattern analysis: every finding has file path or "not found", classified correctly
 
-### 2. Surface Gaps
+### 2. Present Design Diagrams (CONDITIONAL)
+
+If the design doc from Execute contains any diagrams (data flow, entity relationships, service boundaries), display them inline via `AskUserQuestion` before presenting the summary. The user should see and approve the architecture visually, not just read text descriptions.
+
+### 3. Surface Gaps
 
 Use `AskUserQuestion` to present summary, pass/fail verdicts with evidence, gaps or open questions, and pattern analysis counts (N reuse, N extend, N create-new).
 
-### 3. User Decision (D08 — No Auto-Looping)
+### 4. User Decision (D08 — No Auto-Looping)
 
 Present options via `AskUserQuestion`:
 
@@ -233,7 +275,7 @@ Present options via `AskUserQuestion`:
 | **Back to Architect** | Redesign the exploration plan |
 | **Back to Discuss** | Revisit requirements or direction |
 
-### 4. On Accept
+### 5. On Accept
 
 1. Update MANIFEST with:
    - Phase status: DISCOVER complete
@@ -253,6 +295,18 @@ Present options via `AskUserQuestion`:
 Write: `.dev/discover/review-design-approval.md`
 
 This artifact bridges to PLAN. Must contain: design decisions and rationale, pattern analysis findings (paths + classifications), confirmed requirements, schema analysis notes (if applicable), caveats for PLAN, and recommended architecture focus areas.
+
+**Dispatch Mandate for PLAN (MANDATORY in context bridge):**
+
+Include this section in the review artifact. Read `domain-agent-map.md` PLAN Phase Agents to populate:
+
+```markdown
+## Dispatch Mandate for PLAN
+Agents from domain-agent-map.md for PLAN:
+- MANDATORY: `rails-expert` (API/service design)
+- CONDITIONAL: `postgres-pro` (if migrations needed), `architecture-reviewer` (validate decisions), `security-engineer` (if auth/payments domains), `workflow-architect` (if multi-step workflows)
+The PLAN Architect MUST address each agent (dispatch or skip with reason in Orchestration Log).
+```
 
 ```bash
 node ${PLUGIN_ROOT}/../shared/tools/dev-pipeline-tools.js validate-stage-output discover review <feature-dir> --plugin backend
@@ -304,6 +358,7 @@ State persists to disk (MANIFEST + stage artifacts). Nothing is lost on `/clear`
 | Explore | subagent_type | Codebase scanning for existing patterns, similar implementations, reusable code | Always (Execute step 1) |
 | rails-expert | agent | Business logic design, service architecture, API contracts, data model | Always (Execute step 2) |
 | master-backend-ai-rails | agent | Schema analysis, migration strategy, query optimization, index planning | When data model changes are involved (Execute step 3) |
+| architecture-reviewer | agent | Architecture fit, coupling analysis, scalability, system alignment | COMBINATION+ complexity or new subsystems (Execute step 4) |
 
 ---
 

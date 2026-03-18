@@ -13,6 +13,21 @@ Terminal phase of the /dev pipeline. Takes a validated backend feature through c
 
 ## Stage 1: Discuss — Release Scope
 
+### 0. Load Context (MANDATORY — before anything else)
+
+Read these files using the Read tool. Do NOT proceed until all are loaded:
+
+1. **Read** `${PLUGIN_ROOT}/references/domain-agent-map.md` — agent assignments for SHIP phase
+2. **Read** `${PLUGIN_ROOT}/references/inner-loop-reference.md` — stage mechanics and enforcement rules
+3. **Read** `${PLUGIN_ROOT}/references/codebase-context-block.md` — standard context for subagent prompts
+
+Extract from domain-agent-map.md for SHIP:
+- MANDATORY agents: `security-engineer` (secrets scan — already enforced in Execute 3a)
+- CONDITIONAL agents: `code-reviewer` (pre-commit final review)
+- Check Domain Combination Patterns against MANIFEST tags
+
+These agents MUST be addressed in the Architect stage — either dispatched or explicitly skipped with reason.
+
 **Tool:** `validate-stage-entry ship discuss <feature-dir> --plugin backend`
 
 ### Context Bridge
@@ -45,6 +60,14 @@ All Q&A, locked decisions (publish vs staging, version bump, exclusions, migrati
 ---
 
 ## Stage 2: Architect — Release Plan
+
+### 0. Verify Context Loaded (MANDATORY)
+
+Confirm `domain-agent-map.md` was Read in Discuss. If not, Read it now using the Read tool.
+List ALL agents defined for SHIP in domain-agent-map.md: `code-reviewer`, `security-engineer`.
+Each agent MUST appear in the Orchestration Log as either:
+- **Dispatched** — with prompt and success criteria
+- **Skipped** — with explicit reason (e.g., "redundant with VALIDATE security audit")
 
 **D04 ENFORCEMENT:** Follow the D04 Enforcement Protocol from `inner-loop-reference.md`. Every subagent prompt MUST go through `/prompt-generator`. Log status in the Orchestration Log section of this artifact.
 
@@ -98,7 +121,18 @@ Changelog entries, commit message draft, staging plan, dual-DB verification plan
 
 **MANDATORY:** Dispatch subagent. Orchestrator NEVER executes inline.
 
-### 3a. Security Scan
+### 3a. Pre-Commit Code Review (CONDITIONAL)
+
+If `code-reviewer` was listed as "Dispatched" in the Architect Orchestration Log (recommended for COMBINATION+ features or when >50 files changed across BUILD):
+
+Dispatch `code-reviewer` on the full diff (`git diff` from feature start to current HEAD):
+- **Focus:** Final quality gate — patterns missed in per-wave reviews, cross-wave consistency, overall coherence
+- **Blocking if:** CRITICAL issues (security, auth mixing, data integrity)
+- **Non-blocking:** Style, minor deviations
+
+If `code-reviewer` was "Skipped" in the Orchestration Log (e.g., small feature, thorough BUILD.Review coverage), proceed to security scan.
+
+### 3b. Security Scan
 
 **MANDATORY: Dispatch `security-engineer` with `/security-review`** before any git staging. This is an explicit, dedicated scan — not a generic grep. The agent runs a full credential/vulnerability review on all changed files, covering:
 - `.env` files, API keys, tokens, credentials, private keys, database passwords
@@ -108,7 +142,7 @@ Changelog entries, commit message draft, staging plan, dual-DB verification plan
 
 If the `security-engineer` finds any credential leak or critical vulnerability: **STOP** and surface to user. Do not proceed to staging.
 
-### 3b. Dual-Database Migration Verification
+### 3c. Dual-Database Migration Verification
 
 If the feature includes migrations, verify both environments are in sync:
 
@@ -124,16 +158,16 @@ RAILS_ENV=production rails db:migrate:status
 
 **If schema drift detected between environments:** STOP. Sync schemas before proceeding.
 
-### 3c. Environment Variable Verification
+### 3d. Environment Variable Verification
 
 If the feature requires new environment variables, confirm each var is set in the production environment with correct, non-empty values. Document which vars were added and their purpose.
 
-### 3d. Update CHANGELOG.md
+### 3e. Update CHANGELOG.md
 
 **STAGING:** Add entries under `## [Unreleased] - Not Published`
 **PUBLISH:** Rename `[Unreleased]` to versioned heading `## [X.Y.Z] - YYYY-MM-DD - Published`, move entries under it.
 
-### 3e. Stage and Commit
+### 3f. Stage and Commit
 
 ```bash
 git add -A
@@ -158,7 +192,7 @@ For staging commits, use `Publication Status: Not Published`.
 
 **NEVER amend previous commits. Always create NEW commits.**
 
-### 3f. Verify
+### 3g. Verify
 
 Run `git status` and `git log --oneline -1` to confirm clean tree and commit hash.
 

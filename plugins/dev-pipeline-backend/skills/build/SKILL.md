@@ -27,6 +27,22 @@ The inner loop runs ONCE PER WAVE, not once for the entire phase. This is decisi
 
 ## Stage 1: Discuss — Implementation Path (Per Wave)
 
+### 0. Load Context (MANDATORY — before anything else)
+
+Read these files using the Read tool. Do NOT proceed until all are loaded:
+
+1. **Read** `${PLUGIN_ROOT}/references/domain-agent-map.md` — agent assignments for BUILD phase
+2. **Read** `${PLUGIN_ROOT}/references/inner-loop-reference.md` — stage mechanics and enforcement rules
+3. **Read** `${PLUGIN_ROOT}/references/codebase-context-block.md` — standard context for subagent prompts
+4. **Read** `${PLUGIN_ROOT}/references/agent-prompt-template.md` — fallback template if `/prompt-generator` unavailable
+
+Extract from domain-agent-map.md for BUILD:
+- Task-type agents: `master-backend-ai-rails` (models/migrations), `rails-expert` (controllers/services/tests), `security-engineer` (auth/security), `bug-hunter` (complex bugs)
+- Review stage agents: `code-reviewer` (MANDATORY every wave), `security-engineer` (when auth/payments domains)
+- Check Domain Combination Patterns against MANIFEST tags
+
+These agents MUST be addressed in the Architect stage — either dispatched or explicitly skipped with reason.
+
 **MANDATORY: Load Requirements Context**
 
 Before starting any wave, load `requirements.md` from the feature docs directory. This is the hard contract defining "done" — every build task must work toward satisfying these requirements. Pass relevant requirement IDs to build agents so they know what they're building toward.
@@ -91,7 +107,17 @@ Use `AskUserQuestion` for every question. One question at a time. No cap — use
 - "Session break after this wave or continue?"
 - "Security review needed for this wave? (recommended if auth/payments touched)"
 
-**Optional research pre-step:** User can request codebase exploration before continuing. Dispatch an Explore agent, then resume questioning with findings.
+**Automatic Research Pre-Step (MANDATORY for BUILD):**
+
+Before asking WHAT questions, dispatch an Explore agent scoped to this wave's files:
+
+```
+Dispatch: Explore subagent
+Purpose: Scan files that will change in Wave [N] for recent modifications, current state
+Scope: Exact file paths from wave plan, plus nearby files in same directories
+```
+
+Resume questioning with findings. This confirms file paths, finds recent changes by other waves, and prevents stale assumptions about current codebase state.
 
 ### Artifact
 
@@ -114,6 +140,16 @@ node ${PLUGIN_ROOT}/../shared/tools/dev-pipeline-tools.js validate-stage-output 
 ```bash
 node ${PLUGIN_ROOT}/../shared/tools/dev-pipeline-tools.js validate-stage-entry build architect <feature-dir> --plugin backend --wave N
 ```
+
+### 0. Verify Context Loaded (MANDATORY)
+
+Confirm `domain-agent-map.md` was Read in Discuss. If not, Read it now using the Read tool.
+For this wave's tasks, identify which agents from the BUILD Agent Map apply.
+Each agent MUST appear in the Orchestration Log as either:
+- **Dispatched** — with prompt and success criteria
+- **Skipped** — with explicit reason
+
+Also check the **Domain Combination Patterns** table. If MANIFEST domains match any combination (e.g., `auth + students` = COPPA), apply extra considerations to relevant task prompts.
 
 ### Prompt Crafting (MANDATORY)
 
@@ -173,9 +209,11 @@ node ${PLUGIN_ROOT}/../shared/tools/dev-pipeline-tools.js validate-stage-entry b
 **MANDATORY: Pass must_haves to Build Agents**
 
 When crafting the subagent prompt for Execute, include:
-1. The `must_haves` block from the current wave file (truths, artifacts, key_links)
-2. The requirement IDs this wave covers (from traceability table in requirements.md)
+1. The `must_haves` block from the current wave file (truths, artifacts, key_links) — **pass the EXACT text, do NOT summarize or paraphrase**
+2. The requirement IDs this wave covers (from traceability table in requirements.md) — **copy verbatim**
 3. This instruction: "Your implementation is verified against these must_haves. Stubs, placeholders, and TODO comments will be flagged as failures. Every truth must be demonstrably true in the code you write. RSpec specs must exist for every testable requirement."
+
+**WARNING:** The orchestrator MUST copy-paste must_haves and requirements verbatim into the subagent prompt. Summarizing loses specificity — "API returns correct data" is useless vs "API-01: GET /api/v1/bookings returns 200 with paginated JSON including id, student_id, teacher_id, scheduled_at". The verification agent checks against the EXACT text.
 
 ### Dispatch Rules
 
@@ -297,13 +335,22 @@ If this wave included migrations, verify both databases show all migrations as "
 node ${PLUGIN_ROOT}/../shared/tools/dev-pipeline-tools.js validate-stage-output build review <feature-dir> --plugin backend --wave N
 ```
 
+### Code Quality Review (MANDATORY — Every Wave)
+
+Dispatch `code-reviewer` agent to review all files changed in this wave:
+- **Focus:** N+1 queries, convention adherence, auth boundary integrity, production safety, soft delete filtering, safe navigation
+- **Input:** `git diff` for this wave's changed files + the wave's `must_haves` block
+- **Blocking if:** CRITICAL issues found (security vulnerabilities, auth system mixing, broken soft deletes, missing authorization checks)
+- **Non-blocking:** Style suggestions, minor pattern deviations, naming conventions
+
+Pass the EXACT `must_haves` text to the code-reviewer — do NOT summarize or paraphrase.
+
 ### Optional Checks (User Decides in Discuss)
 
 Based on HOW answers from Discuss, optionally run:
 
 | Check | Agent | When |
 |-------|-------|------|
-| Code review | `code-reviewer` | User opted for end-of-wave review |
 | Security audit | `security-engineer` | MANIFEST domains include `auth`, `payments`, `student_data`, `coppa` |
 | N+1 query check | `performance-engineer` | Wave added new Active Record queries or associations |
 | Test coverage assessment | `rails-expert` | User opted for coverage check |
@@ -326,9 +373,15 @@ Verify every wave: files match Architect plan, all tasks completed or failures l
 - [ ] `verify-must-haves` tool gate passed (zero issues)
 - [ ] Independent `qa-expert` verification completed
 
+### Architecture Diagram Updates (CONDITIONAL)
+
+If any diagram from PLAN was affected by this wave's changes (e.g., data flow modified, new state added, new service connections), display the UPDATED diagram inline via `AskUserQuestion` and confirm the user approves the change. Compare against the original diagram in `execute-locked-decisions.md`.
+
+If no diagrams were affected, skip this step.
+
 ### Surfacing Gaps
 
-Use `AskUserQuestion` to present: task summary, failures/deviations, RSpec results, migration verification results, optional check results, recommendations for next wave.
+Use `AskUserQuestion` to present: task summary, failures/deviations, RSpec results, migration verification results, code-reviewer findings, optional check results, recommendations for next wave.
 
 ### User Decision (No Auto-Looping — D08)
 
@@ -417,6 +470,16 @@ If FAIL, update MANIFEST before ending.
 ### 3. Context Bridge
 
 The final wave's `review-code-quality.md` serves as the context bridge to VALIDATE. It must contain: summary of all waves, cumulative deviations, files created/modified, migration history (both databases), outstanding issues, and recommended validation focus areas.
+
+**Dispatch Mandate for VALIDATE (MANDATORY in final wave's context bridge):**
+
+```markdown
+## Dispatch Mandate for VALIDATE
+Agents from domain-agent-map.md for VALIDATE:
+- MANDATORY: `rails-expert` (independent verifier — clean context, no build history)
+- CONDITIONAL: `security-engineer` (if auth/payments/students domains), `master-backend-ai-rails` (if performance domain), `legal-compliance-checker` (if students/coppa domains), `postgres-pro` (if performance/database domains), `api-documenter` (if api-design domain)
+The VALIDATE Architect MUST address each agent (dispatch or skip with reason in Orchestration Log).
+```
 
 ### 4. Transition
 
