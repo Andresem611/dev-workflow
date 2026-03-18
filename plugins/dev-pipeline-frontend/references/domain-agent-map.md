@@ -19,7 +19,7 @@ Agent assignments by phase and domain for the frontend dev pipeline.
 |-----------|-------|---------|
 | Codebase exploration | `Explore` (multiple, parallel) | Scan components, pages, hooks, stores, API layer separately |
 | Design system audit | `ui-designer` | Existing components, tokens, brand consistency |
-| Architecture review | `architecture-reviewer` | Evaluate approach against existing frontend architecture |
+| Architecture review | `code-reviewer` | Evaluate approach against existing frontend architecture |
 | UX research | `ux-researcher` | User insights, usability considerations, interaction patterns |
 | Performance baseline | `performance-analyzer` | Current bundle size, Core Web Vitals, Lighthouse scores |
 
@@ -29,11 +29,13 @@ Agent assignments by phase and domain for the frontend dev pipeline.
 
 | Task Type | Agent | Purpose |
 |-----------|-------|---------|
-| Component architecture | `architecture-reviewer` | Component hierarchy, data flow, state boundaries |
-| API integration design | `frontend-developer` | Endpoint consumption, error handling, loading states |
+| Component architecture | `code-reviewer` | Component hierarchy, data flow, state boundaries |
+| API integration design | `api-designer` | Endpoint contract review, REST patterns, error response design |
+| API implementation plan | `frontend-developer` | `lib/*-api.ts` structure, fetch patterns, loading states |
+| Routing architecture | `next-js-developer` | App Router structure, layout nesting, middleware, RSC boundaries |
 | Security assessment | `security-engineer` | Auth UI boundaries, COPPA/PCI compliance (if auth/payments domain) |
 | SEO strategy | `seo-specialist` | Metadata, structured data, rendering strategy (if SEO domain) |
-| Accessibility planning | `frontend-developer` | WCAG requirements, keyboard nav, screen reader support |
+| Accessibility planning | `accessibility-tester` | WCAG requirements, keyboard nav, screen reader support |
 | Performance budget | `performance-analyzer` | Bundle impact, lazy loading strategy, image optimization |
 
 ---
@@ -62,18 +64,35 @@ Agent assignments by phase and domain for the frontend dev pipeline.
 
 ## BUILD Phase Agents
 
+Agent selection follows a 3-tier priority: (1) task-level `agent:` hint, (2) keyword match from routing table, (3) domain default.
+
 | Task Type | Agent | Notes |
 |-----------|-------|-------|
-| TypeScript types | `frontend-developer` | Type definitions, interfaces, generics |
-| API layer | `frontend-developer` | Fetch hooks, API clients, error handling |
-| State management | `frontend-developer` | Zustand stores, React Query, context |
+| TypeScript types/interfaces | `typescript-pro` | Type definitions, generics, discriminated unions, branded types |
+| API layer design | `api-designer` | Endpoint contract review, response shapes, error formats |
+| API layer implementation | `frontend-developer` | `lib/*-api.ts` fetch wrappers, error handling, auth headers |
+| State management | `react-specialist` | Context optimization, hooks patterns, re-render prevention |
 | UI components | `frontend-developer` or `ui-designer` | Simple = frontend-developer; design-heavy = ui-designer |
-| Pages/routing | `frontend-developer` | Next.js pages, layouts, navigation |
+| Pages/routing | `next-js-developer` | Next.js pages, layouts, middleware, SSR/RSC, generateMetadata |
+| React optimization | `react-specialist` | React.memo, useMemo, useCallback, Suspense, useTransition |
 | Animation/motion | `ui-designer` | Framer Motion, CSS transitions |
-| Accessibility | `frontend-developer` | ARIA, keyboard nav, screen reader |
+| Accessibility impl | `accessibility-tester` | ARIA attributes, keyboard nav, screen reader, focus management |
 | Design system | `ui-designer` + `frontend-developer` | Shared components, design tokens |
 | Tests | `frontend-developer` | Unit, integration, E2E |
-| Complex bugs | `frontend-developer` | Hypothesis-driven debugging |
+| Complex bugs | `debug-specialist` | Hypothesis-driven debugging |
+| General UI work | `frontend-developer` | Default for styling, layout, forms, general components |
+
+### Task-Level Agent Hints
+
+Wave task files can include an `agent:` field to override the default routing:
+
+```markdown
+## Task: Create teacher availability page
+agent: next-js-developer
+domain: routing
+```
+
+When present, the `agent:` hint takes priority over keyword matching and domain defaults. The DOCUMENT phase auto-assigns hints based on the keyword routing table above.
 
 ---
 
@@ -81,12 +100,14 @@ Agent assignments by phase and domain for the frontend dev pipeline.
 
 | Agent | Use For |
 |-------|---------|
-| `code-reviewer` | Code quality review, pattern compliance |
+| `code-reviewer` | Code quality review, pattern compliance (always runs) |
+| `typescript-pro` | Type safety audit, strict mode compliance, type coverage (always runs) |
 | `security-engineer` | Auth UI review, XSS scan (domain: auth-ui) |
 | `performance-analyzer` | Lighthouse, bundle size, LCP/FID/CLS (domain: performance) |
 | `seo-specialist` | Metadata audit, structured data validation (domain: seo) |
 | `ui-designer` | Design system compliance, visual regression (domain: design-system) |
-| `frontend-developer` | Accessibility audit, WCAG compliance (domain: a11y) |
+| `accessibility-tester` | WCAG 2.1 AA audit, screen reader, keyboard nav (domain: a11y) |
+| `next-js-developer` | RSC boundary check, SSR correctness, App Router patterns (domain: routing) |
 
 ---
 
@@ -104,7 +125,7 @@ Agent assignments by phase and domain for the frontend dev pipeline.
 | Purpose | Agent |
 |---------|-------|
 | Code quality | `code-reviewer` |
-| Architecture check | `architecture-reviewer` |
+| Architecture check | `code-reviewer` |
 | Security (auth/payments) | `security-engineer` |
 
 ---
@@ -113,20 +134,22 @@ Agent assignments by phase and domain for the frontend dev pipeline.
 
 When a task touches one of these domains, the listed agents are automatically suggested:
 
-| Domain | Agents | Phases Affected |
-|--------|--------|-----------------|
-| `routing` | `frontend-developer` | PLAN, BUILD, VALIDATE |
-| `state` | `frontend-developer` | PLAN, BUILD, VALIDATE |
-| `forms` | `frontend-developer` | PLAN, DESIGN, BUILD, VALIDATE |
-| `animation` | `ui-designer` | DESIGN, BUILD, VALIDATE |
-| `a11y` | `frontend-developer`, `ui-designer` | DESIGN, BUILD, VALIDATE |
-| `responsive` | `frontend-developer`, `ui-designer` | DESIGN, BUILD, VALIDATE |
-| `api-integration` | `frontend-developer` | PLAN, BUILD, VALIDATE |
-| `auth-ui` | `frontend-developer`, `security-engineer` | PLAN, BUILD, VALIDATE |
-| `design-system` | `ui-designer` + `frontend-developer` | DESIGN, BUILD, VALIDATE |
-| `performance` | `performance-analyzer` | BUILD, VALIDATE |
-| `seo` | `seo-specialist`, `frontend-developer` | PLAN, BUILD, VALIDATE |
-| `analytics` | `frontend-developer` | BUILD, VALIDATE |
+| Domain | BUILD Agents | VALIDATE Agents | Phases Affected |
+|--------|-------------|-----------------|-----------------|
+| `routing` | `next-js-developer`, `frontend-developer` | `next-js-developer`, `code-reviewer` | PLAN, BUILD, VALIDATE |
+| `state` | `react-specialist`, `frontend-developer` | `code-reviewer`, `debug-specialist` | PLAN, BUILD, VALIDATE |
+| `forms` | `frontend-developer` | `code-reviewer`, `debug-specialist` | PLAN, DESIGN, BUILD, VALIDATE |
+| `animation` | `ui-designer` | `ui-designer` | DESIGN, BUILD, VALIDATE |
+| `a11y` | `accessibility-tester`, `frontend-developer` | `accessibility-tester`, `ui-designer` | DESIGN, BUILD, VALIDATE |
+| `responsive` | `frontend-developer`, `ui-designer` | `frontend-developer`, `ui-designer` | DESIGN, BUILD, VALIDATE |
+| `api-integration` | `api-designer`, `frontend-developer` | `code-reviewer`, `api-designer` | PLAN, BUILD, VALIDATE |
+| `auth-ui` | `frontend-developer`, `security-engineer` | `security-engineer`, `code-reviewer` | PLAN, BUILD, VALIDATE |
+| `design-system` | `ui-designer`, `frontend-developer` | `ui-designer` | DESIGN, BUILD, VALIDATE |
+| `performance` | `react-specialist`, `performance-analyzer` | `performance-analyzer` | BUILD, VALIDATE |
+| `seo` | `seo-specialist`, `frontend-developer` | `seo-specialist` | PLAN, BUILD, VALIDATE |
+| `analytics` | `frontend-developer` | `code-reviewer` | BUILD, VALIDATE |
+
+**Note**: `typescript-pro` runs as a universal VALIDATE agent across ALL domains (type safety audit). `code-reviewer` runs as universal primary verifier.
 
 ---
 
@@ -143,15 +166,26 @@ Independent verification agents dispatched during BUILD:Review and VALIDATE:Exec
 
 ### VALIDATE:Execute (Comprehensive)
 
+**Universal agents** (always run):
+
 | Agent | Purpose |
 |-------|---------|
 | `code-reviewer` (primary) | Independent verification of ALL requirements.md + ALL must_haves — clean context, no build history |
-| `security-engineer` (domain) | Auth UI, XSS scan (domain-triggered) |
-| `performance-analyzer` (domain) | Lighthouse, bundle size, CWV (domain-triggered) |
-| `ui-designer` (domain) | Design system compliance (domain-triggered) |
-| `frontend-developer` (domain) | Accessibility audit, WCAG (domain-triggered) |
+| `typescript-pro` (universal) | Type safety audit — strict mode compliance, type coverage, no `any` leaks |
 
-The independent `code-reviewer` verifier runs BEFORE domain-specific agents. Its Requirements Coverage table is the primary source of truth for the Review verdict.
+**Domain-triggered agents** (run when domain tag present):
+
+| Agent | Triggered By Domain |
+|-------|-------------------|
+| `security-engineer` | `auth-ui` — Auth boundaries, XSS scan |
+| `performance-analyzer` | `performance` — Lighthouse, bundle size, CWV |
+| `seo-specialist` | `seo` — Metadata audit, structured data |
+| `ui-designer` | `design-system` — Design compliance, visual regression |
+| `accessibility-tester` | `a11y` — WCAG 2.1 AA audit, screen reader, keyboard |
+| `next-js-developer` | `routing` — RSC boundaries, SSR correctness, App Router patterns |
+| `api-designer` | `api-integration` — API contract compliance, error format consistency |
+
+The independent `code-reviewer` + `typescript-pro` verifiers run BEFORE domain-specific agents. The code-reviewer Requirements Coverage table is the primary source of truth for the Review verdict.
 
 ---
 
@@ -177,9 +211,13 @@ When a task touches multiple domains, dispatch ONE agent per domain in PARALLEL.
 Synthesize outputs in Review stage.
 
 Example: Task touches `auth-ui` + `forms`
-- Dispatch `security-engineer` (auth boundary concerns) in parallel with `frontend-developer` (form validation/submission)
-- Review synthesizes both outputs, flags conflicts
+- BUILD: Dispatch `security-engineer` (auth boundary concerns) in parallel with `frontend-developer` (form validation/submission)
+- VALIDATE: `security-engineer` + `code-reviewer` + `typescript-pro`
+
+Example: Task touches `routing` + `api-integration`
+- BUILD: Dispatch `next-js-developer` (page/layout structure) in parallel with `api-designer` (endpoint contract)
+- VALIDATE: `next-js-developer` + `api-designer` + `code-reviewer` + `typescript-pro`
 
 Example: Task touches `design-system` + `a11y` + `animation`
-- Dispatch `ui-designer` (design tokens, animation specs) in parallel with `frontend-developer` (WCAG compliance, reduced-motion)
-- Review checks for conflicting recommendations before proceeding
+- BUILD: Dispatch `ui-designer` (design tokens, animation specs) in parallel with `accessibility-tester` (WCAG compliance, reduced-motion)
+- VALIDATE: `ui-designer` + `accessibility-tester` + `code-reviewer` + `typescript-pro`

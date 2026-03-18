@@ -128,6 +128,8 @@ docs/[Feature]/
 ```markdown
 # Task NN: [Name]
 **Duration:** [30min-2.5hr]  **Wave:** [N]  **Dependencies:** [Task IDs or "None"]
+**Agent:** [specialist agent from routing table — see below]
+**Domain:** [routing | state | forms | animation | a11y | responsive | api-integration | auth-ui | design-system | performance | seo | analytics]
 
 ## Files
 - **Create:** `exact/path/file.tsx`
@@ -143,6 +145,19 @@ docs/[Feature]/
 ## Implementation Steps (TDD)
 1. Write failing test → 2. Verify failure → 3. Implement → 4. Verify pass → 5. Refactor → 6. Commit
 ```
+
+**Agent Assignment Guide** — auto-assign the `Agent:` field using keyword matching:
+
+| Task involves... | Assign agent |
+|-----------------|--------------|
+| page.tsx, layout.tsx, route, middleware, SSR, RSC, generateMetadata | `next-js-developer` |
+| TypeScript interfaces, generics, type definitions, branded types | `typescript-pro` |
+| React.memo, useMemo, Context optimization, hooks, re-render fixes | `react-specialist` |
+| ARIA, keyboard nav, screen reader, WCAG, focus management | `accessibility-tester` |
+| API endpoint design, contract review, OpenAPI | `api-designer` |
+| lib/*-api.ts implementation, fetch wrappers | `frontend-developer` |
+| Framer Motion, animation, CSS transition | `ui-designer` |
+| General UI components, styling, layout, forms | `frontend-developer` |
 
 **Sizing:** >2.5hr split, <20min combine. Sweet spot 30min-2.5hr.
 

@@ -120,12 +120,33 @@ For each task in this wave, define:
 
 | Field | Description |
 |-------|-------------|
-| **Agent type** | From BUILD Agent Map (see below) |
+| **Agent type** | From Agent Selection (3-tier priority below) |
 | **Prompt** | Crafted via `/prompt-generator` |
 | **File paths** | Exact files to create/modify/test |
 | **Codebase context block** | Relevant architecture, patterns, existing code references |
 | **Success criteria** | What the subagent output must contain and pass |
 | **Escalation rules** | What happens if the task fails |
+
+### Agent Selection (3-Tier Priority)
+
+Select the agent for each task using this priority order:
+
+**Tier 1 — Task-level hint** (highest priority): If the task file contains an `agent:` field, use that agent.
+
+**Tier 2 — Keyword routing** (check task description, first match wins):
+
+| Task mentions... | Dispatch agent |
+|-----------------|----------------|
+| page.tsx, layout.tsx, route, middleware, SSR, RSC, server component, generateMetadata, ISR | `next-js-developer` |
+| interface, type definition, generic, tsconfig, discriminated union, branded type, type guard | `typescript-pro` |
+| React.memo, useMemo, useCallback, re-render, Context optimization, Suspense, useTransition | `react-specialist` |
+| ARIA, keyboard nav, screen reader, WCAG, focus management, alt text, contrast ratio | `accessibility-tester` |
+| API design, endpoint contract, OpenAPI, versioning, pagination design | `api-designer` |
+| lib/*-api.ts, fetch wrapper, API implementation | `frontend-developer` |
+| Framer Motion, animation, CSS transition, spring | `ui-designer` |
+| Bug investigation, race condition, debugging | `debug-specialist` |
+
+**Tier 3 — Domain default** (fallback): Use the BUILD Agents column from `references/domain-agent-map.md` for the task's domain. If no domain match, default to `frontend-developer`.
 
 ### Execution Plan
 

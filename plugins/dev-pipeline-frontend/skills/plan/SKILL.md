@@ -84,7 +84,7 @@ node ${PLUGIN_ROOT}/../shared/tools/dev-pipeline-tools.js validate-stage-entry p
 
 | Field | Description |
 |-------|-------------|
-| **Agent type** | `architecture-reviewer` (decisions), `frontend-developer` (task breakdown), optional `challenger` (stress-test) |
+| **Agent type** | `code-reviewer` (decisions), `frontend-developer` (task breakdown), optional `challenger` (stress-test) |
 | **Prompt** | Crafted via `/prompt-generator` |
 | **Success criteria** | What the subagent output must contain |
 | **Input context** | Discuss artifact + DISCOVER review artifact + MANIFEST |

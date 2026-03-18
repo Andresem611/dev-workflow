@@ -7,7 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [2.5.0] - 2026-03-18
 
-### Added
+### Added (Frontend)
+- **Specialized agent routing in BUILD** — 3-tier agent selection system: task-level `agent:` hints (highest priority) → keyword-based routing table → domain-agent-map defaults. Tasks now dispatched to `next-js-developer`, `typescript-pro`, `react-specialist`, `accessibility-tester`, `api-designer` based on content instead of all going to `frontend-developer`.
+- **Task file `agent:` hint field** — DOCUMENT phase auto-assigns specialist agents to task files using keyword matching. BUILD phase reads the hint and dispatches accordingly.
+- **Universal VALIDATE agents** — `typescript-pro` (type safety audit) and `code-reviewer` (primary verifier) now run on ALL domains, not just domain-triggered.
+- **New domain-agent mappings** — `routing` BUILD → `next-js-developer`; `state` BUILD → `react-specialist`; `api-integration` BUILD → `api-designer`; `performance` BUILD → `react-specialist`; `a11y` VALIDATE → `accessibility-tester`; `routing` VALIDATE → `next-js-developer`.
+
+### Fixed (Frontend)
+- **Phantom `architecture-reviewer` eliminated** — 5 references in domain-agent-map + 1 in plan SKILL.md replaced with `code-reviewer`. The `architecture-reviewer` agent never existed.
+
+### Changed (Frontend)
+- **Frontend plugin.json** — Version bumped to 2.5.0
+- **Domain-Agent Map v4.0 (frontend)** — Expanded from single BUILD agent per domain to multi-agent routing with separate BUILD/VALIDATE columns.
+
+### Added (Backend)
 - **Specialized agent wiring (backend)** — 6 new domain agents integrated into pipeline phases:
   - PLAN: `workflow-architect` (multi-step flow failure modes), `api-documenter` (OpenAPI contract drafting), `behavioral-nudge-engine` (student engagement patterns) — all conditional on domain/feature type
   - VALIDATE: `legal-compliance-checker` (COPPA audit for student features), `postgres-pro` (independent EXPLAIN ANALYZE for performance domain), `api-documenter` (endpoint contract verification)
