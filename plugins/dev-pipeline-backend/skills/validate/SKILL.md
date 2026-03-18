@@ -242,7 +242,17 @@ Run ONLY when corresponding domain tag exists in MANIFEST.
 | `api-design` | `qa-expert` | RESTful conventions, pagination on list endpoints, consistent error format, proper HTTP verbs, versioned routes |
 | `models` | `rails-expert` | Association integrity (foreign keys, dependent options), constraint validation (uniqueness, presence), soft delete filtering, callback safety |
 
-Evidence required: file:line citations for violations, actual command output for automated checks.
+#### Additional Domain-Triggered Agents
+
+These agents dispatch AFTER the primary verifier (3.1.1) and standard domain agents above:
+
+| Condition | Agent | Task |
+|-----------|-------|------|
+| Domains include `students` or `coppa` | `legal-compliance-checker` | Run COPPA audit checklist — parental consent flows, data minimization, student data retention policies, age-gating logic |
+| Domains include `performance` or `database/models` | `postgres-pro` | Independent EXPLAIN ANALYZE review on new/modified queries — index usage, sequential scans, query plan regressions |
+| `api-design` domain tagged | `api-documenter` | Verify implemented endpoints match the API contract from DOCUMENT phase — method, path, auth, request/response shape, error codes |
+
+Evidence required: same standard — file:line citations, actual command/query output. Findings feed into the Execute artifact and Review stage blockers/known issues.
 
 **Always run regardless of domains:** RSpec, migration verification, secrets scan, stub scan, API contract compliance, docs drift, code quality review.
 

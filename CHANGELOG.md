@@ -5,6 +5,21 @@ All notable changes to the dev-pipeline plugin marketplace will be documented in
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.5.0] - 2026-03-18
+
+### Added
+- **Specialized agent wiring (backend)** — 6 new domain agents integrated into pipeline phases:
+  - PLAN: `workflow-architect` (multi-step flow failure modes), `api-documenter` (OpenAPI contract drafting), `behavioral-nudge-engine` (student engagement patterns) — all conditional on domain/feature type
+  - VALIDATE: `legal-compliance-checker` (COPPA audit for student features), `postgres-pro` (independent EXPLAIN ANALYZE for performance domain), `api-documenter` (endpoint contract verification)
+  - SHIP: `executive-summary-generator` (SCQA-format changelog entries), explicit `security-engineer` dispatch (replaces generic security scan)
+- **Domain-Agent Map v4.0 (backend)** — Aligned with subagent ecosystem cleanup (117 → 32 agents). Retired agents (`api-designer`, `backend-service-developer`, `performance-engineer`, `qa-expert`, `test-automator`, `database-optimizer`, `documentation-engineer`) replaced with consolidated equivalents. New domains: `workflows` → `workflow-architect`, `students` now includes `legal-compliance-checker`.
+
+### Changed
+- **Backend plugin.json** — Version bumped to 2.5.0
+- **VALIDATE primary verifier** — Changed from `qa-expert` (retired) to `rails-expert` for independent requirements verification
+- **BUILD services tasks** — `backend-service-developer` references replaced with `rails-expert`
+- **Performance domain** — `performance-engineer` + `database-optimizer` replaced with `master-backend-ai-rails` + `postgres-pro`
+
 ## [2.4.0] - 2026-03-16
 
 ### Added

@@ -53,6 +53,7 @@ All Q&A, locked decisions (publish vs staging, version bump, exclusions, migrati
 ### Define the Release Plan
 
 1. **Changelog entries** — categorized: Added, Changed, Fixed, Breaking Changes
+   - **Dispatch `executive-summary-generator`** to draft the changelog entry in SCQA format (Situation, Complication, Question, Answer) before commit creation. The agent reads the MANIFEST, validation results, and feature scope to produce a concise, structured changelog entry that explains WHY the change matters, not just WHAT changed.
 2. **Files to stage** — `git add -A` per solo dev convention
 3. **Commit message draft** — project convention:
 
@@ -99,7 +100,13 @@ Changelog entries, commit message draft, staging plan, dual-DB verification plan
 
 ### 3a. Security Scan
 
-Before staging, check all changed files for `.env` files, API keys, tokens, credentials, private keys, or database passwords. If secrets found: STOP and surface to user.
+**MANDATORY: Dispatch `security-engineer` with `/security-review`** before any git staging. This is an explicit, dedicated scan — not a generic grep. The agent runs a full credential/vulnerability review on all changed files, covering:
+- `.env` files, API keys, tokens, credentials, private keys, database passwords
+- Hardcoded secrets in source (SendGrid, Twilio, Stripe keys outside ENV references)
+- New attack surfaces introduced by the feature (injection vectors, missing auth guards, insecure defaults)
+- Dependency vulnerabilities in newly added gems
+
+If the `security-engineer` finds any credential leak or critical vulnerability: **STOP** and surface to user. Do not proceed to staging.
 
 ### 3b. Dual-Database Migration Verification
 

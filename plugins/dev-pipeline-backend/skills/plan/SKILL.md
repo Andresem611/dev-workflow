@@ -162,6 +162,18 @@ node ${PLUGIN_ROOT}/../shared/tools/dev-pipeline-tools.js validate-stage-entry p
 
 For each subagent: dispatch with crafted prompt, wait, collect results, check against success criteria, log pass/fail.
 
+### Conditional Agent Dispatches (Domain/Feature-Triggered)
+
+In addition to the subagents defined in Architect, dispatch these agents when conditions are met:
+
+| Condition | Agent | Task |
+|-----------|-------|------|
+| Feature involves multi-step workflows (booking, payment, scheduling, onboarding) | `workflow-architect` | Failure mode mapping for each workflow step + handoff contracts between services |
+| `api-design` domain tagged in MANIFEST | `api-documenter` | Draft OpenAPI contract from requirements (endpoints, schemas, error codes) |
+| Feature involves student engagement, practice, or parent retention | `behavioral-nudge-engine` | Engagement pattern review — identify notification touchpoints, retention hooks, and re-engagement triggers |
+
+These are additive — they run alongside (not instead of) the primary subagents from Architect. Results feed into the Execute artifact's relevant sections (API Contract Draft, Acceptance Criteria, etc.).
+
 ### Required Outputs
 
 Execute must produce ALL eight sections (seven planning sections + diagrams):

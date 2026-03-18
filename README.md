@@ -54,7 +54,7 @@ Each phase runs in a fresh context window with only the artifacts it needs. Spec
 
 ## Key Features
 
-- **Domain-specific agent routing** -- Frontend skills dispatch to React/TypeScript agents; backend skills dispatch to Rails/ActiveRecord agents.
+- **Domain-specific agent routing** -- Frontend skills dispatch to React/TypeScript agents; backend skills dispatch to Rails/ActiveRecord agents. Backend pipeline v2.5+ routes to 13 specialized agents including `workflow-architect` (failure mode mapping), `legal-compliance-checker` (COPPA), `api-documenter` (OpenAPI), and `behavioral-nudge-engine` (engagement) based on feature domain tags.
 - **Requirements-driven development** -- Every feature gets checkable requirement IDs (e.g., `API-01`, `AUTH-03`). Build and validate phases trace back to them.
 - **Independent verification** -- Two-layer verification in BUILD:Review (mechanical tool gate + independent agent) and VALIDATE (comprehensive agent with clean context). The verifier never sees build artifacts — it checks must_haves against the actual codebase with fresh eyes.
 - **Goal-backward verification** -- Phase completion requires `must_haves` (truths that must hold, artifacts that must exist, key links that must resolve).

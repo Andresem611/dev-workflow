@@ -1,6 +1,7 @@
-# Domain-Agent Map v3.0 — Backend
+# Domain-Agent Map v4.0 — Backend
 
 Agent assignments by phase and domain for the backend dev pipeline.
+Updated 2026-03-18: Aligned with subagent ecosystem cleanup (117 → 32 agents).
 
 ---
 
@@ -29,10 +30,11 @@ Agent assignments by phase and domain for the backend dev pipeline.
 | Task Type | Agent | Purpose |
 |-----------|-------|---------|
 | Migration planning | `postgres-pro` | Index strategy, constraint design, zero-downtime |
-| API contract design | `api-designer` | Endpoint design, response shapes, versioning |
+| API endpoint design | `rails-expert` | Endpoint design, response shapes, versioning |
 | Architecture validation | `architecture-reviewer` | Validate decisions against system architecture |
 | Security assessment | `security-engineer` | Auth boundaries, COPPA, threat model (if auth/payments domain) |
 | Rails patterns | `rails-expert` | Service layer design, model associations |
+| Workflow mapping | `workflow-architect` | Failure modes, handoff contracts, cleanup inventories |
 
 ---
 
@@ -40,9 +42,8 @@ Agent assignments by phase and domain for the backend dev pipeline.
 
 | Task Type | Agent | Purpose |
 |-----------|-------|---------|
-| Technical documentation | `technical-writer` or `documentation-engineer` | Master plan, API contract docs |
-| Code examples | `rails-expert` | Usage examples, service call patterns |
-| API contract docs | `api-designer` | Endpoint documentation with request/response shapes |
+| Technical documentation | `rails-expert` | Master plan, code examples, service call patterns |
+| API documentation | `api-documenter` | OpenAPI specs, endpoint documentation |
 
 ---
 
@@ -52,14 +53,13 @@ Agent assignments by phase and domain for the backend dev pipeline.
 |-----------|-------|--------|
 | Models/migrations | `master-backend-ai-rails` | `/safe-migrate` |
 | Controllers/routes | `rails-expert` | -- |
-| Services | `rails-expert` or `backend-service-developer` | -- |
+| Services | `rails-expert` | -- |
 | Auth/security | `security-engineer` | `/security-review` |
 | Background jobs | `rails-expert` | -- |
 | Mailers | `rails-expert` | `/email` |
-| API design | `api-designer` | -- |
-| Tests (RSpec) | `rails-expert` or `test-automator` | -- |
+| Tests (RSpec) | `rails-expert` | -- |
 | Complex bugs | `bug-hunter` | `/investigate` |
-| Performance | `performance-engineer` | -- |
+| Performance | `master-backend-ai-rails` | -- |
 
 ---
 
@@ -67,10 +67,9 @@ Agent assignments by phase and domain for the backend dev pipeline.
 
 | Agent | Use For |
 |-------|---------|
-| `qa-expert` | Test strategy review, QA runbook validation |
-| `rails-expert` | Rails convention compliance, N+1 detection |
+| `rails-expert` | Rails convention compliance, N+1 detection, test verification |
 | `security-engineer` | Auth boundary testing, Brakeman scan, COPPA (domain: auth, security) |
-| `performance-engineer` | N+1 query scan, index coverage (domain: performance) |
+| `master-backend-ai-rails` | N+1 query scan, index coverage (domain: performance) |
 
 ---
 
@@ -101,14 +100,15 @@ When a task touches one of these domains, the listed agents are automatically su
 |--------|--------|--------|
 | `auth` | `security-engineer`, `rails-expert` | `/security-review` |
 | `database/models` | `master-backend-ai-rails`, `postgres-pro` | `/safe-migrate`, `/production-data-audit` |
-| `payments` | `security-engineer`, `backend-service-developer` | `/security-review` |
-| `students` | `security-engineer` (COPPA) | `/security-review` |
+| `payments` | `security-engineer`, `rails-expert` | `/security-review` |
+| `students` | `security-engineer` (COPPA), `legal-compliance-checker` | `/security-review` |
 | `real-time` | `websocket-engineer` | -- |
 | `email/mailers` | `rails-expert` | `/email` |
-| `external-api` | `backend-service-developer` | `/security-review` |
-| `performance` | `performance-engineer`, `database-optimizer` | -- |
+| `external-api` | `security-engineer`, `rails-expert` | `/security-review` |
+| `performance` | `master-backend-ai-rails`, `postgres-pro` | -- |
 | `background-jobs` | `rails-expert` | -- |
-| `api-design` | `api-designer` | -- |
+| `api-design` | `rails-expert`, `api-documenter` | -- |
+| `workflows` | `workflow-architect` | -- |
 
 ---
 
@@ -121,18 +121,17 @@ Independent verification agents dispatched during BUILD:Review and VALIDATE:Exec
 | Layer | Agent | Purpose |
 |-------|-------|---------|
 | Mechanical gate | `dev-pipeline-tools.js verify-must-haves` | File existence, route matching, spec non-empty, anti-stub scan |
-| Semantic check | `qa-expert` | Independent must_haves verification against actual code |
+| Semantic check | `rails-expert` | Independent must_haves verification against actual code |
 
 ### VALIDATE:Execute (Comprehensive)
 
 | Agent | Purpose |
 |-------|---------|
-| `qa-expert` (primary) | Independent verification of ALL requirements.md + ALL must_haves — clean context, no build history |
-| `rails-expert` (domain) | Convention compliance, N+1 detection (always runs) |
+| `rails-expert` (primary) | Independent verification of ALL requirements.md + ALL must_haves — clean context, no build history |
 | `security-engineer` (domain) | Auth, COPPA, payment security (domain-triggered) |
-| `performance-engineer` (domain) | Query plans, index coverage (domain-triggered) |
+| `master-backend-ai-rails` (domain) | Query plans, index coverage (domain-triggered) |
 
-The independent `qa-expert` verifier runs BEFORE domain-specific agents. Its Requirements Coverage table is the primary source of truth for the Review verdict.
+The independent `rails-expert` verifier runs BEFORE domain-specific agents. Its Requirements Coverage table is the primary source of truth for the Review verdict.
 
 ---
 
@@ -161,5 +160,5 @@ Example: Task touches `auth` + `database/models`
 - Review synthesizes both outputs, flags conflicts
 
 Example: Task touches `payments` + `external-api`
-- Dispatch `security-engineer` (PCI compliance) in parallel with `backend-service-developer` (integration design)
+- Dispatch `security-engineer` (PCI compliance) in parallel with `rails-expert` (integration design)
 - Review checks for conflicting recommendations before proceeding
