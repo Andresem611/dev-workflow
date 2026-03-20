@@ -107,7 +107,7 @@ Adjust based on user preferences from Discuss.
 
 Per-subagent:
 - **Master Plan:** Business requirements, architecture overview, decision log table, task list, success criteria
-- **Component Arch:** Component tree with exact file paths, TS props interfaces, state flow, data flow diagram
+- **Component Arch:** Component tree with exact file paths, TS props interfaces, state flow, data flow diagram. **Diagrams MUST use D2 syntax** (rendered to SVG via `d2 <file>.d2 <file>.svg --layout=elk`). Store `.d2` + `.svg` in `docs/[Feature]/.dev/document/diagrams/`. Include: component tree diagram, data flow diagram, and state flow diagram (if >3 states). Fallback to ASCII if `d2` unavailable.
 - **Reuse Audit:** Four tables — Reuse As-Is, Can Extend, Not Suitable, New Code Required (with justification)
 - **Integration Guide:** API endpoints with types, auth patterns, error handling, backend dependencies
 - **Task Files:** Duration 30min-2.5hr, wave assignment, dependencies, exact file paths, acceptance criteria, TDD steps

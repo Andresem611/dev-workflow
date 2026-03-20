@@ -61,6 +61,7 @@ Each phase runs in a fresh context window with only the artifacts it needs. Spec
 - **Anti-stub detection** -- Placeholders, TODOs, and empty implementations are flagged as failures during build and validate.
 - **Notion Dev Tracker integration** -- Automatic Kanban card creation at INTAKE, status updates at every phase. Retry + warning protocol ensures Notion failures are always visible, never silently skipped.
 - **Session boundary enforcement** -- Each phase runs in its own context window to prevent stale context and token bloat.
+- **Visual tool integration (v3.0.1+)** -- PLAN and DOCUMENT phases produce D2 architecture diagrams rendered to SVG (data flow, state machine, dependency graph, component tree). DESIGN phase uses wireframe tool priority chain (`/wireframe` → Excalidraw CLI → ASCII) with mandatory layout approval before ui-designer dispatch. BUILD agents receive diagram paths as architecture context. Requires `d2` CLI (`brew install d2`) and optionally `excalidraw-cli` (`npm i -g @swiftlysingh/excalidraw-cli`).
 - **User control at every gate** -- No auto-looping. The user approves before the pipeline advances (D08 design constraint).
 
 ## Installation

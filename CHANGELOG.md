@@ -5,6 +5,18 @@ All notable changes to the dev-pipeline plugin marketplace will be documented in
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.0.1] - 2026-03-19
+
+### Added (Frontend)
+- **D2 diagram rendering in PLAN** — Architecture diagrams (data flow, state machine, dependency graph) now use D2 syntax with `d2` CLI rendering to SVG. Fallback to ASCII when `d2` unavailable. D2 source + SVG stored in `docs/[Feature]/.dev/plan/diagrams/`.
+- **D2 diagrams in DOCUMENT** — Component Architecture docs require D2 diagrams for component tree, data flow, and state flow. Rendered to SVG alongside `.d2` source files.
+- **Architecture diagram context in BUILD** — Mandatory context loading includes D2 diagram paths from PLAN/DOCUMENT phases. Subagent prompt table includes architecture diagrams row.
+- **Wireframe tool priority in DESIGN** — Hard Rule 4 now specifies tool priority: (a) `/wireframe` skill for 5-option HTML prototypes, (b) Excalidraw CLI for quick PNG sketches, (c) ASCII mockups. Layout approval required before ui-designer dispatch.
+
+### Changed (Frontend)
+- **PLAN Hard Rule 4** — Updated from "render ASCII diagrams" to "render D2 or ASCII diagrams, prefer D2 syntax"
+- **DESIGN Hard Rule 4** — Updated from "render ASCII mockups" to wireframe tool priority chain with mandatory layout approval gate
+
 ## [3.0.0] - 2026-03-18
 
 ### Added (Frontend)

@@ -12,7 +12,7 @@ description: Creates visual specifications for a frontend feature. Produces full
 1. **Read before acting.** Use the Read tool on context bridges, MANIFEST, and design system references before Discuss. Designing from memory produces specs that conflict with existing patterns.
 2. **Dispatch agents for spec creation.** The orchestrator reviews and confirms — agents (ui-designer, Explore) produce specs and audit for dedup. Inline spec-writing means you review your own design.
 3. **Use agent-prompt-template for dispatches.** Follow `references/agent-prompt-template.md`. Include design system references and decision log.
-4. **Show visual mockups inline.** When presenting design options, render ASCII mockups in chat and confirm via AskUserQuestion with preview. The user should SEE the design before it's written to the spec file (D17).
+4. **Show visual mockups inline.** When presenting design options, use visual tools in priority order: (a) `/wireframe` skill for 5-option interactive HTML prototypes, (b) Excalidraw CLI (`excalidraw-cli create --dsl "..." --output`) for quick PNG sketches, (c) ASCII mockups in chat with AskUserQuestion preview. The user should SEE the design before it's written to the spec file (D17). **User MUST approve a layout direction before ui-designer dispatch.**
 
 ---
 

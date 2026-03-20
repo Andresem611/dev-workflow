@@ -84,6 +84,7 @@ Use the Read tool on each file before this wave. Do not proceed until all reads 
 4. `Read(references/domain-agent-map.md)` → extract: correct agent types for this wave's domain tags
 5. `Read(references/agent-prompt-template.md)` → extract: prompt structure for agent dispatches
 6. `Read(references/codebase-context-block.md)` → extract: standard context block to embed in all agent prompts
+7. `Glob(docs/[feature]/.dev/plan/diagrams/*.d2)` + `Glob(docs/[feature]/.dev/document/diagrams/*.d2)` → if D2 diagrams exist, include their file paths in agent prompts as architecture context
 
 If any file is missing, STOP and surface the gap to the user.
 
@@ -187,6 +188,7 @@ For each task in this wave, define:
 | **Prompt** | Crafted via `/prompt-generator` |
 | **File paths** | Exact files to create/modify/test |
 | **Codebase context block** | Relevant architecture, patterns, existing code references |
+| **Architecture diagrams** | D2/SVG diagram paths from PLAN/DOCUMENT phases (data flow, component tree, state flow) — include in prompt so agent has visual architecture context |
 | **Success criteria** | What the subagent output must contain and pass |
 | **Escalation rules** | What happens if the task fails |
 
