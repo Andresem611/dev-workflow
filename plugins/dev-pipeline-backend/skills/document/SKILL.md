@@ -105,7 +105,7 @@ Adjust based on user preferences from Discuss.
 ### 2.4 Success Criteria
 
 Per-subagent:
-- **Master Plan:** Business requirements, architecture overview, decision log, migration plan, task list, success criteria
+- **Master Plan:** Business requirements, architecture overview, decision log, migration plan, task list, success criteria. **Diagrams MUST use D2 syntax** (rendered to SVG via `d2 <file>.d2 <file>.svg --layout=elk`). Store `.d2` + `.svg` in `docs/[Feature]/.dev/document/diagrams/`. Include: service dependency diagram, data flow diagram, migration chain diagram (if >2 migrations), model relationship diagram (if new models). Fallback to ASCII if `d2` unavailable.
 - **API Contract:** Endpoint specs with request/response, validation rules, status codes, error formats per `API_ERROR_RESPONSE_CONTRACT.md`, auth patterns
 - **Task Files:** Duration 30min-2.5hr, wave assignment, dependencies, exact file paths, acceptance criteria, TDD steps
 - **Wave Plans:** Task assignments, strategy, duration, completion criteria, wave dependencies

@@ -34,6 +34,7 @@ Read these files using the Read tool. Do NOT proceed until all are loaded:
 1. **Read** `${PLUGIN_ROOT}/references/domain-agent-map.md` — agent assignments for BUILD phase
 2. **Read** `${PLUGIN_ROOT}/references/inner-loop-reference.md` — stage mechanics and enforcement rules
 3. **Read** `${PLUGIN_ROOT}/references/codebase-context-block.md` — standard context for subagent prompts
+4. `Glob(docs/[feature]/.dev/plan/diagrams/*.d2)` + `Glob(docs/[feature]/.dev/document/diagrams/*.d2)` → if D2 diagrams exist, include their file paths in agent prompts as architecture context
 4. **Read** `${PLUGIN_ROOT}/references/agent-prompt-template.md` — fallback template if `/prompt-generator` unavailable
 
 Extract from domain-agent-map.md for BUILD:
@@ -165,6 +166,7 @@ For each task in this wave, define:
 | **Prompt** | Crafted via `/prompt-generator` |
 | **File paths** | Exact files to create/modify/test |
 | **Codebase context block** | Relevant architecture, patterns, existing code references |
+| **Architecture diagrams** | D2/SVG diagram paths from PLAN/DOCUMENT phases (data flow, service dependencies, state machines, migration chains) — include in prompt so agent has visual architecture context |
 | **Success criteria** | What the subagent output must contain and pass |
 | **Escalation rules** | What happens if the task fails |
 

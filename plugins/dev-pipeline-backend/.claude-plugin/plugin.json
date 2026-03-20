@@ -1,7 +1,7 @@
 {
   "name": "dev-pipeline-backend",
-  "description": "Backend development pipeline v2.0 — 4-stage inner loop (Discuss → Architect → Execute → Review) for phased feature delivery from intake through ship for Rails API",
-  "version": "3.0.0",
+  "description": "Backend development pipeline v3.2 — 4-stage inner loop with D2 diagram rendering for phased feature delivery from intake through ship for Rails API",
+  "version": "3.2.0",
   "author": {
     "name": "Thoven",
     "email": "andres@thoven.co"

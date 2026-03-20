@@ -280,14 +280,23 @@ Feature done-definition: decisions implemented, migrations clean in both environ
 
 If no existing models affected: "New tables only — no production data impact."
 
-#### 8. Architecture Diagrams (ASCII)
+#### 8. Architecture Diagrams (D2 + ASCII)
 
-For any non-trivial feature, subagents MUST produce ASCII diagrams:
+For any non-trivial feature, subagents MUST produce architecture diagrams using **D2 syntax** (preferred) or ASCII:
 
 - **Data flow diagram** — How data moves through services/controllers/models (required if feature has >2 services or new API endpoints)
 - **State machine** — For models with >3 states or complex lifecycle (required if feature has stateful models)
 - **Dependency graph** — Before/after showing new coupling (required if feature touches >4 files)
 - **Migration dependency chain** — Order of operations for multi-migration features (required if >2 migrations)
+
+**D2 rendering (when `d2` CLI is available):**
+After producing diagrams in D2 syntax, render to SVG:
+```bash
+d2 docs/[Feature]/.dev/plan/diagrams/<name>.d2 docs/[Feature]/.dev/plan/diagrams/<name>.svg --layout=elk
+```
+Store both `.d2` source and `.svg` output in `docs/[Feature]/.dev/plan/diagrams/`. Reference the SVGs in task files and wave files so BUILD agents have visual context.
+
+**Fallback:** If `d2` is not installed, produce ASCII diagrams inline (previous behavior). D2 source files are still valuable as text — they're readable without rendering.
 
 These diagrams go in the Execute artifact AND should be embedded as inline comments in the corresponding implementation files during BUILD (Models for state transitions, Services for pipelines, Controllers for request flow). Stale diagrams are worse than no diagrams — if BUILD modifies a diagrammed flow, the diagram MUST be updated in the same wave.
 

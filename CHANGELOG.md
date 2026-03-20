@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [3.2.0] - 2026-03-19
 
+### Added (Backend)
+- **D2 diagram rendering in PLAN** — Architecture diagrams (data flow, state machine, dependency graph, migration dependency chain) now use D2 syntax with `d2` CLI rendering to SVG. Fallback to ASCII when `d2` unavailable. D2 source + SVG stored in `docs/[Feature]/.dev/plan/diagrams/`.
+- **D2 diagrams in DOCUMENT** — Master Plan docs require D2 diagrams for service dependencies, data flow, migration chains, and model relationships. Rendered to SVG alongside `.d2` source files.
+- **Architecture diagram context in BUILD** — Mandatory context loading includes D2 diagram paths from PLAN/DOCUMENT phases. Subagent prompt table includes architecture diagrams row.
+
+### Changed (Backend)
+- **Backend plugin.json** — Version bumped to 3.2.0, description updated
+
 ### Added (Frontend)
 - **D2 diagram rendering in PLAN** — Architecture diagrams (data flow, state machine, dependency graph) now use D2 syntax with `d2` CLI rendering to SVG. Fallback to ASCII when `d2` unavailable. D2 source + SVG stored in `docs/[Feature]/.dev/plan/diagrams/`.
 - **D2 diagrams in DOCUMENT** — Component Architecture docs require D2 diagrams for component tree, data flow, and state flow. Rendered to SVG alongside `.d2` source files.
