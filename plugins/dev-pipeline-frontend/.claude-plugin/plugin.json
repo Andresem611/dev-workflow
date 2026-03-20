@@ -1,7 +1,7 @@
 {
   "name": "dev-pipeline-frontend",
-  "description": "Frontend development pipeline v2.0 — 4-stage inner loop (Discuss → Architect → Execute → Review) for phased feature delivery from intake through ship",
-  "version": "3.0.0",
+  "description": "Frontend development pipeline v3.2 — 4-stage inner loop with D2 diagram rendering, wireframe tool integration, and visual mockup enforcement for phased feature delivery from intake through ship",
+  "version": "3.2.0",
   "author": {
     "name": "Thoven",
     "email": "andres@thoven.co"
