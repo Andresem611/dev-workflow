@@ -47,16 +47,39 @@ Extract:
 - Requirements captured during INTAKE
 - Codebase scan findings (shallow)
 
-### 2. Ask WHAT Questions (one at a time)
+### Questioning Philosophy: Interrogation for Clarity
 
-Use `AskUserQuestion` for every question. One question per call. No batching. No cap — the user says "enough" or "move on" to end questioning (D02, D07).
+**Do not check boxes. Interrogate.**
 
-WHAT questions explore:
+The goal of Discuss is not to collect answers — it is to achieve *maximum clarity* about what we're building and WHY. Ask questions until every gap, ambiguity, and half-formed idea has been pressure-tested. The user says "enough" or "move on" to end — you do NOT decide you have enough.
+
+**Rules:**
+- **Never stop early.** If you sense ambiguity, unresolved tension, or a vague answer — ask a follow-up. "That makes sense, but what happens when...?" is always better than moving on.
+- **Lead with WHY, then WHAT, then HOW.** Understanding *why* the user wants something unlocks better *what* questions. If the user says "add a bookings endpoint," ask "Why a new endpoint? What's wrong with the existing one?" — because the answer might reveal the real need is filtering, not a new resource.
+- **Challenge soft answers.** "It should handle errors gracefully" → "Gracefully for who? The frontend showing a toast? A parent mid-payment? A background job retrying?" — those are different error strategies.
+- **Use the boiling water test.** If the user says "make X," ask WHY they want X. If they say "because I'm making pasta," you can now suggest "should we also salt the water?" — the WHY unlocks adjacent insights the user hasn't articulated yet.
+- **Surface your own confusion.** If something doesn't click, say so: "I don't fully understand how [A] connects to [B] — can you walk me through that?" Silence about confusion = bad downstream decisions.
+- **This is a product thinking session, not a form.** The user is working through their own reasoning. Your questions should help them sharpen their thinking — like a PM grilling a feature spec before it goes to engineering.
+
+### 2. Ask WHY Questions First (one at a time)
+
+Before asking WHAT to build, understand WHY we're building it. Use `AskUserQuestion` for every question. One question per call. No batching. No cap — the user says "enough" or "move on" to end questioning (D02, D07).
+
+**WHY questions** (ask these FIRST — they shape everything downstream):
+- Why does this feature need to exist? What problem is it solving?
+- Why now? What triggered this — user feedback, business goal, technical debt?
+- Why this approach? Were alternatives considered and rejected?
+- Who specifically benefits? What does their workflow look like without this feature?
+- What does success look like? How would you know this feature is working?
+
+**WHAT questions** (informed by WHY answers):
 - Business logic rules and acceptance criteria
 - Data model needs and entity relationships
 - Service boundaries and API contract expectations
 - Authorization and access control rules
 - Edge cases, error states, and failure modes
+
+**Follow-up on every answer.** If the answer to a WHAT question is vague, circle back to WHY: "You said you want soft deletes — why not hard deletes? Is there a compliance reason, or do users need to restore?"
 
 ### 3. Ask HOW Meta-Questions
 
@@ -372,6 +395,9 @@ State persists to disk (MANIFEST + stage artifacts). Nothing is lost on `/clear`
 | Not reading intake context bridge | Start Discuss by reading `.dev/intake/review-classification-confirmed.md` |
 | Pattern analysis without file paths | Explore MUST return exact file paths or explicit "not found" — no "probably exists" |
 | Batching multiple questions | One `AskUserQuestion` call per question, always (D02) |
+| Asking WHAT before WHY | Lead with WHY questions — understanding purpose unlocks better WHAT/HOW questions |
+| Accepting vague answers | Challenge soft answers ("handle errors gracefully" → "gracefully for who?"). Interrogate until clarity. |
+| Stopping questions too early | Do NOT decide you have enough info. Only the user says "enough" or "move on". |
 | Auto-looping on review failure | Surface failures to user, let them decide next action (D08) |
 | Skipping stage entry validation | Run `validate-stage-entry` before every stage — no exceptions |
 | Continuing past Review without approval | Review requires explicit user acceptance before proceeding |

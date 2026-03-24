@@ -7,7 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [3.3.0] - 2026-03-24
 
-### Added (Both Pipelines)
+### Added (Both Pipelines — DISCOVER)
+- **Interrogation-style questioning in DISCOVER Discuss** — New "Questioning Philosophy" section mandates interrogation for maximum clarity, not checkbox-style questioning. Agent must keep asking until every gap, ambiguity, and half-formed idea is pressure-tested. Only the user says "enough."
+- **WHY-first question ordering** — DISCOVER Discuss now leads with WHY questions (purpose, trigger, alternatives, success criteria) before WHAT questions. Understanding intent unlocks better design questions and adjacent insights — the "boiling water for pasta → salt the water" principle.
+- **Soft answer challenges** — Agent must challenge vague answers ("easy to use" → "easy for who?") and surface its own confusion rather than moving on with ambiguity.
+- **3 new anti-patterns** in Common Mistakes: asking WHAT before WHY, accepting vague answers, stopping questions too early.
+
+### Added (Both Pipelines — BUILD & DOCUMENT)
 - **Completion Log in task files** — DOCUMENT task file template now includes a `## Completion Log` section (Status, Planned, Actual, Deviations, Discoveries, Files touched). BUILD agents fill this after each task, creating a paper trail that survives `/clear` and parallel dispatch.
 - **Upstream Context in wave files** — DOCUMENT wave file template now includes `## Upstream Context` section listing prior wave completion log paths and key discoveries to carry forward.
 - **Completion Log mandate in BUILD Execute** — After each subagent finishes, the orchestrator MUST update the task file's Completion Log. Sequential tasks within a wave propagate discoveries to the next task's agent prompt.
