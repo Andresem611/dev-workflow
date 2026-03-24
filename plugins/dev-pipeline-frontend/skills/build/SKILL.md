@@ -85,6 +85,9 @@ Use the Read tool on each file before this wave. Do not proceed until all reads 
 5. `Read(references/agent-prompt-template.md)` → extract: prompt structure for agent dispatches
 6. `Read(references/codebase-context-block.md)` → extract: standard context block to embed in all agent prompts
 7. `Glob(docs/[feature]/.dev/plan/diagrams/*.d2)` + `Glob(docs/[feature]/.dev/document/diagrams/*.d2)` → if D2 diagrams exist, include their file paths in agent prompts as architecture context
+8. **Completion logs from prior wave (Wave 2+ only):** Read the `## Completion Log` section from every task file completed in the previous wave. Extract: deviations, discoveries, and files touched. These become upstream context for this wave's agents.
+   - `Read(docs/[feature]/tasks/TASK_XX.md)` for each task completed in wave N-1 → extract Completion Log section
+   - Compile a "Prior Wave Discoveries" summary (max 10 bullet points) to embed in agent prompts
 
 If any file is missing, STOP and surface the gap to the user.
 
@@ -189,6 +192,7 @@ For each task in this wave, define:
 | **File paths** | Exact files to create/modify/test |
 | **Codebase context block** | Relevant architecture, patterns, existing code references |
 | **Architecture diagrams** | D2/SVG diagram paths from PLAN/DOCUMENT phases (data flow, component tree, state flow) — include in prompt so agent has visual architecture context |
+| **Upstream context** | Completion log discoveries from prior wave tasks + completion logs from earlier sequential tasks in same wave. Compile as "Prior Discoveries" bullet list in prompt. |
 | **Success criteria** | What the subagent output must contain and pass |
 | **Escalation rules** | What happens if the task fails |
 
@@ -216,6 +220,16 @@ Select the agent for each task using this priority order:
 ### Execution Plan
 
 Define execution order based on Discuss decisions: **parallel** (independent tasks in a single message), **sequential** (dependent tasks wait for predecessors), or **hybrid**.
+
+#### Sequential Awareness Gate (MANDATORY)
+
+Before marking tasks as parallel, check for shared state:
+
+1. **File overlap check:** Compare the `## Files` sections of all tasks in this wave. If ANY two tasks modify the same file, default to **sequential** execution.
+2. **State overlap check:** If tasks share React Context, global state, or the same API endpoint, default to **sequential**.
+3. **Override:** User can explicitly override to parallel in Discuss if they accept the risk. Log the override reason.
+
+This gate prevents the most common parallel-dispatch failure: two agents modifying the same file with conflicting changes.
 
 ### Codebase Context Block
 
@@ -261,6 +275,25 @@ For each task: dispatch via Agent tool, wait for completion, check against succe
 **Parallel dispatch:** If Architect marked tasks as independent, dispatch ALL in a SINGLE message using multiple Agent tool calls.
 
 **Failure handling:** Log the failure, continue dispatching remaining tasks, surface ALL failures in Review. Do NOT retry during Execute — retries happen after Review via 3-strike escalation.
+
+### Completion Log Update (MANDATORY — after each agent completes)
+
+After each subagent finishes (pass or fail), the orchestrator MUST update the task file's `## Completion Log` section:
+
+```markdown
+| Field | Value |
+|-------|-------|
+| **Status** | Done / Failed / Partial |
+| **Planned** | [1-line summary of what the task spec said to do] |
+| **Actual** | [1-line summary of what was actually done] |
+| **Deviations** | [What differed from plan — "None" if exact match] |
+| **Discoveries** | [Anything the agent found that other agents should know — type mismatches, missing APIs, naming conventions, shared state gotchas] |
+| **Files touched** | [Exact paths created/modified] |
+```
+
+**Why this matters:** When Wave 3 agents start, they read Wave 2's completion logs. Without this step, discoveries die with the agent that found them. The 30 seconds to write this log saves hours of debugging when downstream agents repeat the same mistakes.
+
+**For sequential tasks within a wave:** After Task A completes and its completion log is written, include Task A's Discoveries in Task B's agent prompt before dispatching Task B.
 
 ### Result Recording
 
@@ -423,6 +456,8 @@ If FAIL, fix listed issues before proceeding.
 | **MANIFEST** | `current_wave`, `build_progress`, task completion status, strike count |
 | **01_IMPLEMENTATION_STATUS.md** | Mark completed tasks, note deviations |
 | **CURRENT_STATUS.md** | Current wave, what is done, what remains |
+| **Wave file `## Upstream Context`** | Update the NEXT wave's file: fill `Key discoveries to carry forward` with discoveries from this wave's completion logs |
+| **Task completion logs** | Verify all tasks in this wave have their `## Completion Log` filled. If any are empty, fill them now from `execute-build-results.md`. |
 
 ### Notion Update (Between Waves)
 
@@ -586,6 +621,9 @@ docs/[Feature]/.dev/build/
 | Not updating tracking files between waves | Update MANIFEST, IMPLEMENTATION_STATUS, CURRENT_STATUS after every wave |
 | Forgetting previous wave context | Read prior wave's `review-code-quality.md` in Discuss |
 | Final wave missing bridge content | Last review must contain cumulative summary for VALIDATE |
+| Not writing completion logs after tasks | MANDATORY — update task file's Completion Log after every agent completes |
+| Not reading prior wave completion logs | Step 0 requires reading completion logs from prior wave's tasks |
+| Parallel dispatch when tasks share files | Sequential Awareness Gate — check file overlap before marking parallel |
 
 ---
 

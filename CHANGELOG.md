@@ -5,6 +5,21 @@ All notable changes to the dev-pipeline plugin marketplace will be documented in
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.3.0] - 2026-03-24
+
+### Added (Both Pipelines)
+- **Completion Log in task files** — DOCUMENT task file template now includes a `## Completion Log` section (Status, Planned, Actual, Deviations, Discoveries, Files touched). BUILD agents fill this after each task, creating a paper trail that survives `/clear` and parallel dispatch.
+- **Upstream Context in wave files** — DOCUMENT wave file template now includes `## Upstream Context` section listing prior wave completion log paths and key discoveries to carry forward.
+- **Completion Log mandate in BUILD Execute** — After each subagent finishes, the orchestrator MUST update the task file's Completion Log. Sequential tasks within a wave propagate discoveries to the next task's agent prompt.
+- **Upstream context reading in BUILD Step 0** — Wave 2+ context loading reads all prior wave task completion logs, compiles a "Prior Discoveries" summary (max 10 bullets), and embeds it in agent prompts.
+- **Sequential Awareness Gate in BUILD Architect** — Before marking tasks as parallel, checks file overlap, state overlap (React Context/DB tables/API endpoints), and migration overlap (backend). Defaults to sequential if any overlap found. User can override with logged reason.
+- **Upstream context in agent prompt template** — `## Upstream Context (Completion Logs)` section added to agent-prompt-template.md for Wave 2+ and sequential task prompts.
+- **Between-wave tracking updates** — After each wave, orchestrator must: fill next wave's Upstream Context, verify all completion logs are populated.
+
+### Changed (Both Pipelines)
+- **Common Mistakes table** — Added 3 new anti-patterns: missing completion logs, missing prior wave context reads, parallel dispatch when tasks share files.
+- **Plugin descriptions** — Updated to mention completion log tracking and sequential awareness gate.
+
 ## [3.2.0] - 2026-03-19
 
 ### Added (Backend)

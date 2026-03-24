@@ -169,6 +169,17 @@ docs/[Feature]/
 
 ## Implementation Steps (TDD)
 1. Write failing test → 2. Verify failure → 3. Implement → 4. Verify pass → 5. Refactor → 6. Commit
+
+## Completion Log
+<!-- Filled by BUILD agent after task execution. Do not pre-populate. -->
+| Field | Value |
+|-------|-------|
+| **Status** | Not Started |
+| **Planned** | |
+| **Actual** | |
+| **Deviations** | |
+| **Discoveries** | |
+| **Files touched** | |
 ```
 
 **Agent Assignment Guide** — auto-assign the `Agent:` field using keyword matching:
@@ -205,6 +216,13 @@ docs/[Feature]/
 ## Dependencies
 - **Requires:** [Previous wave(s) or "None"]
 - **Unlocks:** [Next wave(s)]
+
+## Upstream Context
+<!-- Lists completion logs from prior waves that agents in THIS wave MUST read before starting. -->
+<!-- Wave 1: "None — first wave" -->
+<!-- Wave 2+: List paths to prior wave task completion logs -->
+- **Prior wave logs:** [None | `tasks/TASK_XX.md#completion-log`, `tasks/TASK_YY.md#completion-log`]
+- **Key discoveries to carry forward:** [Filled by BUILD orchestrator after prior wave completes]
 ```
 
 ### 3.5 Stage Artifact

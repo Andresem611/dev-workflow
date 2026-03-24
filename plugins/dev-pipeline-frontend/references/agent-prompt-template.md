@@ -39,6 +39,14 @@ Agent tool:
     - [filepath1] — [what to extract from it]
     - [filepath2] — [what to extract from it]
 
+    ## Upstream Context (Completion Logs)
+    <!-- Include this section for Wave 2+ tasks, or for sequential tasks after the first in a wave -->
+    Prior wave discoveries relevant to this task:
+    - [Discovery 1 from prior task completion log]
+    - [Discovery 2 — e.g., "TASK_02 found that UserContext requires profileLoaded check before accessing role"]
+    - [Discovery 3 — e.g., "TASK_03 renamed BookingSlot to TimeSlot across all types"]
+    Read these completion logs before starting: [list task file paths]
+
     ## must_haves (from requirements.md)
     [Paste the specific must_haves this task addresses]
 
