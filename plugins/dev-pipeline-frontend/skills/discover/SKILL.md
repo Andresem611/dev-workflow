@@ -254,7 +254,7 @@ Need a component/function/hook?
 
 Dispatch with crafted prompt from Architect, Explore findings as input, and all Discuss requirements.
 
-The ui-designer produces: UI requirements spec, user flow diagrams, interaction patterns, component hierarchy with reuse decisions, error states, and responsive behavior notes.
+The ui-designer produces: UI requirements spec, user flow diagrams (**D2 syntax preferred** — render to SVG via `d2 <file>.d2 <file>.svg --layout=elk`, store in `docs/[Feature]/.dev/discover/diagrams/`, fallback to ASCII if `d2` unavailable), interaction patterns, component hierarchy with reuse decisions, error states, and responsive behavior notes.
 
 Collect results. Check against ui-designer success criteria from Architect.
 

@@ -1,7 +1,7 @@
 {
   "name": "dev-pipeline-frontend",
-  "description": "Frontend development pipeline v3.3 — 4-stage inner loop with completion log tracking, sequential awareness gate, D2 diagrams, wireframe integration for phased feature delivery from intake through ship",
-  "version": "3.3.0",
+  "description": "Frontend development pipeline v3.3.1 — 4-stage inner loop with completion log tracking, sequential awareness gate, D2 diagrams across all phases, wireframe integration for phased feature delivery from intake through ship",
+  "version": "3.3.1",
   "author": {
     "name": "Thoven",
     "email": "andres@thoven.co"

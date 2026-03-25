@@ -5,6 +5,11 @@ All notable changes to the dev-pipeline plugin marketplace will be documented in
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.3.1] - 2026-03-24
+
+### Changed (Frontend — DISCOVER)
+- **D2 user flow diagrams in DISCOVER Execute** — ui-designer agent output now mandates D2 syntax for user flow diagrams (render to SVG via `d2`, fallback to ASCII). Completes visual tooling integration across all pipeline phases (PLAN, DOCUMENT, BUILD, DESIGN, DISCOVER).
+
 ## [3.3.0] - 2026-03-24
 
 ### Added (Both Pipelines — DISCOVER)
