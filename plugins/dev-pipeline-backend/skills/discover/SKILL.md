@@ -218,7 +218,7 @@ Collect results. Check against Explore success criteria from Architect.
 
 Dispatch with crafted prompt from Architect, Explore findings as input, and all Discuss requirements.
 
-The rails-expert produces: business logic specification, data model design, service layer architecture, API endpoint contracts, error handling strategy, and authorization rules.
+The rails-expert produces: business logic specification, data model design, service layer architecture (**D2 syntax preferred** for service dependency and data flow diagrams — render to SVG via `d2 <file>.d2 <file>.svg --layout=elk`, store in `docs/[Feature]/.dev/discover/diagrams/`, fallback to ASCII if `d2` unavailable), API endpoint contracts, error handling strategy, and authorization rules.
 
 Collect results. Check against rails-expert success criteria from Architect.
 

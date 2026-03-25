@@ -8,7 +8,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [3.3.1] - 2026-03-24
 
 ### Changed (Frontend — DISCOVER)
-- **D2 user flow diagrams in DISCOVER Execute** — ui-designer agent output now mandates D2 syntax for user flow diagrams (render to SVG via `d2`, fallback to ASCII). Completes visual tooling integration across all pipeline phases (PLAN, DOCUMENT, BUILD, DESIGN, DISCOVER).
+- **D2 user flow diagrams in DISCOVER Execute** — ui-designer agent output now mandates D2 syntax for user flow diagrams (render to SVG via `d2`, fallback to ASCII). Completes visual tooling integration across all frontend pipeline phases.
+
+### Changed (Backend — DISCOVER)
+- **D2 service/data flow diagrams in DISCOVER Execute** — rails-expert agent output now mandates D2 syntax for service dependency and data flow diagrams (render to SVG via `d2`, fallback to ASCII). Completes visual tooling integration across all backend pipeline phases.
 
 ## [3.3.0] - 2026-03-24
 
