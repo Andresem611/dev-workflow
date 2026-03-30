@@ -1,11 +1,11 @@
 ---
 name: design
-description: Creates visual specifications for a frontend feature. Produces full DESIGN_SPEC with Tailwind classes, typography, animation, responsive behavior, and accessibility. ALWAYS RUNS in frontend pipeline. Triggers on /dev:design or when /dev router advances past PLAN.
+description: Creates visual specifications for a frontend feature. Reads DISCOVER bridge, performs backend requirements check, produces contract stubs when endpoints are missing. Produces full DESIGN_SPEC with Tailwind classes, typography, animation, responsive behavior, and accessibility. ALWAYS RUNS in frontend pipeline. Triggers on /dev:design or when /dev router advances past DISCOVER.
 ---
 
 # /dev:design — Visual Specification + Design System Compliance
 
-**Phase 4 of /dev pipeline. ALWAYS RUNS in the frontend pipeline (D15).** This phase is not conditional on domain tags. Every frontend feature gets a design spec.
+**Phase 3 of /dev pipeline (v4.0: runs BEFORE PLAN). ALWAYS RUNS in the frontend pipeline (D15).** This phase is not conditional on domain tags. Every frontend feature gets a design spec.
 
 ## Hard Rules
 
@@ -26,7 +26,7 @@ See `inner-loop-reference.md` for canonical stage definitions.
 
 ## Stage 1: Discuss — Visual Direction
 
-**Read context bridge first:** `.dev/plan/review-plan-approval.md`
+**Read context bridge first:** `.dev/discover/review-design-approval.md`
 
 If the file does not exist, STOP and surface the missing prerequisite to the user.
 
@@ -42,11 +42,25 @@ If FAIL, fix missing prerequisites before proceeding.
 
 Use the Read tool on each file. Do not proceed to WHAT questions until all reads complete.
 
-1. `Read(.dev/plan/review-plan-approval.md)` → extract: locked decisions, architecture, component hierarchy
+1. `Read(.dev/discover/review-design-approval.md)` → extract: confirmed requirements, reuse decisions, user flows, LOCKED decisions from Decision Ledger
 2. `Read(references/domain-agent-map.md)` → extract: agent assignments for DESIGN phase (ui-designer, Explore)
 3. `Read(references/codebase-context-block.md)` → extract: design system rules, color palette, typography, 3D button pattern
+4. `Read(references/bridge-template.md)` → extract: structured bridge format, echo-back protocol
+5. `Read(references/decision-ledger-template.md)` → extract: ledger format, how to add OPEN entries for design decisions
 
 If any file is missing, STOP and surface the gap to the user.
+
+**Echo-Back (v4.0):** After loading, echo back LOCKED decisions from the DISCOVER bridge:
+
+```
+Loaded context from DISCOVER:
+- [N] LOCKED decisions: U-01 (description), U-02 (description), ...
+- Execution mode: [Expansion/Hold/Reduction]
+- Star target: [from Zone 2]
+- Scope IN items: [from Zone 3]
+```
+
+If echo-back is incomplete → re-read bridge.
 
 ### WHAT Questions
 
@@ -205,6 +219,40 @@ node ${PLUGIN_ROOT}/../shared/tools/dev-pipeline-tools.js validate-stage-output 
 
 Check Execute output against Architect's success criteria. Every check is evidence-based: pass or fail with specific evidence.
 
+### Backend Requirements Check (v4.0 — MANDATORY)
+
+After verifying the design spec, check all interactions in the DESIGN_SPEC for backend API dependencies.
+
+**Step 1: Derive API calls from design interactions**
+
+For each component interaction in the DESIGN_SPEC (button clicks, form submissions, data displays, real-time updates), identify what backend endpoint it requires.
+
+**Step 2: Check endpoint status**
+
+| Interaction | Endpoint Needed | Method | Status |
+|-------------|----------------|--------|--------|
+| [from DESIGN_SPEC] | [endpoint] | [GET/POST/etc] | EXISTS / MISSING |
+
+Check against `lib/*-api.ts` files and `docs/API_ENDPOINTS_REFERENCE.md` if available.
+
+**Step 3: If any MISSING endpoints detected**
+
+Produce `backend-contract-stub.md` using the template from `references/backend-contract-stub-template.md`. Place it at `.dev/design/backend-contract-stub.md`.
+
+Present via AskUserQuestion:
+
+> "[N] backend endpoints needed for this design don't exist yet."
+>
+> - **A) Proceed to PLAN with typed mocks** — Frontend builds against mock data. Swap for real API when backend delivers. Backend contract stub saved for handoff.
+> - **B) Pause frontend, hand off to backend** — Produce the contract stub and pause. Resume after backend `/dev:handover` delivers confirmed contract.
+> - **C) Both in parallel** — Frontend proceeds with mocks AND backend starts building from the contract stub.
+
+Record the choice in the Decision Ledger as a LOCKED decision.
+
+**Step 4: If all endpoints exist**
+
+State: "All backend endpoints exist. No contract stub needed." Proceed to the brand rules checklist.
+
 ### Thoven Brand Rules Checklist (MANDATORY)
 
 All five checks must pass. No exceptions.
@@ -244,7 +292,7 @@ Surface any gaps or failures to the user via `AskUserQuestion`. The user decides
 | **Retry Execute** | Re-dispatch failed subagents with adjusted prompts |
 | **Back to Architect** | Redesign the execution plan |
 | **Back to Discuss** | Revisit visual direction or requirements |
-| **Accept** | Approve and advance to DOCUMENT |
+| **Accept** | Approve and advance to PLAN |
 
 No auto-looping (D08). User decides.
 
@@ -261,14 +309,16 @@ The next phase's Architect must address each listed agent — silent omission is
 
 **File:** `.dev/design/review-design-compliance.md`
 
-This artifact IS the context bridge to the DOCUMENT phase. It must contain:
+This artifact IS the context bridge to the PLAN phase. It must follow `references/bridge-template.md` format. It must contain:
+- LOCKED decisions from Decision Ledger (including any new design decisions made in this phase)
+- Backend requirements status (all exist / contract stub produced)
 - Summary of what was designed (component inventory, visual direction)
 - Brand compliance verdict (all 5 checks with evidence)
 - Dedup decision and rationale
 - Responsive behavior summary
 - Accessibility requirements summary
-- Caveats or warnings for DOCUMENT phase
-- Recommended focus areas for documentation
+- Caveats or warnings for PLAN phase
+- Recommended focus areas for architecture and task breakdown
 
 ```bash
 node ${PLUGIN_ROOT}/../shared/tools/dev-pipeline-tools.js validate-stage-output design review docs/[feature] --plugin frontend
@@ -282,7 +332,7 @@ After acceptance, update the Dev Tracker card with design decisions. Read the Ca
    - Page ID: Card ID from MANIFEST
    - Properties: Notes = append design spec summary (visual direction, component inventory, responsive strategy, brand compliance verdict), Last Updated = today's ISO date
 
-2. Display: `📋 Notion: Updated notes — "[Feature Name]" (design spec complete)`
+2. Display: `📋 Notion: Updated notes — "[Feature Name]" (design spec complete, bridges to PLAN)`
 
 **Notion Protocol:** Follow the Retry + Warning Protocol in `references/notion-integration.md`.
 - Phase type: Downstream (status update — check Card ID first)
@@ -309,16 +359,16 @@ After acceptance, display the Next Up block and STOP:
 ---
 Next Up
 
-Phase: DOCUMENT — 5-layer docs + wave execution plans
+Phase: PLAN — Architecture decisions + task breakdown (informed by this design)
 
-/dev:document
+/dev:plan
 
 /clear first — fresh context window
 ```
 
 State persists to disk (MANIFEST + stage artifacts). Nothing is lost on `/clear`.
 
-**STOP.** Do not invoke DOCUMENT. Do not offer to continue in the same session.
+**STOP.** Do not invoke PLAN. Do not offer to continue in the same session.
 
 ---
 
@@ -367,6 +417,10 @@ No borders. No `font-display`. Shadow uses `rgb(217,119,6)` exclusively.
 | Wrong shadow RGB | `rgb(217,119,6)` only |
 | Producing spec inline | Always dispatch ui-designer agent |
 | Missing responsive/a11y | Must specify all breakpoints + ARIA/focus/contrast/touch |
+| Reading plan bridge instead of discover | v4.0: DESIGN reads `.dev/discover/review-design-approval.md`, not PLAN bridge |
+| Skipping backend requirements check | Backend check is MANDATORY in DESIGN Review — missing endpoints not caught until BUILD otherwise |
+| Routing to DOCUMENT after DESIGN | v4.0: PLAN comes after DESIGN — Next Up must route to `/dev:plan` |
+| Not adding design decisions to ledger | Add OPEN entries for design decisions, promote to LOCKED in Review — otherwise PLAN can't reference them |
 
 ---
 

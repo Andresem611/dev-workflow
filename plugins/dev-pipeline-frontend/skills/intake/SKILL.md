@@ -1,6 +1,6 @@
 ---
 name: intake
-description: Starts new features through the /dev pipeline. Handles initial classification, scoping, domain tagging, and MANIFEST creation using the 4-stage inner loop. Triggers on /dev:intake or when /dev router detects no existing MANIFEST.
+description: Starts new features through the /dev pipeline. Handles initial classification, scoping, domain tagging, MANIFEST creation, and Decision Ledger initialization using the 4-stage inner loop. Triggers on /dev:intake or when /dev router detects no existing MANIFEST.
 ---
 
 # /dev:intake — Entry Phase (v2.0)
@@ -133,7 +133,8 @@ The subagent:
 1. Creates `docs/[Feature_Name]/.dev/MANIFEST.md` using the template from `references/manifest-template.md`
 2. Populates: feature name, description, entry mode, domain tags, current phase, status (`active`), empty phase progress table (INTAKE = in progress, rest = pending)
 3. Creates the `.dev/intake/` directory structure
-4. Does NOT include any tier field (tiers removed — D05)
+4. Initializes the Decision Ledger section in MANIFEST using the template from `references/decision-ledger-template.md`. The ledger starts empty — entries are added during DISCOVER Discuss.
+5. Does NOT include any tier field (tiers removed — D05)
 
 ### Artifact
 
@@ -183,6 +184,8 @@ Options:
 3. **Back to Architect** — redesign the MANIFEST plan
 4. **Back to Discuss** — revisit requirements
 ```
+
+**Decision Ledger:** The MANIFEST now contains an empty Decision Ledger. Entries will be populated during DISCOVER's 4-Zone Discuss. The review artifact (context bridge) uses the structured format from `references/bridge-template.md`.
 
 **User decides.** No auto-accepting (D08).
 
@@ -248,7 +251,7 @@ State persists to disk (MANIFEST + stage artifacts). Nothing is lost on `/clear`
 
 `.dev/intake/review-classification-confirmed.md` — User confirmation, final domain tags, routing decision, bridge context for next phase.
 
-This artifact IS the context bridge. The next phase reads it to understand classification decisions.
+This artifact IS the context bridge. The next phase reads it to understand classification decisions. The bridge MUST follow the structured format from `references/bridge-template.md`, including: LOCKED decisions table (empty at INTAKE since no Discuss decisions yet), key artifacts, focus for next phase, and dispatch mandate.
 
 ```bash
 node ${PLUGIN_ROOT}/../shared/tools/dev-pipeline-tools.js validate-stage-output intake review <feature-dir> --plugin frontend
@@ -280,12 +283,12 @@ node ${PLUGIN_ROOT}/../shared/tools/dev-pipeline-tools.js validate-stage-output 
 | Mode | Signal | Routes To |
 |------|--------|-----------|
 | **Idea dump** | Rough idea, exploratory language | DISCOVER |
-| **Tech spec** | PRD, spec doc, detailed requirements | PLAN (skip DISCOVER) |
+| **Tech spec** | PRD, spec doc, detailed requirements | DESIGN (skip DISCOVER) |
 | **Backend handoff** | "Backend is ready", API docs attached | PLAN or DESIGN |
 | **Design handoff** | Mockups, design files, visual references | DESIGN |
 | **Bug/issue** | "broken", "error", stack traces | BUILD (investigate) |
-| **Kiro spec** | `.kiro/specs/` dir present, EARS requirements pasted (WHEN…SHALL lines), or "Kiro spec ready" | PLAN (skip DISCOVER) |
-| **CEK SDD spec** | `.specs/tasks/todo/` dir present, arc42 spec pasted, or "CEK spec ready" | PLAN (skip DISCOVER) |
+| **Kiro spec** | `.kiro/specs/` dir present, EARS requirements pasted (WHEN…SHALL lines), or "Kiro spec ready" | DESIGN (skip DISCOVER) |
+| **CEK SDD spec** | `.specs/tasks/todo/` dir present, arc42 spec pasted, or "CEK spec ready" | DESIGN (skip DISCOVER) |
 | **Resume** | Existing MANIFEST found | Current phase from MANIFEST |
 
 ---
@@ -320,6 +323,8 @@ No `prompt-transitions/` directory. The `review-classification-confirmed.md` ser
 | Auto-invoking next phase after Review | Display `Next Up` block and STOP |
 | Creating `prompt-transitions/` directory | v1.x pattern removed — `review-*.md` IS the context bridge |
 | Skipping codebase scan when user opts in | Dispatch Explore agent if user says yes during Discuss (D09) |
+| Not initializing Decision Ledger | MANIFEST creation MUST include empty Decision Ledger section — later phases can't track LOCKED decisions without it |
+| Routing tech specs to PLAN | v4.0: DESIGN before PLAN — tech specs route to DESIGN. All entry modes except bug/resume route through DESIGN |
 
 ---
 
@@ -333,12 +338,12 @@ Review: validate-manifest + user confirms -> review-classification-confirmed.md
 
 Entry Mode -> Target Phase:
   Idea dump      -> DISCOVER
-  Tech spec      -> PLAN
+  Tech spec      -> DESIGN
   Backend handoff -> PLAN or DESIGN
   Design handoff -> DESIGN
   Bug/issue      -> BUILD (investigate)
-  Kiro spec      -> PLAN (skip DISCOVER; spec artifacts seed architecture + acceptance criteria)
-  CEK SDD spec   -> PLAN (skip DISCOVER; arc42 spec seeds architecture + acceptance criteria)
+  Kiro spec      -> DESIGN (skip DISCOVER; spec artifacts seed architecture + acceptance criteria)
+  CEK SDD spec   -> DESIGN (skip DISCOVER; arc42 spec seeds architecture + acceptance criteria)
   Resume         -> MANIFEST current phase
 
 MANIFEST: docs/[Feature_Name]/.dev/MANIFEST.md

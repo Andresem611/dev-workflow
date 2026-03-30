@@ -14,6 +14,8 @@ Execute implementation tasks wave by wave. Each wave runs its own full 4-stage i
 3. **Read domain-agent-map before dispatching.** Use `Read(references/domain-agent-map.md)` to select the right specialist for each task's domain — not just `frontend-developer` for everything.
 4. **Use agent-prompt-template for every dispatch.** Follow `references/agent-prompt-template.md`. Include: codebase context block, decision log entries, must_haves from requirements.md, exact file paths, verification criteria.
 5. **Include must_haves in every agent prompt.** Paste the specific must_haves from requirements.md that this task addresses. Without them, the agent can't verify its own output.
+6. **Include LOCKED decisions in every agent prompt (v4.0).** Every BUILD agent prompt MUST include a "LOCKED Decisions (DO NOT OVERRIDE)" section listing all LOCKED items from the Decision Ledger. This prevents agents from making scope changes that contradict user decisions. See `references/decision-ledger-template.md`.
+7. **Respect execution mode depth (v4.0).** Check `references/mode-propagation-reference.md` for BUILD depth settings. REDUCTION = 1 agent per task, quick review. HOLD = per domain-map. EXPANSION = per domain + independent reviewer.
 
 ### Anti-Rationalization Checklist (before Execute)
 

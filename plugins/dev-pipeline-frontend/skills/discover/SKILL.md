@@ -1,9 +1,9 @@
 ---
 name: discover
-description: Explores requirements, brainstorms solutions, and researches existing patterns for a feature. Produces design doc and reuse audit via the 4-stage inner loop. Triggers on /dev:discover or when /dev router advances past INTAKE.
+description: Explores requirements via 4-Zone Discuss, Decision Ledger, and mode selection. Brainstorms solutions and researches existing patterns. Produces design doc and reuse audit via the 4-stage inner loop. Triggers on /dev:discover or when /dev router advances past INTAKE.
 ---
 
-# /dev:discover — Brainstorm + Codebase Research
+# /dev:discover — 4-Zone Brainstorm + Codebase Research + Mode Selection (v4.0)
 
 Explore UI requirements, user flows, interaction patterns, and component reuse. Produces a design doc and reuse audit.
 
@@ -36,7 +36,7 @@ Use GROUND findings to inform Discuss questions. Skip GROUND only if: PAUSE resu
 
 ---
 
-## Stage 1: Discuss — UI Requirements Discussion
+## Stage 1: Discuss — 4-Zone Brainstorm (v4.0)
 
 ### 0. Validate Entry (MANDATORY)
 
@@ -49,83 +49,129 @@ If PASS → continue.
 
 ### MANDATORY CONTEXT LOADING — Step 0
 
-Use the Read tool on each file. Do not proceed to WHAT questions until all reads complete.
+Use the Read tool on each file. Do not proceed to Zone 1 until all reads complete.
 
 1. `Read(.dev/intake/review-classification-confirmed.md)` → extract: feature name, description, domains, entry mode, requirements from INTAKE
 2. `Read(references/domain-agent-map.md)` → extract: agent assignments for DISCOVER phase, domain combination patterns
 3. `Read(references/inner-loop-reference.md)` → extract: D02, D04, D06, D07, D09, D17, D18 decision rules
 4. `Read(references/codebase-context-block.md)` → extract: stack details for agent prompts
+5. `Read(references/discuss-zones-reference.md)` → extract: zone definitions, exit conditions, questioning techniques
+6. `Read(references/decision-ledger-template.md)` → extract: ledger format, LOCKED/OPEN rules
+7. `Read(references/bridge-template.md)` → extract: structured bridge format for review artifact
 
 If any file is missing, STOP and surface the gap to the user.
 
-### Questioning Philosophy: Interrogation for Clarity
-
-**Do not check boxes. Interrogate.**
-
-The goal of Discuss is not to collect answers — it is to achieve *maximum clarity* about what we're building and WHY. Ask questions until every gap, ambiguity, and half-formed idea has been pressure-tested. The user says "enough" or "move on" to end — you do NOT decide you have enough.
-
-**Rules:**
-- **Never stop early.** If you sense ambiguity, unresolved tension, or a vague answer — ask a follow-up. "That makes sense, but what happens when...?" is always better than moving on.
-- **Lead with WHY, then WHAT, then HOW.** Understanding *why* the user wants something unlocks better *what* questions. If the user says "add a calendar view," ask "Why a calendar? What problem are teachers hitting with the current list view?" — because the answer might reveal the real need is time-slot visibility, not a calendar.
-- **Challenge soft answers.** "It should be easy to use" → "Easy for who? A teacher scheduling 15 students, or a parent booking one lesson? Those are different UX problems."
-- **Use the boiling water test.** If the user says "make X," ask WHY they want X. If they say "because I'm making pasta," you can now suggest "should we also salt the water?" — the WHY unlocks adjacent insights the user hasn't articulated yet.
-- **Surface your own confusion.** If something doesn't click, say so: "I don't fully understand how [A] connects to [B] — can you walk me through that?" Silence about confusion = bad downstream decisions.
-- **This is a product thinking session, not a form.** The user is working through their own reasoning. Your questions should help them sharpen their thinking — like a PM grilling a feature spec before it goes to engineering.
-
-### 2. Ask WHY Questions First (one at a time)
-
-Before asking WHAT to build, understand WHY we're building it. Use `AskUserQuestion` for every question. One question per call. No batching. No cap — the user says "enough" or "move on" to end questioning (D02, D07).
-
-**WHY questions** (ask these FIRST — they shape everything downstream):
-- Why does this feature need to exist? What problem is it solving?
-- Why now? What triggered this — user feedback, business goal, technical debt?
-- Why this approach? Were alternatives considered and rejected?
-- Who specifically benefits? What does their day look like without this feature?
-- What does success look like? How would you know this feature is working?
-
-**WHAT questions** (informed by WHY answers):
-- UI requirements and acceptance criteria
-- User flows and interaction patterns
-- Component reuse needs and expectations
-- Visual references or prior art
-- Edge cases and error states
-- Responsive behavior and accessibility needs
-
-**Follow-up on every answer.** If the answer to a WHAT question is vague, circle back to WHY: "You said you want a filter dropdown — why a dropdown instead of tabs? What's the user trying to accomplish?"
-
-### 3. Ask HOW Meta-Questions
-
-HOW questions let the user control execution depth (D06):
-
-| Question | What It Controls |
-|----------|-----------------|
-| "Should we run a boardroom debate on approach?" | Enables/disables boardroom in Execute (D18) |
-| "Focused agents or broad exploration?" | Scope of codebase research |
-| "How deep should the reuse audit go?" | Reuse audit thoroughness |
-| "Want codebase research before we continue?" | Triggers optional research pre-step (D09) |
-| "Any specific areas of the codebase to investigate?" | Targets Explore agent scope |
-
-### 4. Optional Research Pre-Step (D09)
-
-If user opts in during questioning, dispatch an Explore agent to scan for existing patterns before continuing:
-
+**Echo-Back:** After loading, echo back any LOCKED decisions from the intake bridge:
 ```
-Dispatch: Explore subagent
-Purpose: Scan codebase for patterns related to [feature]
-Scope: User-directed (broad or focused)
+Loaded context from INTAKE:
+- [N] LOCKED decisions: [list or "none yet — first decisions made here"]
+- Feature: [name from MANIFEST]
+- Domains: [from MANIFEST]
 ```
 
-Resume Discuss questioning with findings. The research enriches remaining questions.
+### Zone 1: WHY (Problem Space)
+
+**Technique:** Premise Challenge (from /plan-ceo-review)
+**Purpose:** Understand the motivation behind the request, not just the request itself.
+
+**Questions (AskUserQuestion, one at a time, lead with recommendation):**
+1. "Why does this feature need to exist? What problem is it solving?"
+2. "What happens if we do nothing? Real pain point or hypothetical?"
+3. "What's the actual user outcome — not the feature, but what changes for the user?"
+4. "Could a different framing yield a simpler solution?"
+5. "What triggered this now? User feedback, business goal, tech debt?"
+
+**Follow-up discipline:** If the answer describes a FEATURE ("I want a calendar"), ask "Why a calendar? What problem does a calendar solve?" The WHY reveals the real need.
+
+**Exit condition:** Problem statement in JTBD format: "When [situation], I want [motivation], so I can [outcome]." If it mentions a specific UI element, you haven't reached the real problem.
+
+**Ledger entries:**
+- Problem statement (JTBD) → LOCKED
+- Root trigger → LOCKED
+
+### Zone 2: WHO (User Context)
+
+**Technique:** Empathy Map + 11-Star Framework (from /customer-obsession-design-thinking)
+**Purpose:** Ground the feature in a real user's day.
+
+**Questions (AskUserQuestion, one at a time):**
+1. "Which user type is this primarily for? Teacher, Parent, Student, or Admin?"
+2. "Walk me through their day — where does this feature fit?"
+3. "What do they currently DO to solve this problem? (workaround, manual process)"
+4. "What's 5-star (functional), 7-star (delightful), 9-star (remarkable)?"
+5. "Where between 7-9 should we aim?"
+
+**Mode interaction:** In REDUCTION mode, skip Zone 2 entirely. In EXPANSION mode, add the 11-star exercise and empathy prompts (SAYS/THINKS/FEELS/DOES).
+
+**Exit condition:** Named user scenario end-to-end: "[User type] is doing [activity], hits [problem], currently does [workaround], with this feature would [new behavior]."
+
+**Ledger entries:**
+- Target user type → LOCKED
+- User scenario → LOCKED
+- Star target → LOCKED
+
+### Zone 3: WHAT (Scope + Boundaries)
+
+**Technique:** GROUND-Informed Scope + Constraint Removal (from /product-strategy-brainstorming)
+**Purpose:** Define IN/OUT, grounded in codebase reality from GROUND agent.
+
+**GROUND findings are MANDATORY here.** Reference specific files/components the Explore agent found. Do NOT ask generic scope questions when you have codebase data.
+
+**Questions (AskUserQuestion, one at a time):**
+1. "[GROUND] I found [component X] at [path]. Reuse, extend, or new?"
+2. "[GROUND] This overlaps with [feature Y]. Extending Y or separate?"
+3. "If zero tech limits, what would this look like? Now the 80% version?"
+4. "What are we explicitly NOT building? Where's the scope boundary?"
+5. "Solution approaches: I see [A], [B], [C] — which direction?"
+
+**Mode interaction:** In REDUCTION mode, quick IN/OUT list only. In EXPANSION mode, add constraint removal exercise and opportunity solution tree.
+
+**Exit condition:** Explicit IN/OUT list. Every IN item traces to the JTBD from Zone 1.
+
+**Ledger entries:**
+- Every IN scope item → LOCKED (with JTBD traceability)
+- NOT-in-scope items → LOCKED
+- Reuse decisions → LOCKED
+
+### Zone 4: HOW (Execution Preferences)
+
+**Technique:** Temporal Interrogation + Mode Selection (from /product-advisor)
+**Purpose:** User controls pipeline depth and execution strategy.
+
+**Questions (AskUserQuestion, one at a time):**
+1. "Pipeline mode — Expansion (go big), Hold (standard), or Reduction (ship fast)?"
+2. "Backend coordination — does this need new backend work?"
+3. [EXPANSION/HOLD only] "Think ahead — what decisions should we resolve NOW vs defer to DESIGN/PLAN?"
+4. "Review depth — standard checks or invoke full eng/CEO reviews at boundaries?"
+5. "Timeline pressure — any deadline? Does that change the mode?"
+
+**Exit condition:** Mode selected, preferences captured.
+
+**Ledger entries:**
+- Execution mode (Expansion/Hold/Reduction) → LOCKED
+- Backend coordination signal → LOCKED
+- Timeline pressure → LOCKED
+- Review depth preference → LOCKED
+
+### Questioning Discipline (All Zones)
+
+- One AskUserQuestion per question. NEVER batch.
+- Lead with "We recommend [X] because [reason]" (D17)
+- Follow up on vague answers. "Easy to use" → "Easy for who?"
+- Reference GROUND findings in Zone 3. Generic questions when you have codebase data = lazy.
+- User says "enough" or "move on" to advance. YOU do not decide when a zone is done.
+- Never ask a question GROUND already answered.
 
 ### Stage Artifact
 
 Write: `.dev/discover/discuss-ui-requirements.md`
 
 Contents:
-- All Q&A pairs (WHAT and HOW)
-- Locked decisions from user
-- Research pre-step findings (if performed)
-- User preferences for execution depth
+- All Q&A from all 4 zones
+- LOCKED decisions per zone (with IDs)
+- GROUND findings referenced in Zone 3
+- Execution mode selected in Zone 4
+- Exit condition evidence for each zone
 
 ```bash
 node ${PLUGIN_ROOT}/../shared/tools/dev-pipeline-tools.js validate-stage-output discover discuss <feature-dir> --plugin frontend
@@ -153,6 +199,8 @@ Before designing agent prompts, confirm:
 - [ ] `domain-agent-map.md` was Read in Step 0 — list ALL agents from the map for this phase as either "dispatched" or "skipped (reason)"
 - [ ] Domain Combination Patterns checked — read the Domain Combination Patterns table from domain-agent-map.md and apply any extra considerations (e.g., `routing + auth-ui` = test both authenticated and unauthenticated access)
 - [ ] Previous phase review artifact was Read — decisions and context carried forward
+- [ ] Decision Ledger entries from Discuss are complete — all 4 zones produced LOCKED items
+- [ ] Execution mode is set and will be used to determine agent depth in Execute
 
 This verification appears in the Orchestration Log under `Map compliance`.
 
@@ -335,7 +383,7 @@ Present options via `AskUserQuestion`:
    node ${PLUGIN_ROOT}/../shared/tools/dev-pipeline-tools.js validate-manifest <feature-dir> --plugin frontend
    ```
 
-3. Write review artifact (context bridge to PLAN).
+3. Write review artifact (context bridge to DESIGN).
 
 #### Dispatch Mandate for Next Phase
 
@@ -350,7 +398,14 @@ The next phase's Architect must address each listed agent — silent omission is
 
 Write: `.dev/discover/review-design-approval.md`
 
-This artifact bridges to PLAN. Must contain: design decisions and rationale, reuse audit findings (paths + classifications), confirmed requirements, boardroom synthesis (if run), caveats for PLAN, and recommended focus areas for architecture.
+Must follow `references/bridge-template.md` format. This artifact bridges to DESIGN. Must contain:
+- LOCKED decisions table from the Decision Ledger
+- Key artifacts produced (design doc, reuse audit, boardroom synthesis if run)
+- Design decisions and rationale
+- Reuse audit findings (paths + classifications)
+- Confirmed requirements
+- Focus for DESIGN (visual design spec + component design)
+- Dispatch mandate for DESIGN phase agents
 
 ```bash
 node ${PLUGIN_ROOT}/../shared/tools/dev-pipeline-tools.js validate-stage-output discover review <feature-dir> --plugin frontend
@@ -362,12 +417,12 @@ node ${PLUGIN_ROOT}/../shared/tools/dev-pipeline-tools.js validate-stage-output 
 
 Before displaying the Next Up block, offer a comprehensive review via `AskUserQuestion`:
 
-> "DISCOVER is complete. Before locking architecture in PLAN, want a comprehensive review of the feature direction?"
+> "DISCOVER is complete. Before moving to visual design in DESIGN, want a comprehensive review of the feature direction?"
 >
 > We recommend **A** for ambitious or unfamiliar features, **B** for well-understood work:
 >
 > - **A) CEO Review** — Challenge premises, find the 10-star version, validate scope direction. Invokes `/plan-ceo-review` against the DISCOVER outputs. Best for: new features, strategic bets, anything where "should we even build this?" is worth 10 minutes.
-> - **B) Skip** — Proceed directly to PLAN. Best for: well-scoped features where direction is clear.
+> - **B) Skip** — Proceed directly to DESIGN. Best for: well-scoped features where direction is clear.
 > - **C) Quick scope check** — Just 3 questions: (1) What existing code already solves sub-problems? (2) What's the minimum change set? (3) Complexity smell check (>8 files or >2 new classes = challenge it). Lighter than full CEO review.
 
 If user selects A: invoke `Skill(plan-ceo-review)` with the DISCOVER review artifact as context. After the review completes, return here and display the Next Up block.
@@ -382,16 +437,16 @@ If user selects C: ask the 3 scope questions via `AskUserQuestion` (one at a tim
 ---
 Next Up
 
-Phase: PLAN — Architecture decisions + task breakdown
+Phase: DESIGN — Visual design spec + component design
 
-/dev:plan
+/dev:design
 
 /clear first — fresh context window
 ```
 
 State persists to disk (MANIFEST + stage artifacts). Nothing is lost on `/clear`.
 
-**STOP.** Do not invoke PLAN. Do not offer to continue in the same session.
+**STOP.** Do not invoke DESIGN. Do not offer to continue in the same session.
 
 ---
 
@@ -422,6 +477,10 @@ State persists to disk (MANIFEST + stage artifacts). Nothing is lost on `/clear`
 | Auto-looping on review failure | Surface failures to user, let them decide next action (D08) |
 | Skipping stage entry validation | Run `validate-stage-entry` before every stage — no exceptions |
 | Continuing past Review without approval | Review requires explicit user acceptance before proceeding |
+| Flat question list instead of zones | Questions are generic, not grounded in GROUND findings — use 4-Zone Discuss with exit conditions per zone (D21) |
+| Not populating Decision Ledger | User decisions lost, agents override scope — every zone produces LOCKED entries in the ledger (D19) |
+| Not setting execution mode | All phases run at same depth regardless of feature size — Zone 4 must set Expansion/Hold/Reduction mode (D22) |
+| Routing to PLAN after DISCOVER | v4.0: DESIGN comes before PLAN — DISCOVER routes to DESIGN, not PLAN |
 
 ---
 
@@ -429,7 +488,7 @@ State persists to disk (MANIFEST + stage artifacts). Nothing is lost on `/clear`
 
 | Stage | Key Action | Artifact |
 |-------|-----------|----------|
-| Discuss | WHAT + HOW questions, optional research pre-step | `discuss-ui-requirements.md` |
+| Discuss | 4-Zone brainstorm (WHY/WHO/WHAT/HOW), Decision Ledger, mode selection | `discuss-ui-requirements.md` |
 | Architect | /prompt-generator for all subagent prompts | `architect-exploration-plan.md` |
 | Execute | Dispatch Explore, ui-designer, optional boardroom | `execute-design-doc.md` |
-| Review | Evidence-based pass/fail, user decides | `review-design-approval.md` (bridges to PLAN) |
+| Review | Evidence-based pass/fail, user decides | `review-design-approval.md` (bridges to DESIGN) |

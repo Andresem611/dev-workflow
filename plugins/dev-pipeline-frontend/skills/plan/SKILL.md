@@ -1,9 +1,9 @@
 ---
 name: plan
-description: Makes architecture decisions, creates task breakdowns, and defines wave groupings for a feature. Produces locked decision log and task list via the 4-stage inner loop. Triggers on /dev:plan or when /dev router advances past DISCOVER.
+description: Makes architecture decisions, creates task breakdowns, and defines wave groupings for a feature. Informed by DESIGN spec, reads DESIGN bridge. Produces locked decision log and task list via the 4-stage inner loop. Triggers on /dev:plan or when /dev router advances past DESIGN.
 ---
 
-# /dev:plan — Architecture Decisions + Task Breakdown (v2.0)
+# /dev:plan — Architecture Decisions + Task Breakdown (v4.0 — Informed by DESIGN)
 
 Lock architecture decisions (with WHY + alternatives rejected), break work into tasks, group tasks into waves, and define acceptance criteria. Uses the 4-stage inner loop: Discuss, Architect, Execute, Review.
 
@@ -45,13 +45,29 @@ node ${PLUGIN_ROOT}/../shared/tools/dev-pipeline-tools.js validate-stage-entry p
 
 Use the Read tool on each file. Do not proceed to WHAT questions until all reads complete.
 
-1. `Read(.dev/discover/review-design-approval.md)` → extract: confirmed requirements, reuse decisions, boardroom synthesis
+1. `Read(.dev/design/review-design-compliance.md)` → extract: design spec, component inventory, visual direction, responsive strategy, backend requirements status, LOCKED decisions
 2. `Read(references/domain-agent-map.md)` → extract: agent assignments for PLAN phase, specialist agents per domain
 3. `Read(references/requirements-template.md)` → extract: requirement ID format, must_haves structure
 4. `Read(references/inner-loop-reference.md)` → extract: D04, D14, D15 decision rules
 5. `Read(references/codebase-context-block.md)` → extract: stack details, design system rules
+6. `Read(references/bridge-template.md)` → extract: structured bridge format, echo-back protocol
+7. `Read(references/decision-ledger-template.md)` → extract: ledger format, LOCKED decisions to respect
+8. `Read(references/mode-propagation-reference.md)` → extract: depth settings for current execution mode
 
 If any file is missing, STOP and surface the gap to the user.
+
+**Echo-Back (v4.0):** After loading, echo back LOCKED decisions and design context:
+
+```
+Loaded context from DESIGN:
+- [N] LOCKED decisions: U-01 (description), U-02 (description), ...
+- Execution mode: [Expansion/Hold/Reduction]
+- Component inventory: [N] new, [N] reused, [N] extended
+- Backend status: [all exist / contract stub at .dev/design/backend-contract-stub.md]
+- Design spec: .dev/design/execute-design-spec.md
+```
+
+If echo-back is incomplete → re-read bridge.
 
 ### Mechanics (per inner-loop-reference.md Section 2.1)
 
@@ -64,6 +80,9 @@ Use `AskUserQuestion` for EVERY question. One question at a time. NEVER batch mu
 - Backend dependencies — are all APIs ready?
 - Known constraints (performance budgets, bundle size limits, browser support)?
 - Accessibility requirements beyond WCAG 2.1 AA baseline?
+- "The design spec shows [N] new components — how should we organize them? (atomic, feature-based, page-based)"
+- "The design has these interactions: [from spec] — what state management approach fits?"
+- "Backend status is [exists/mocked] — how does that affect our task breakdown?"
 
 **HOW meta-questions** — Execution strategy:
 - "Should I dispatch parallel architect agents or a focused sequential approach?"
@@ -114,6 +133,9 @@ Before designing agent prompts, confirm:
 - [ ] `domain-agent-map.md` was Read in Step 0 — list ALL agents from the map for this phase as either "dispatched" or "skipped (reason)"
 - [ ] Domain Combination Patterns checked — read the Domain Combination Patterns table from domain-agent-map.md and apply any extra considerations (e.g., `routing + auth-ui` = test both authenticated and unauthenticated access)
 - [ ] Previous phase review artifact was Read — decisions and context carried forward
+- [ ] DESIGN_SPEC was Read — component inventory and interaction patterns inform agent prompts
+- [ ] Execution mode from Decision Ledger determines agent depth (see mode-propagation-reference.md)
+- [ ] All LOCKED decisions addressed in architecture plan — none silently dropped
 
 This verification appears in the Orchestration Log under `Map compliance`.
 
@@ -201,6 +223,8 @@ For each subagent defined in Architect:
 3. Collect results
 4. Check against per-subagent success criteria
 5. Log result (pass/fail, deviations, artifacts produced)
+
+**v4.0: Design-Informed Tasks.** Each task in the task list should reference specific components from the DESIGN_SPEC. The design spec provides: exact component names, interaction patterns, state requirements, and responsive behavior. Use these to make task descriptions concrete rather than abstract.
 
 ### Required Outputs
 
@@ -325,6 +349,8 @@ Run each check. For each: evidence-based pass/fail.
    - [ ] Traceability table maps all requirements to waves/tasks
    - [ ] Wave files include `must_haves` blocks
    - [ ] No unmapped requirements (coverage = 100%)
+7. **Design coverage** — every component in DESIGN_SPEC has at least one corresponding task
+8. **LOCKED decision compliance** — no LOCKED decisions from the ledger were contradicted or dropped
 
 ### Run Validation Tools
 
@@ -371,6 +397,8 @@ Review the architecture decisions for backend dependencies:
 
 Cross-stack work does NOT block the frontend pipeline — it flags that backend work should be coordinated (either already done or needs a separate `/dev` run on the backend).
 
+**v4.0 note:** Backend status was already determined in DESIGN Review. If a contract stub exists at `.dev/design/backend-contract-stub.md`, PLAN should use it for mock data typing in the task breakdown.
+
 ### Surface Gaps
 
 Use `AskUserQuestion` for any gaps found. Present the plan summary:
@@ -401,7 +429,7 @@ Use `AskUserQuestion` for any gaps found. Present the plan summary:
 - [ ] Wave must_haves present: [PASS/FAIL]
 
 Options:
-1. **Accept** — proceed to DESIGN
+1. **Accept** — proceed to DOCUMENT
 2. **Retry Execute** — re-dispatch subagents with adjustments
 3. **Back to Architect** — redesign the execution plan
 4. **Back to Discuss** — revisit architecture direction
@@ -412,7 +440,7 @@ Options:
 ### On Accept
 
 1. Update MANIFEST phase progress: PLAN = complete
-2. Write review artifact with bridge context for DESIGN
+2. Write review artifact with bridge context for DOCUMENT using `references/bridge-template.md` format
 
 ### Notion Update
 
@@ -444,24 +472,24 @@ Display `Next Up` block and **STOP**:
 ---
 ▶ Next Up
 
-Phase: DESIGN — Visual design spec + component design
+Phase: DOCUMENT — 5-layer docs + wave execution plans
 
-`/dev:design`
+`/dev:document`
 
 /clear first -> fresh context window
 ```
 
 State persists to disk (MANIFEST + stage artifacts). Nothing is lost on `/clear`.
 
-**STOP.** Do not invoke DESIGN. Do not offer "continue in same session".
+**STOP.** Do not invoke DOCUMENT. Do not offer "continue in same session".
 
-Frontend ALWAYS routes to DESIGN after PLAN (D15). There is no conditional skip.
+Frontend ALWAYS routes to DOCUMENT after PLAN. There is no conditional skip.
 
 ### Artifact
 
-`.dev/plan/review-plan-approval.md` — Validation verdicts with evidence, user decision, locked decisions summary, wave plan summary, backend dependency status, bridge context for DESIGN.
+`.dev/plan/review-plan-approval.md` — Validation verdicts with evidence, user decision, locked decisions summary, wave plan summary, backend dependency status, bridge context for DOCUMENT. Must use `references/bridge-template.md` format.
 
-This artifact IS the context bridge. DESIGN reads it to understand architecture decisions.
+This artifact IS the context bridge. DOCUMENT reads it to understand architecture decisions.
 
 ```bash
 node ${PLUGIN_ROOT}/../shared/tools/dev-pipeline-tools.js validate-stage-output plan review <feature-dir> --plugin frontend
@@ -493,17 +521,17 @@ Rules:
 docs/[Feature_Name]/
 └── .dev/
     ├── MANIFEST.md
-    ├── discover/
-    │   └── review-design-approval.md    <- context bridge IN
+    ├── design/
+    │   └── review-design-compliance.md  <- context bridge IN
     └── plan/
         ├── discuss-architecture-direction.md
         ├── architect-decision-framework.md
         ├── requirements.md                   <- HARD CONTRACT for VALIDATE
         ├── execute-locked-decisions.md
-        └── review-plan-approval.md           <- context bridge OUT (to DESIGN)
+        └── review-plan-approval.md           <- context bridge OUT (to DOCUMENT)
 ```
 
-No `prompt-transitions/` directory. The `review-plan-approval.md` serves as the context bridge to DESIGN.
+No `prompt-transitions/` directory. The `review-plan-approval.md` serves as the context bridge to DOCUMENT.
 
 ---
 
@@ -516,7 +544,7 @@ No `prompt-transitions/` directory. The `review-plan-approval.md` serves as the 
 | Tasks without acceptance criteria | Every task needs a clear done-definition |
 | Tasks without exact file paths | Subagents create wrong files without paths — every task lists create/modify/test |
 | Tasks larger than 2.5 hours | Split. If it feels like one task, it is two |
-| Bridging to DOCUMENT instead of DESIGN | Frontend: PLAN always routes to DESIGN (D15) |
+| Ignoring DESIGN_SPEC in architecture | Architecture decisions disconnected from actual UI | Every architecture choice must reference DESIGN_SPEC components |
 | Waves with hidden dependencies | One file = one task = one wave assignment — no conflicts |
 | Architecture without codebase evidence | Every choice should cite a real file path as precedent |
 | Batching questions in Discuss | One `AskUserQuestion` at a time (D02) |
@@ -528,6 +556,10 @@ No `prompt-transitions/` directory. The `review-plan-approval.md` serves as the 
 | Skipping doneness questions in Discuss | At least 1 doneness question is MANDATORY before advancing |
 | No requirements.md produced in Architect | requirements.md is the HARD CONTRACT for VALIDATE — without it, verification is insufficient |
 | Wave files missing must_haves | Every wave needs truths, artifacts, key_links for goal-backward verification |
+| Reading discover bridge instead of design | v4.0: PLAN reads DESIGN bridge | Context bridge is `.dev/design/review-design-compliance.md` |
+| Abstract task descriptions | Tasks say "create component" without referencing actual design | Reference DESIGN_SPEC component names and interaction patterns |
+| Dropping LOCKED decisions in task breakdown | User scope items not mapped to tasks | Every LOCKED IN-scope item must have a corresponding task |
+| Ignoring execution mode depth | All plans run at same depth | Check mode-propagation-reference.md for PLAN depth settings |
 
 ---
 
@@ -546,6 +578,6 @@ Execute outputs:
   4. Acceptance Criteria (feature-level done-definition)
   5. Backend Dependency Status (EXISTS/MISSING per endpoint)
 
-PLAN always routes to DESIGN (D15). No conditional skip.
+PLAN always routes to DOCUMENT. No conditional skip.
 No tiers. No prompt-transitions/. review-*.md = context bridge.
 ```

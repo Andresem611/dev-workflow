@@ -25,11 +25,23 @@ Reference: `${PLUGIN_ROOT}/../shared/references/inner-loop-reference.md`
 
 Use the Read tool on each file. Do not proceed until all reads complete.
 
-1. `Read(.dev/design/review-design-compliance.md)` → extract: design decisions, component inventory, responsive behavior, accessibility requirements
+1. `Read(.dev/plan/review-plan-approval.md)` → extract: locked architecture decisions, task list, wave groupings, backend dependency status
 2. `Read(references/domain-agent-map.md)` → extract: agent assignments for DOCUMENT phase
-3. `Read(.dev/MANIFEST.md)` → extract: domains, decision log, wave groupings from PLAN
+3. `Read(.dev/MANIFEST.md)` → extract: domains, Decision Ledger (LOCKED/OPEN entries), execution mode
+4. `Read(references/bridge-template.md)` → extract: structured bridge format for review artifact
+5. `Read(references/mode-propagation-reference.md)` → extract: DOCUMENT depth settings for current mode
 
 If any file is missing, STOP and surface the gap to the user.
+
+**Echo-Back (v4.0):** After loading, echo back LOCKED decisions from the Decision Ledger:
+```
+Loaded context from PLAN:
+- [N] LOCKED decisions: U-01 (description), ...
+- Execution mode: [Expansion/Hold/Reduction]
+- Tasks: [N] across [N] waves
+- Architecture decisions: [N] locked
+```
+If echo-back is incomplete → re-read bridge.
 
 ### 1.1 Read Context Bridge
 
@@ -37,7 +49,7 @@ If any file is missing, STOP and surface the gap to the user.
 docs/[Feature]/.dev/design/review-design-compliance.md
 ```
 
-Extract: locked design decisions, component inventory, architecture decisions from PLAN, reuse findings from DISCOVER, task list and wave groupings. If this file does not exist, STOP — DESIGN must complete first.
+Extract: locked architecture decisions from PLAN, component inventory from DESIGN, reuse findings from DISCOVER, task list and wave groupings, LOCKED decisions from Decision Ledger. If this file does not exist, STOP — PLAN must complete first.
 
 ### 1.2 Structured Questioning
 

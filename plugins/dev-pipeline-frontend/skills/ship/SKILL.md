@@ -29,9 +29,17 @@ Read `.dev/validate/review-ship-readiness.md` for validation results and caveats
 
 Use the Read tool on each file. Do not proceed until all reads complete.
 
-1. `Read(.dev/validate/review-ship-readiness.md)` → extract: validation results, any caveats, ship readiness assessment
+1. `Read(.dev/validate/review-ship-readiness.md)` → extract: validation results, any caveats, ship readiness assessment, LOCKED decision compliance
 2. `Read(CHANGELOG.md)` → extract: current [Unreleased] section, last published version number
-3. `Read(docs/[feature]/.dev/MANIFEST.md)` → extract: feature name, domains, all completed phases
+3. `Read(docs/[feature]/.dev/MANIFEST.md)` → extract: feature name, domains, all completed phases, Decision Ledger summary, execution mode
+
+**Echo-Back (v4.0):** After loading, confirm all LOCKED decisions were verified:
+```
+Loaded context for SHIP:
+- Feature: [name]
+- LOCKED decisions: [N] total, [N] verified in VALIDATE
+- Validation: [PASS/FAIL with caveats]
+```
 
 ### WHAT Questions (AskUserQuestion, one at a time)
 

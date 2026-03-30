@@ -5,6 +5,27 @@ All notable changes to the dev-pipeline plugin marketplace will be documented in
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [4.0.0] - 2026-03-30
+
+### Changed (Frontend — MAJOR)
+- **DESIGN before PLAN** — Phase chain reordered: INTAKE → DISCOVER → DESIGN → PLAN → DOCUMENT → BUILD → VALIDATE → SHIP. Architecture decisions are now informed by the actual UI spec instead of being made blind. PLAN reads DESIGN's bridge; DESIGN reads DISCOVER's bridge.
+- **Decision Ledger** — New tracking mechanism in MANIFEST. User decisions = LOCKED by default, agent decisions = OPEN until confirmed. LOCKED items propagate verbatim through every bridge. Agents cannot remove LOCKED items without flagging in Review. BUILD agents receive LOCKED items in prompts as "DO NOT OVERRIDE".
+- **4-Zone Discuss** — DISCOVER Discuss replaced with 4 structured zones: WHY (premise challenge from /plan-ceo-review), WHO (empathy + 11-star from /customer-obsession), WHAT (GROUND-informed scope from /product-strategy), HOW (temporal interrogation + mode selection from /product-advisor). Each zone has exit conditions and produces LOCKED ledger entries.
+- **Backend gate in DESIGN Review** — DESIGN Review now checks all interactions for missing backend endpoints. Produces `backend-contract-stub.md` (requirements-only, no architecture). User chooses: proceed with mocks, pause + handoff to backend /dev, or both in parallel. Stub feeds into backend /dev:intake as "frontend handoff" entry mode.
+- **Structured bridges with echo-back** — All `review-*.md` bridges use structured format: LOCKED decisions table, key artifacts, focus for next phase, dispatch mandate. Next phase MUST echo-back LOCKED items before asking questions.
+- **Mode-driven adaptive depth** — Execution mode (Expansion/Hold/Reduction) set in DISCOVER Zone 4, propagates to all phases. Controls question depth, agent count, doc thoroughness, review rigor. Can upgrade mid-pipeline, never downgrade.
+- **Entry mode routing updated** — Tech spec, Kiro spec, CEK SDD spec now route to DESIGN (not PLAN) since DESIGN precedes PLAN in v4.0.
+
+### Added (Frontend)
+- `references/decision-ledger-template.md` — Ledger format, LOCKED/OPEN rules, violation detection
+- `references/bridge-template.md` — Structured bridge format with echo-back protocol
+- `references/backend-contract-stub-template.md` — Backend contract stub format for frontend→backend handoff
+- `references/discuss-zones-reference.md` — 4-Zone Discuss spec with techniques and exit conditions
+- `references/mode-propagation-reference.md` — Expansion/Hold/Reduction depth matrix per phase
+- LOCKED decision violation check in VALIDATE phase
+- Echo-back protocol in all phase Discuss stages
+- LOCKED decisions in BUILD agent prompts
+
 ## [3.3.1] - 2026-03-24
 
 ### Changed (Frontend — DISCOVER)

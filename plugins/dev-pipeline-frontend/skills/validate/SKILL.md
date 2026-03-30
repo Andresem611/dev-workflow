@@ -46,9 +46,26 @@ Use the Read tool on each file. Do not proceed until all reads complete.
 2. `Read(docs/[feature]/requirements.md)` → extract: ALL must_haves — this is the verification contract
 3. `Read(references/domain-agent-map.md)` → extract: VALIDATE agents per domain, verification agent assignments
 4. `Read(references/agent-prompt-template.md)` → extract: prompt structure for validation agent dispatches
-5. `Read(docs/[feature]/.dev/MANIFEST.md)` → extract: domains, decision log, completed phases
+5. `Read(docs/[feature]/.dev/MANIFEST.md)` → extract: domains, Decision Ledger (ALL LOCKED entries), completed phases, execution mode
+6. `Read(references/mode-propagation-reference.md)` → extract: VALIDATE depth settings for current execution mode
 
 If any file is missing, STOP and surface the gap to the user.
+
+**Echo-Back (v4.0):** After loading, echo back LOCKED decisions:
+```
+Loaded context for VALIDATE:
+- [N] LOCKED decisions from Decision Ledger
+- Execution mode: [Expansion/Hold/Reduction]
+- Requirements: [N] must_haves to verify
+- Waves completed: [N]
+```
+
+**LOCKED Decision Violation Check (v4.0 — MANDATORY):**
+After running all validation checks, compare the built code against EVERY LOCKED decision in the Decision Ledger:
+- Is each LOCKED scope item (U-XX) implemented?
+- Does the implementation match the LOCKED decision's intent?
+- Were any LOCKED items silently dropped during BUILD?
+Report violations in the review artifact. A LOCKED violation is a FAIL regardless of other check results.
 
 Goal-backward verification (from GSD):
 1. What must be TRUE for the feature to be done? → Check truths from must_haves

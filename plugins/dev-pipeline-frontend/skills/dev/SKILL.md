@@ -3,9 +3,11 @@ name: dev
 description: Builds frontend features end-to-end — from idea through ship. Routes all multi-step frontend work through a linear phase chain (INTAKE through SHIP) and resumes paused pipelines. Triggers on "build this feature", "implement", "new page", "add X to Y", or any multi-step frontend work. Also triggers on "/dev" or when resuming a paused feature pipeline.
 ---
 
-# /dev — Frontend Development Pipeline v3.0
+# /dev — Frontend Development Pipeline v4.0
 
 Unified pipeline that routes all frontend feature work through a linear phase chain: INTAKE through SHIP. Single entry point replaces manual skill-hopping between brainstorming, feature-orchestrator, writing-plans, subagent-driven-development, verify, and publish.
+
+**v4.0 changes:** DESIGN before PLAN, Decision Ledger, 4-Zone Discuss, backend gate in DESIGN Review, structured bridges with echo-back, mode-driven adaptive depth.
 
 ## When to Use
 
@@ -29,10 +31,10 @@ Each phase is a plugin skill invoked via colon notation:
 
 ```
 /dev              → This file. Routes to correct phase or resumes.
-/dev intake       → Skill(dev-pipeline-frontend:intake)    — Classify, scope, create MANIFEST
-/dev discover     → Skill(dev-pipeline-frontend:discover)  — Brainstorm + codebase research + reuse audit
-/dev plan         → Skill(dev-pipeline-frontend:plan)      — Architecture decisions + task breakdown
-/dev design       → Skill(dev-pipeline-frontend:design)    — UI spec + design system compliance (ALWAYS RUNS)
+/dev intake       → Skill(dev-pipeline-frontend:intake)    — Classify, scope, create MANIFEST + Decision Ledger
+/dev discover     → Skill(dev-pipeline-frontend:discover)  — 4-Zone Discuss + codebase research + reuse audit
+/dev design       → Skill(dev-pipeline-frontend:design)    — UI spec + design system compliance + backend gate (ALWAYS RUNS)
+/dev plan         → Skill(dev-pipeline-frontend:plan)      — Architecture decisions + task breakdown (informed by DESIGN)
 /dev document     → Skill(dev-pipeline-frontend:document)  — 5-layer docs + wave execution plans
 /dev build        → Skill(dev-pipeline-frontend:build)     — Wave-based task execution + agent dispatch
 /dev validate     → Skill(dev-pipeline-frontend:validate)  — Type-check, lint, QA, domain audits
@@ -52,16 +54,26 @@ Skill(dev-pipeline-frontend:intake)     # Plugin colon notation
 ## Phase Chain
 
 ```
-INTAKE → DISCOVER → PLAN → DESIGN → DOCUMENT → BUILD → VALIDATE → SHIP
-                                                                    ↑
-                                                              PAUSE (any point)
+INTAKE → DISCOVER → DESIGN → [BACKEND GATE] → PLAN → DOCUMENT → BUILD → VALIDATE → SHIP
+                                                                                      ↑
+                                                                                PAUSE (any point)
 ```
+
+**v4.0 ordering:** DESIGN runs before PLAN so architecture decisions are informed by the actual UI spec. The backend gate in DESIGN Review checks for missing API endpoints and produces a contract stub if needed.
 
 **Every phase runs the inner loop:** GROUND → Discuss → Architect → Execute → Review
 
-**GROUND** (Stage 0, v3.0.0): Dispatch an Explore agent to scan the codebase before Discuss. Grounds questions in reality instead of memory. Mandatory for DISCOVER, PLAN, BUILD. Optional for other phases.
+**GROUND** (Stage 0, v3.0.0): Dispatch an Explore agent to scan the codebase before Discuss. Grounds questions in reality instead of memory. Mandatory for DISCOVER, DESIGN, PLAN, BUILD. Optional for other phases.
 
-**MANDATORY CONTEXT LOADING** (v3.0.0): Every Discuss stage begins with explicit `Read()` calls on context bridges, domain-agent-map, and reference files. Natural language references are insufficient — the orchestrator must use the Read tool.
+**DECISION LEDGER** (v4.0.0): User decisions are LOCKED by default, agent decisions are OPEN. The ledger lives in MANIFEST and propagates through every bridge. See `references/decision-ledger-template.md`.
+
+**4-ZONE DISCUSS** (v4.0.0): DISCOVER Discuss uses 4 structured zones (WHY, WHO, WHAT, HOW) instead of flat question lists. Other phases use adapted versions. See `references/discuss-zones-reference.md`.
+
+**STRUCTURED BRIDGES** (v4.0.0): Every `review-*.md` uses a structured format with LOCKED decisions, key artifacts, focus for next phase, and dispatch mandate. Next phase must echo-back LOCKED items. See `references/bridge-template.md`.
+
+**MODE-DRIVEN DEPTH** (v4.0.0): Execution mode (Expansion/Hold/Reduction) is set in DISCOVER Zone 4 and controls depth of all downstream phases. See `references/mode-propagation-reference.md`.
+
+**MANDATORY CONTEXT LOADING**: Every Discuss stage begins with explicit `Read()` calls on context bridges, domain-agent-map, and reference files, followed by echo-back of LOCKED decisions.
 See `references/inner-loop-reference.md` for the canonical 4-stage pattern definition.
 
 **Every Review offers:** Accept (next phase) / Retry Execute / Back to Architect / Back to Discuss
@@ -99,8 +111,8 @@ Determine entry mode from user input, then route to the correct starting phase.
 | Mode | Signal | Starting Phase |
 |------|--------|----------------|
 | **Idea dump** | Rough idea, "I want...", "what if..." | INTAKE → DISCOVER |
-| **Tech spec** | PRD, spec doc, detailed requirements | INTAKE → PLAN |
-| **Backend handoff** | "Backend is ready", API endpoints exist | INTAKE → PLAN or DESIGN |
+| **Tech spec** | PRD, spec doc, detailed requirements | INTAKE → DESIGN (skip DISCOVER) |
+| **Backend handoff** | "Backend is ready", API endpoints exist | INTAKE → DESIGN or PLAN |
 | **Design handoff** | Figma link, mockups, visual spec | INTAKE → DESIGN |
 | **Bug/issue** | "broken", "error", "bug", "fix" | INTAKE → BUILD (investigate logic) |
 | **Resume** | Existing MANIFEST found | MANIFEST's current phase |
@@ -193,9 +205,9 @@ Each phase validates that its predecessors completed before executing.
 |-------|----------|
 | INTAKE | Nothing |
 | DISCOVER | MANIFEST exists |
-| PLAN | DISCOVER completed (or skipped per entry mode) |
-| DESIGN | PLAN completed (ALWAYS RUNS — not conditional on domain tags) |
-| DOCUMENT | DESIGN completed |
+| DESIGN | DISCOVER completed (or skipped per entry mode). ALWAYS RUNS — not conditional on domain tags |
+| PLAN | DESIGN completed (architecture informed by actual design spec) |
+| DOCUMENT | PLAN completed |
 | BUILD | DOCUMENT completed |
 | VALIDATE | BUILD completed (all waves) |
 | SHIP | VALIDATE passed |
@@ -222,16 +234,17 @@ docs/[Feature_Name]/.dev/
 │   ├── architect-exploration-plan.md
 │   ├── execute-design-doc.md
 │   └── review-design-approval.md
+├── design/                                    ← v4.0: DESIGN before PLAN
+│   ├── discuss-visual-direction.md
+│   ├── architect-design-plan.md
+│   ├── execute-design-spec.md
+│   ├── backend-contract-stub.md               ← v4.0: produced if endpoints missing
+│   └── review-design-compliance.md
 ├── plan/
 │   ├── discuss-architecture-direction.md
 │   ├── architect-decision-framework.md
 │   ├── execute-locked-decisions.md
 │   └── review-plan-approval.md
-├── design/
-│   ├── discuss-visual-direction.md
-│   ├── architect-design-plan.md
-│   ├── execute-design-spec.md
-│   └── review-design-compliance.md
 ├── document/
 │   └── ...
 ├── build/
@@ -281,6 +294,10 @@ Task fails verification
 | Executing inline in Execute | Orchestrator does work instead of dispatching | MUST dispatch subagents — orchestrator never executes inline |
 | Auto-looping in Review | User loses control of iteration direction | User decides path: Accept / Retry / Back to Architect / Back to Discuss |
 | Making DESIGN conditional | UI spec skipped, design debt accumulates | DESIGN always runs regardless of domain tags |
+| Routing PLAN before DESIGN | Architecture decisions blind to actual UI | v4.0: DESIGN runs before PLAN — design informs architecture |
+| Ignoring LOCKED decisions | User scope overridden by agents | Decision Ledger: user decisions = LOCKED, agents cannot remove without Review flag |
+| Skipping echo-back on phase start | Context bridge not loaded, phase starts blind | Every Discuss must echo-back LOCKED items before asking questions |
+| Skipping backend gate in DESIGN Review | Missing endpoints not caught until BUILD | DESIGN Review always checks Backend Requirements |
 | Not reading `review-*.md` on resume | Context bridge lost, next phase starts blind | Always read previous phase's `review-*.md` before starting |
 | Auto-invoking next phase after Review | Context rot, no fresh window | Review displays `Next Up` block and STOP. Never invoke next phase. |
 | Offering "continue in same session" | Defeats session boundary purpose | Never offer. Every Review acceptance is a hard stop. |
@@ -314,3 +331,8 @@ Call these at the specified points. Tool location: `${PLUGIN_ROOT}/../shared/too
 | `references/inner-loop-reference.md` | 4-stage inner loop pattern definition |
 | `references/agent-prompt-template.md` | Standard template for ALL subagent prompts — D04 fallback when /prompt-generator unavailable |
 | `references/requirements-template.md` | Requirement ID format and must_haves structure |
+| `references/decision-ledger-template.md` | Decision Ledger format, LOCKED/OPEN rules, violation detection (v4.0) |
+| `references/bridge-template.md` | Structured bridge format with echo-back protocol (v4.0) |
+| `references/backend-contract-stub-template.md` | Backend contract stub format for frontend→backend handoff (v4.0) |
+| `references/discuss-zones-reference.md` | 4-Zone Discuss spec with techniques and exit conditions (v4.0) |
+| `references/mode-propagation-reference.md` | Expansion/Hold/Reduction depth matrix per phase (v4.0) |
