@@ -41,7 +41,7 @@ Parse output:
 ```bash
 # Read version from plugin.json
 cd "$MARKETPLACE_DIR"
-cat plugins/dev-pipeline-backend/.claude-plugin/plugin.json | grep '"version"' | head -1
+cat plugins/dev-pipeline-frontend/.claude-plugin/plugin.json | grep '"version"' | head -1
 ```
 
 Extract the version string (e.g., "2.4.0").
@@ -117,7 +117,7 @@ cd "$MARKETPLACE_DIR" && git pull origin main
 Read the new version:
 
 ```bash
-cd "$MARKETPLACE_DIR" && cat plugins/dev-pipeline-backend/.claude-plugin/plugin.json | grep '"version"' | head -1
+cd "$MARKETPLACE_DIR" && cat plugins/dev-pipeline-frontend/.claude-plugin/plugin.json | grep '"version"' | head -1
 ```
 
 Display:
