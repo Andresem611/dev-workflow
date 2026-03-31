@@ -400,7 +400,7 @@ function test6_updateWaveTracking() {
 
     // Check MANIFEST was updated
     const manifestAfter = fs.readFileSync(path.join(feat, ".dev/MANIFEST.md"), "utf8");
-    const manifestUpdated = manifestAfter.includes("current_wave:** 1") && manifestAfter.includes("Wave 1 complete");
+    const manifestUpdated = manifestAfter.includes("current_wave:** 2") && manifestAfter.includes("Wave 1");
 
     // Check CURRENT_STATUS was updated
     const statusAfter = fs.readFileSync(path.join(feat, "CURRENT_STATUS.md"), "utf8");

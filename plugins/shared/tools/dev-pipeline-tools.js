@@ -996,16 +996,16 @@ function cmdUpdateWaveTracking(args) {
     // Bold-pair format: **current_wave:** value
     updated = updated.replace(
       /(\*\*current[_ ]wave:\*\*)\s*.+/i,
-      `$1 ${wave}`
+      `$1 ${wave + 1}`
     );
     updated = updated.replace(
       /(\*\*build[_ ]progress:\*\*)\s*.+/i,
-      `$1 Wave ${wave} complete`
+      `$1 Wave ${wave} of ${wave} complete`
     );
     // Table format: | **current_wave** | value |
     updated = updated.replace(
       /(\|\s*\*\*current[_ ]wave\*\*\s*\|)\s*[^|]*\|/i,
-      `$1 ${wave} |`
+      `$1 ${wave + 1} |`
     );
     updated = updated.replace(
       /(\|\s*\*\*build[_ ]progress\*\*\s*\|)\s*[^|]*\|/i,

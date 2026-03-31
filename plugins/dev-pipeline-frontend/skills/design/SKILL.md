@@ -146,6 +146,14 @@ node ${PLUGIN_ROOT}/../shared/tools/dev-pipeline-tools.js validate-stage-output 
 
 ## Stage 2: Architect — Design Plan
 
+### Entry Validation
+
+```bash
+node ${PLUGIN_ROOT}/../shared/tools/dev-pipeline-tools.js validate-stage-entry design architect docs/[feature] --plugin frontend
+```
+
+If FAIL, fix missing prerequisites before proceeding.
+
 **D04 ENFORCEMENT:** Follow the D04 Enforcement Protocol from `inner-loop-reference.md`. Every subagent prompt MUST go through `/prompt-generator`. Log status in the Orchestration Log section of this artifact.
 
 **MANDATORY:** Use `/prompt-generator` skill to craft every subagent prompt. No exceptions.
@@ -222,6 +230,14 @@ node ${PLUGIN_ROOT}/../shared/tools/dev-pipeline-tools.js validate-stage-output 
 
 ## Stage 3: Execute — Design Spec
 
+### Entry Validation
+
+```bash
+node ${PLUGIN_ROOT}/../shared/tools/dev-pipeline-tools.js validate-stage-entry design execute docs/[feature] --plugin frontend
+```
+
+If FAIL, fix missing prerequisites before proceeding.
+
 **MANDATORY:** Dispatch subagents. The orchestrator NEVER produces design specs inline.
 
 ### Dispatch Subagents
@@ -261,6 +277,14 @@ node ${PLUGIN_ROOT}/../shared/tools/dev-pipeline-tools.js validate-stage-output 
 ---
 
 ## Stage 4: Review — Design Compliance
+
+### Entry Validation
+
+```bash
+node ${PLUGIN_ROOT}/../shared/tools/dev-pipeline-tools.js validate-stage-entry design review docs/[feature] --plugin frontend
+```
+
+If FAIL, fix missing prerequisites before proceeding.
 
 Check Execute output against Architect's success criteria. Every check is evidence-based: pass or fail with specific evidence.
 
