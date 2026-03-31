@@ -77,6 +77,51 @@ Explore these areas as relevant:
 - **Component scope:** Which components need full visual specs? Which are standard enough to skip detail?
 - **State coverage:** Any unusual states beyond the standard set (default, hover, active, disabled, loading, error, empty)?
 
+### Context-Aware Design Decisions (MANDATORY — before mockups)
+
+After WHAT questions, scan the codebase for design context using an Explore agent. Then ask these via `AskUserQuestion`, one at a time. Skip questions where the answer is obvious from context. Lead with a recommendation.
+
+1. **Existing patterns:** "We recommend matching [component X] found in the codebase. It handles [similar pattern]. Match that style, extend it, or create something new?"
+   - Only ask if Explore found similar components
+2. **Installed packages:** "You have [framer-motion / emoji-mart / confetti / lottie] installed. We recommend using [specific package] for [specific effect]. Use it here?"
+   - Check package.json for animation, UI, and effect libraries
+3. **Design direction:** "Current app tone is [playful with 3D buttons / clean minimal]. We recommend [matching / enhancing] for this feature. Match, enhance, or contrast?"
+4. **Component reuse:** "These existing components could work here: [list from dedup audit]. We recommend [reusing X / extending Y]. Reuse directly, extend, or build new?"
+5. **Micro-interactions:** "We recommend [specific animation] for [specific interaction]. Want micro-interactions? (hover effects, page transitions, loading animations, reveal-on-scroll)"
+
+**RULE:** Every question uses `AskUserQuestion` with a concrete recommendation first (D17). Present choices, not open-ended questions.
+
+### Layout Mockup + Approval Gate (MANDATORY — Gate 1)
+
+Before dispatching any design agent, the orchestrator MUST produce an ASCII layout mockup based on Discuss answers. Present via `AskUserQuestion` with preview pane:
+
+"Here's my understanding of the layout based on our discussion:"
+
+[ASCII mockup using box-drawing characters showing the page structure: header, sidebar, content areas, component placeholders]
+
+"Approve this layout direction before I create the full design spec?"
+  A) Approve — proceed to full design spec
+  B) Adjust — [user describes changes], re-render mockup
+  C) Reject — revisit visual direction
+
+**GATE 1: User MUST approve the layout before Execute stage begins.** If rejected, iterate on the mockup with feedback. If adjusted, update and re-present. Do not dispatch ui-designer until approved.
+
+Record in discuss artifact: `Layout approved: yes / no`
+
+### Component Decomposition (Expansion Mode Only)
+
+**Skip entirely if execution mode is Hold or Reduction.**
+
+If the approved layout has 4+ visually distinct sections (e.g., hero, pricing grid, testimonials, footer), ask via `AskUserQuestion`:
+
+"This page has [N] distinct sections: [list them]. We recommend designing as one unit for consistency, but separate section design gives deeper creative exploration per section."
+  A) Design as one unit (faster, standard approach)
+  B) Design sections separately (deeper per-section exploration, then assembly)
+
+**If B:** Execute dispatches one ui-designer agent per section. Each gets: approved layout context + brand rules + section scope. After all complete, orchestrator assembles partial specs into a single DESIGN_SPEC and reviews cross-section consistency: spacing rhythm, typography scale, color usage, responsive breakpoints, animation language. Any inconsistencies → same-agent fix before final spec.
+
+**If A:** Standard single ui-designer dispatch (unchanged from current behavior).
+
 ### HOW Meta-Questions
 
 These let the user control execution depth and strategy:
@@ -282,6 +327,19 @@ All five checks must pass. No exceptions.
 - Focus management specified (open/close/submit transitions)
 - Color contrast meets 4.5:1 minimum
 - Touch targets meet 44x44px minimum
+
+### Final Design Approval (Gate 2 — MANDATORY)
+
+After all review checks pass (brand rules, dedup, responsive, accessibility, backend requirements), present the complete design to the user via `AskUserQuestion`:
+
+"Design spec complete. Summary: [N components, responsive at 3 breakpoints, brand rules: all 5 pass, backend: all endpoints exist / N missing with contract stub]."
+
+"Review the full spec at `.dev/design/execute-design-spec.md` and approve before advancing to PLAN."
+  A) Approve — advance to PLAN
+  B) Request changes — [user specifies adjustments]
+  C) Back to Discuss — revisit visual direction entirely
+
+**GATE 2: User MUST approve before DESIGN phase completes.** Record in review artifact: `Final design approved: yes / no`
 
 ### Gap Resolution
 
