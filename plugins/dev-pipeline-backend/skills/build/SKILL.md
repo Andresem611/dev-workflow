@@ -186,8 +186,18 @@ Before marking tasks as parallel, check for shared state:
 2. **State overlap check:** If tasks share database tables, service objects, or the same API endpoint, default to **sequential**.
 3. **Migration overlap check:** If multiple tasks have migrations, they MUST run sequentially (migration timestamps and foreign key dependencies).
 4. **Override:** User can explicitly override to parallel in Discuss if they accept the risk. Log the override reason.
+5. **Endpoint overlap check:** If two tasks reference the same API endpoint path (even in different files — e.g., one defines the route, another hardcodes the URL), default to **sequential**. Compare endpoint references across all task `## Files` sections.
 
 This gate prevents the most common parallel-dispatch failure: two agents modifying the same file with conflicting changes.
+
+### Batch-Eligible Task Classification
+
+If 2+ tasks in this wave apply the same change pattern to different files (e.g., add nil guard, add feature flag check, apply convention fix), mark them as `batch-eligible` in the execution plan. In Execute, dispatch ONE agent for the batch with all file paths instead of separate agents per task.
+
+Criteria:
+- Same type of change
+- Different target files
+- No inter-task dependencies
 
 ### Codebase Context Block
 
@@ -301,7 +311,7 @@ node ${PLUGIN_ROOT}/../shared/tools/dev-pipeline-tools.js validate-stage-output 
 
 ---
 
-## Stage 4: Review — Code Quality (Per Wave)
+## Stage 4: Review — Verify-Fix Loop (Per Wave)
 
 ### Entry Validation
 
@@ -309,57 +319,56 @@ node ${PLUGIN_ROOT}/../shared/tools/dev-pipeline-tools.js validate-stage-output 
 node ${PLUGIN_ROOT}/../shared/tools/dev-pipeline-tools.js validate-stage-entry build review <feature-dir> --plugin backend --wave N
 ```
 
-### Mandatory Checks (Every Wave)
+### 4-Layer Verification
 
-These run regardless of user preferences from Discuss:
+#### Layer 1: Mechanical Tests (MANDATORY)
 
 ```bash
 bundle exec rspec
 ```
 
-RSpec MUST pass. If it fails, treat as a simple error — self-fix with one retry before escalating.
+Must pass. If FAIL: self-fix with one retry. If still fails, escalate via the 3-strike rule.
 
-### must_haves Verification Gate (Every Wave)
-
-**MANDATORY.** Run the mechanical verification tool before any semantic checks:
+#### Layer 2: Must-Haves Gate (MANDATORY)
 
 ```bash
 node ${PLUGIN_ROOT}/../shared/tools/dev-pipeline-tools.js verify-must-haves <feature-dir> --plugin backend --wave N
 ```
 
-This checks:
-1. Every file in `must_haves.artifacts` exists on disk
-2. Routes in `must_haves.key_links` exist in `config/routes.rb`
-3. Spec files have at least one `it`/`describe` block (not empty)
-4. No anti-stub patterns (`TODO`, `FIXME`, `raise NotImplementedError`, `placeholder`) in listed artifacts
+If FAIL: fix missing artifacts or stubs before proceeding. One self-fix retry.
 
-**If FAIL:** Treat as a blocking issue in Review. The orchestrator must fix missing artifacts or stubs before proceeding.
+#### Layer 3: Semantic Review (MANDATORY)
 
-**If PASS:** Proceed to independent semantic verification.
+Dispatch `code-reviewer` agent. Independent verification — no build context.
 
-### Independent Semantic Verification (Every Wave)
+Classify findings:
 
-After the verification gate passes, dispatch an independent verification agent. This agent has NO context from the build process — it reads the must_haves and independently checks the codebase.
+- **CRITICAL + PATTERN** (same issue in multiple files): dispatch ONE agent with batch fix instruction listing all affected files. Re-verify Layers 1-3.
+- **CRITICAL + UNIQUE** (file-specific issue): dispatch fresh Agent with:
+  - Failure details (exact file:line, issue description)
+  - Wave's must_haves block (verbatim)
+  - Codebase context block from `references/codebase-context-block.md`
+  - Log in artifact: `Fix dispatch: [must_haves: ✓/✗, context_block: ✓/✗, failure_details: ✓/✗]`
+  - Re-verify Layers 1-3 after fix.
+- **NON-CRITICAL** (style, naming, minor patterns): document in artifact, user decides.
 
-**Agent:** `qa-expert`
-**Input:** The wave's `must_haves` block (truths, artifacts, key_links) + codebase access (Read, Grep, Glob)
-**NOT provided:** Build artifacts, execute results, architect prompts, or any context from earlier stages
+Escalation after fix attempt: existing 3-strike rule applies.
 
-**Prompt pattern:**
-```
-You are independently verifying work you did NOT build. You have no context about how this code was written.
+#### Layer 4: Code Quality Cleanup (Mode-Gated)
 
-Here are the must_haves for Wave [N]:
-[paste must_haves block from wave file]
+| Mode | Behavior |
+|------|----------|
+| **Reduction** | Skip |
+| **Hold** | Opt-in (ask during Discuss: "Run /simplify cleanup pass?") |
+| **Expansion** | Default yes, opt-out |
 
-For each truth: verify it is actually true in the codebase. Check the actual code, not just file existence.
-For each artifact: verify it exists AND is substantive (not a stub or placeholder).
-For each key_link: verify the connection is wired (controller calls service, route maps to controller, etc.).
+Process:
 
-Report PASS/FAIL per item with file:line evidence. Be skeptical — assume nothing works until you verify it.
-```
-
-**Results:** Feed into the Review verdict. Semantic verification failures are surfaced to the user but are NOT auto-blocking — the user decides whether to accept or fix.
+1. `git stash` (save current state)
+2. Invoke `/simplify` skill on this wave's changed files
+3. Re-run Layer 1 (`bundle exec rspec`)
+4. If Layer 1 PASSES: proceed. Record "Post-simplify verification: PASS" in artifact.
+5. If Layer 1 FAILS: `git stash pop` to revert simplify changes. Record "Post-simplify verification: FAIL — reverted" in artifact.
 
 ### Migration Verification (When Applicable)
 
@@ -371,43 +380,21 @@ If this wave included migrations, verify both databases show all migrations as "
 node ${PLUGIN_ROOT}/../shared/tools/dev-pipeline-tools.js validate-stage-output build review <feature-dir> --plugin backend --wave N
 ```
 
-### Code Quality Review (MANDATORY — Every Wave)
-
-Dispatch `code-reviewer` agent to review all files changed in this wave:
-- **Focus:** N+1 queries, convention adherence, auth boundary integrity, production safety, soft delete filtering, safe navigation
-- **Input:** `git diff` for this wave's changed files + the wave's `must_haves` block
-- **Blocking if:** CRITICAL issues found (security vulnerabilities, auth system mixing, broken soft deletes, missing authorization checks)
-- **Non-blocking:** Style suggestions, minor pattern deviations, naming conventions
-
-Pass the EXACT `must_haves` text to the code-reviewer — do NOT summarize or paraphrase.
-
-### Optional Checks (User Decides in Discuss)
-
-Based on HOW answers from Discuss, optionally run:
-
-| Check | Agent | When |
-|-------|-------|------|
-| Security audit | `security-engineer` | MANIFEST domains include `auth`, `payments`, `student_data`, `coppa` |
-| N+1 query check | `performance-engineer` | Wave added new Active Record queries or associations |
-| Test coverage assessment | `rails-expert` | User opted for coverage check |
-
-### N+1 Query Prevention
-
-Review ALL new controller actions and service methods for N+1 queries: missing `includes`/`eager_load`/`preload`, queries inside loops, scopes without eager loading. Any N+1 found is a blocking issue.
-
 ### Verification Checklist
 
-Verify every wave: files match Architect plan, all tasks completed or failures logged, RSpec passes, no N+1 queries in new code, migrations applied on both databases, deviations documented.
+Verify every wave: files match Architect plan, all tasks completed or failures logged, deviations documented.
 
-**must_haves Verification (MANDATORY):**
+**4-Layer Verification (MANDATORY):**
 
+- [ ] Layer 1: `bundle exec rspec` passes
+- [ ] Layer 2: `verify-must-haves` tool gate passed (zero issues)
+- [ ] Layer 3: `code-reviewer` semantic review completed, CRITICAL findings resolved
+- [ ] Layer 4: `/simplify` cleanup pass completed (or skipped per mode)
 - [ ] Wave's `must_haves` truths are satisfied by the implementation
 - [ ] All artifacts listed in must_haves exist and are substantive (not stubs)
 - [ ] Key links in must_haves are wired (controller→service→model connections verified)
 - [ ] RSpec specs exist for testable requirements in this wave
 - [ ] Requirement IDs for this wave are on track to be satisfied
-- [ ] `verify-must-haves` tool gate passed (zero issues)
-- [ ] Independent `qa-expert` verification completed
 
 ### Architecture Diagram Updates (CONDITIONAL)
 
@@ -417,7 +404,7 @@ If no diagrams were affected, skip this step.
 
 ### Surfacing Gaps
 
-Use `AskUserQuestion` to present: task summary, failures/deviations, RSpec results, migration verification results, code-reviewer findings, optional check results, recommendations for next wave.
+Use `AskUserQuestion` to present: task summary, failures/deviations, Layer 1-4 results, migration verification results, recommendations for next wave.
 
 ### User Decision (No Auto-Looping — D08)
 
@@ -452,15 +439,15 @@ node ${PLUGIN_ROOT}/../shared/tools/dev-pipeline-tools.js checkpoint-state <feat
 
 If FAIL, fix listed issues before proceeding.
 
-### 2. Update Tracking Files
+### 2. Update Tracking Files (MANDATORY — mechanical)
 
-| File | Update |
-|------|--------|
-| **MANIFEST** | `current_wave`, `build_progress`, task completion status, strike count |
-| **01_IMPLEMENTATION_STATUS.md** | Mark completed tasks, note deviations |
-| **CURRENT_STATUS.md** | Current wave, what is done, what remains |
-| **Wave file `## Upstream Context`** | Update the NEXT wave's file: fill `Key discoveries to carry forward` with discoveries from this wave's completion logs |
-| **Task completion logs** | Verify all tasks in this wave have their `## Completion Log` filled. If any are empty, fill them now from `execute-build-results.md`. |
+```bash
+node ${PLUGIN_ROOT}/../shared/tools/dev-pipeline-tools.js update-wave-tracking <feature-dir> --plugin backend --wave N
+```
+
+This command mechanically updates MANIFEST (current_wave, build_progress), CURRENT_STATUS (phase, wave, date), and the next wave file's upstream context from completion logs. Do NOT update these files manually — the tool handles it.
+
+If the command reports warnings (e.g., IMPLEMENTATION_STATUS needs manual review), address them before proceeding.
 
 ### 3. Notion Update (Between Waves)
 
