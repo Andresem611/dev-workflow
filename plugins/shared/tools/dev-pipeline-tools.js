@@ -938,11 +938,160 @@ function cmdVerifyMustHaves(args) {
   );
 }
 
+// --- Update Wave Tracking ---
+function cmdUpdateWaveTracking(args) {
+  const featureDir = args.positional[0];
+
+  if (!featureDir) {
+    error("Usage: update-wave-tracking <feature-dir> --plugin backend|frontend --wave N");
+  }
+
+  const wave = args.wave;
+  if (!wave || isNaN(wave) || wave < 1) {
+    error("--wave N is required and must be a positive integer.");
+  }
+
+  const resolvedDir = resolvePath(args.cwd, featureDir);
+  const res = { updated: [], warnings: [] };
+  const today = new Date().toISOString().split("T")[0];
+
+  // 1. Update MANIFEST.md
+  const manifestPath = path.join(resolvedDir, ".dev", "MANIFEST.md");
+  const manifestContent = safeReadFile(manifestPath);
+  if (manifestContent) {
+    let updated = manifestContent;
+    // Bold-pair format: **current_wave:** value
+    updated = updated.replace(
+      /(\*\*current[_ ]wave:\*\*)\s*.+/i,
+      `$1 ${wave}`
+    );
+    updated = updated.replace(
+      /(\*\*build[_ ]progress:\*\*)\s*.+/i,
+      `$1 Wave ${wave} complete`
+    );
+    // Table format: | **current_wave** | value |
+    updated = updated.replace(
+      /(\|\s*\*\*current[_ ]wave\*\*\s*\|)\s*[^|]*\|/i,
+      `$1 ${wave} |`
+    );
+    updated = updated.replace(
+      /(\|\s*\*\*build[_ ]progress\*\*\s*\|)\s*[^|]*\|/i,
+      `$1 Wave ${wave} complete |`
+    );
+    if (updated !== manifestContent) {
+      fs.writeFileSync(manifestPath, updated, "utf8");
+      res.updated.push("MANIFEST.md");
+    } else {
+      res.warnings.push("MANIFEST.md: no current_wave/build_progress fields found to update.");
+    }
+  } else {
+    res.warnings.push("MANIFEST.md not found at " + manifestPath);
+  }
+
+  // 2. Update CURRENT_STATUS.md
+  const statusPath = path.join(resolvedDir, "CURRENT_STATUS.md");
+  const statusContent = safeReadFile(statusPath);
+  if (statusContent) {
+    const statusTable = [
+      "## Current Status",
+      "",
+      "| Field | Value |",
+      "|-------|-------|",
+      `| Phase | BUILD |`,
+      `| Wave | ${wave} complete |`,
+      `| Updated | ${today} |`,
+    ].join("\n");
+
+    let updated;
+    // Replace existing ## Current Status section (up to next ## heading or EOF)
+    const sectionRegex = /## Current Status[\s\S]*?(?=\n## |\n#[^#]|$)/;
+    if (sectionRegex.test(statusContent)) {
+      updated = statusContent.replace(sectionRegex, statusTable);
+    } else {
+      // No existing section — prepend
+      updated = statusTable + "\n\n" + statusContent;
+    }
+    if (updated !== statusContent) {
+      fs.writeFileSync(statusPath, updated, "utf8");
+      res.updated.push("CURRENT_STATUS.md");
+    }
+  } else {
+    res.warnings.push("CURRENT_STATUS.md not found at " + statusPath);
+  }
+
+  // 3. Update next wave's upstream context with discoveries from current wave tasks
+  const wavePad = String(wave).padStart(2, "0");
+  const currentWavePath = path.join(resolvedDir, "waves", `WAVE_${wavePad}.md`);
+  const nextWavePad = String(wave + 1).padStart(2, "0");
+  const nextWavePath = path.join(resolvedDir, "waves", `WAVE_${nextWavePad}.md`);
+
+  const currentWaveContent = safeReadFile(currentWavePath);
+  const nextWaveContent = safeReadFile(nextWavePath);
+
+  if (currentWaveContent && nextWaveContent) {
+    // Find task references (TASK_XX) in the current wave file
+    const taskRefs = [...new Set(
+      (currentWaveContent.match(/TASK_(\d{2})/g) || []).map((t) => t)
+    )];
+
+    const discoveries = [];
+    for (const taskRef of taskRefs) {
+      const taskPath = path.join(resolvedDir, "tasks", `${taskRef}.md`);
+      const taskContent = safeReadFile(taskPath);
+      if (!taskContent) continue;
+
+      // Extract Discoveries field from Completion Log
+      // Patterns: **Discoveries:** value  or  | Discoveries | value |
+      let disc = null;
+      const boldMatch = taskContent.match(/\*\*Discoveries?:\*\*\s*(.+)/i);
+      if (boldMatch) disc = boldMatch[1].trim();
+      if (!disc) {
+        const tableMatch = taskContent.match(/\|\s*Discoveries?\s*\|\s*([^|]+)\|/i);
+        if (tableMatch) disc = tableMatch[1].trim();
+      }
+      if (disc && disc.toLowerCase() !== "none" && disc.length >= 4) {
+        discoveries.push(`- **${taskRef}**: ${disc}`);
+      }
+    }
+
+    if (discoveries.length > 0) {
+      let updated = nextWaveContent;
+      const discSection = /Key discoveries to carry forward[\s\S]*?(?=\n## |\n#[^#]|$)/i;
+      const discBlock = `Key discoveries to carry forward\n\n${discoveries.join("\n")}`;
+      if (discSection.test(updated)) {
+        updated = updated.replace(discSection, discBlock);
+      } else {
+        // Append at end
+        updated = updated.trimEnd() + "\n\n### " + discBlock + "\n";
+      }
+      if (updated !== nextWaveContent) {
+        fs.writeFileSync(nextWavePath, updated, "utf8");
+        res.updated.push(`WAVE_${nextWavePad}.md`);
+      }
+    }
+  } else {
+    if (!currentWaveContent) res.warnings.push(`Current wave file not found: ${currentWavePath}`);
+    if (!nextWaveContent) res.warnings.push(`Next wave file not found: ${nextWavePath}`);
+  }
+
+  // 4. Warn about IMPLEMENTATION_STATUS
+  const implStatusPath = path.join(resolvedDir, "01_IMPLEMENTATION_STATUS.md");
+  if (fileExists(implStatusPath)) {
+    res.warnings.push("01_IMPLEMENTATION_STATUS.md exists — recommend manual review (format too variable to auto-update).");
+  }
+
+  output(res, args.raw,
+    res.updated.length > 0
+      ? `DONE: Updated ${res.updated.length} tracking files (${res.updated.join(", ")})${res.warnings.length > 0 ? ` | Warnings: ${res.warnings.join("; ")}` : ""}`
+      : `WARN: No tracking files updated${res.warnings.length > 0 ? ` (${res.warnings.join("; ")})` : ""}`
+  );
+}
+
 // --- CLI Router ---
 function main() {
   const argv = process.argv.slice(2);
   if (argv.length === 0) {
-    error("Usage: dev-pipeline-tools.js <command> [args] --plugin backend|frontend [--raw] [--wave N] [--scope wave|phase]\nCommands: validate-stage-entry, validate-stage-output, checkpoint-state, validate-manifest, verify-must-haves");
+    error("Usage: dev-pipeline-tools.js <command> [args] --plugin backend|frontend [--raw] [--wave N] [--scope wave|phase]\nCommands: validate-stage-entry, validate-stage-output, checkpoint-state, validate-manifest, verify-must-haves, update-wave-tracking");
   }
 
   const command = argv[0];
@@ -981,10 +1130,13 @@ function main() {
     case "verify-must-haves":
       cmdVerifyMustHaves(parsedArgs);
       break;
+    case "update-wave-tracking":
+      cmdUpdateWaveTracking(parsedArgs);
+      break;
     default:
-      error(`Unknown command: ${command}. Valid: validate-stage-entry, validate-stage-output, checkpoint-state, validate-manifest, verify-must-haves`);
+      error(`Unknown command: ${command}. Valid: validate-stage-entry, validate-stage-output, checkpoint-state, validate-manifest, verify-must-haves, update-wave-tracking`);
   }
 }
 
-module.exports = { cmdValidateStageEntry, cmdValidateStageOutput, cmdCheckpointState, cmdValidateManifest, cmdVerifyMustHaves, parseRoutesFile };
+module.exports = { cmdValidateStageEntry, cmdValidateStageOutput, cmdCheckpointState, cmdValidateManifest, cmdVerifyMustHaves, cmdUpdateWaveTracking, parseRoutesFile };
 if (require.main === module) main();
