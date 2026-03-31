@@ -137,6 +137,48 @@ function parsePhaseProgress(content) {
   return phases;
 }
 
+// --- Routes Parser ---
+function parseRoutesFile(routesPath) {
+  const content = safeReadFile(routesPath);
+  if (!content) return [];
+
+  const routes = [];
+  const lines = content.split("\n");
+
+  for (const line of lines) {
+    const trimmed = line.trim();
+    // Skip comments and blank lines
+    if (!trimmed || trimmed.startsWith("#")) continue;
+
+    // Explicit routes: get '/api/v1/events', to: 'api/v1/events#index'
+    const explicitMatch = trimmed.match(
+      /^(get|post|put|patch|delete)\s+['"]([^'"]+)['"]\s*,\s*to:\s*['"]([^'"]+)['"]/i
+    );
+    if (explicitMatch) {
+      routes.push({
+        method: explicitMatch[1].toUpperCase(),
+        path: explicitMatch[2],
+        controller: explicitMatch[3],
+      });
+      continue;
+    }
+
+    // Resources: resources :events (generates standard CRUD routes)
+    const resourcesMatch = trimmed.match(/^resources\s+:(\w+)/);
+    if (resourcesMatch) {
+      const name = resourcesMatch[1];
+      const basePath = `/${name}`;
+      routes.push({ method: "GET",    path: basePath,          controller: `${name}#index` });
+      routes.push({ method: "GET",    path: `${basePath}/:id`, controller: `${name}#show` });
+      routes.push({ method: "POST",   path: basePath,          controller: `${name}#create` });
+      routes.push({ method: "PATCH",  path: `${basePath}/:id`, controller: `${name}#update` });
+      routes.push({ method: "DELETE", path: `${basePath}/:id`, controller: `${name}#destroy` });
+    }
+  }
+
+  return routes;
+}
+
 // --- Helpers ---
 function getArtifactPrefix(phase, stage, plugin) {
   const entry = STAGE_ARTIFACTS[phase];
@@ -789,6 +831,55 @@ function cmdVerifyMustHaves(args) {
     }
   }
 
+  // --- Auto-append API contract (backend only) ---
+  if (plugin === "backend") {
+    const apiDir = path.join(resolvedDir, "api");
+    const contractPath = path.join(apiDir, "API_CONTRACT.md");
+    const routesPath = resolvePath(args.cwd, "config/routes.rb");
+    const discoveredRoutes = parseRoutesFile(routesPath);
+
+    if (discoveredRoutes.length > 0) {
+      let contractContent = safeReadFile(contractPath) || "";
+      const existingKeys = new Set();
+
+      // Collect already-present routes from the contract (match table rows)
+      const rowRegex = /\|\s*(\S+)\s*\|\s*(GET|POST|PUT|PATCH|DELETE)\s*\|/gi;
+      let rowMatch;
+      while ((rowMatch = rowRegex.exec(contractContent)) !== null) {
+        existingKeys.add(`${rowMatch[2].toUpperCase()} ${rowMatch[1]}`);
+      }
+
+      const missing = discoveredRoutes.filter(
+        (r) => !existingKeys.has(`${r.method} ${r.path}`)
+      );
+
+      if (missing.length > 0) {
+        // Ensure api/ directory exists
+        if (!dirExists(apiDir)) {
+          fs.mkdirSync(apiDir, { recursive: true });
+        }
+
+        if (!contractContent) {
+          // Create new contract file with header
+          const header = "# API Contract\n\n| Path | Method | Auth | Status | Response | Wave |\n|------|--------|------|--------|----------|------|\n";
+          const rows = missing.map(
+            (r) => `| ${r.path} | ${r.method} | TBD | NEW | TBD | Wave N (auto-discovered) |`
+          ).join("\n");
+          fs.writeFileSync(contractPath, header + rows + "\n", "utf8");
+        } else {
+          // Append missing rows to existing contract
+          const rows = missing.map(
+            (r) => `| ${r.path} | ${r.method} | TBD | NEW | TBD | Wave N (auto-discovered) |`
+          ).join("\n");
+          fs.appendFileSync(contractPath, "\n" + rows + "\n", "utf8");
+        }
+
+        res.auto_appended = missing.length;
+        res.warnings.push(`Auto-appended ${missing.length} route(s) to API_CONTRACT.md from routes.rb`);
+      }
+    }
+  }
+
   // Stub errors are blocking issues
   if (res.stubs.errors.length > 0) {
     res.issues.push(`${res.stubs.errors.length} stub/placeholder error(s) found in artifacts`);
@@ -855,5 +946,5 @@ function main() {
   }
 }
 
-module.exports = { cmdValidateStageEntry, cmdValidateStageOutput, cmdCheckpointState, cmdValidateManifest, cmdVerifyMustHaves };
+module.exports = { cmdValidateStageEntry, cmdValidateStageOutput, cmdCheckpointState, cmdValidateManifest, cmdVerifyMustHaves, parseRoutesFile };
 if (require.main === module) main();
