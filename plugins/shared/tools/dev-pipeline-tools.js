@@ -480,6 +480,28 @@ function cmdValidateStageOutput(args) {
         }
       }
     }
+
+    // --- BUILD phase review enforcement ---
+    if (phase === "build") {
+      if (/\/simplify/i.test(content) && !/post-simplify verification/i.test(content)) {
+        res.warnings.push("Review artifact mentions /simplify but missing 'Post-simplify verification' field.");
+      }
+      if (/fix dispatch/i.test(content) && !/must_haves:\s*(?:[\u2713\u2705]|yes|no)/i.test(content)) {
+        res.warnings.push("Review artifact mentions fix dispatch but missing context checklist.");
+      }
+    }
+
+    // --- DESIGN phase review enforcement ---
+    if (phase === "design") {
+      const sectionsMatch = content.match(/sections\s+(?:designed|dispatched):\s*(\d+)/i);
+      if (sectionsMatch) {
+        const claimed = parseInt(sectionsMatch[1], 10);
+        const dispatchMentions = (content.match(/dispatch/gi) || []).length;
+        if (dispatchMentions < claimed) {
+          res.warnings.push(`Design review claims ${claimed} sections designed/dispatched but only ${dispatchMentions} dispatch mention(s) found.`);
+        }
+      }
+    }
   }
 
   res.valid = res.issues.length === 0;
@@ -531,13 +553,24 @@ function cmdCheckpointState(args) {
 
   // Scope-specific checks
   if (scope === "wave") {
-    // Check wave directories exist for current wave
+    // Migration guard: only validate the current wave, not all waves retroactively
     const buildDir = path.join(resolvedDir, ".dev", "build");
     if (dirExists(buildDir)) {
       try {
-        const waveDirs = fs.readdirSync(buildDir).filter((d) => /^wave-\d+$/.test(d));
-        if (waveDirs.length === 0) {
-          res.warnings.push("No wave-NN directories found in .dev/build/.");
+        const currentWaveMatch = manifestContent && manifestContent.match(/current_wave[:\s|]*(\d+)/i);
+        if (currentWaveMatch) {
+          // Validate only the current wave directory
+          const currentWaveNum = parseInt(currentWaveMatch[1], 10);
+          const currentWaveDir = `wave-${String(currentWaveNum).padStart(2, "0")}`;
+          if (!dirExists(path.join(buildDir, currentWaveDir))) {
+            res.warnings.push(`Current wave directory '${currentWaveDir}' not found in .dev/build/.`);
+          }
+        } else {
+          // Fallback: no current_wave in MANIFEST, check if any wave dirs exist
+          const waveDirs = fs.readdirSync(buildDir).filter((d) => /^wave-\d+$/.test(d));
+          if (waveDirs.length === 0) {
+            res.warnings.push("No wave-NN directories found in .dev/build/.");
+          }
         }
       } catch (_) {
         res.warnings.push("Could not read .dev/build/ directory.");
