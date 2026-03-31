@@ -230,8 +230,18 @@ Before marking tasks as parallel, check for shared state:
 1. **File overlap check:** Compare the `## Files` sections of all tasks in this wave. If ANY two tasks modify the same file, default to **sequential** execution.
 2. **State overlap check:** If tasks share React Context, global state, or the same API endpoint, default to **sequential**.
 3. **Override:** User can explicitly override to parallel in Discuss if they accept the risk. Log the override reason.
+4. **Component/endpoint overlap check:** If two tasks reference the same component import path or API endpoint (even in different files), default to **sequential**. Compare import paths and endpoint references across all task `## Files` sections.
 
 This gate prevents the most common parallel-dispatch failure: two agents modifying the same file with conflicting changes.
+
+### Batch-Eligible Task Classification
+
+If 2+ tasks in this wave apply the same change pattern to different files (e.g., add prop type, apply design system fix, add accessibility attribute, standardize component pattern), mark them as `batch-eligible` in the execution plan. In Execute, dispatch ONE agent for the batch with all file paths instead of separate agents per task.
+
+Criteria:
+- Same type of change
+- Different target files
+- No inter-task dependencies
 
 ### Codebase Context Block
 
@@ -315,7 +325,7 @@ node ${PLUGIN_ROOT}/../shared/tools/dev-pipeline-tools.js validate-stage-output 
 
 ---
 
-## Stage 4: Review — Code Quality (Per Wave)
+## Stage 4: Review — 4-Layer Verify-Fix Loop (Per Wave)
 
 ### Entry Validation
 
@@ -323,20 +333,18 @@ node ${PLUGIN_ROOT}/../shared/tools/dev-pipeline-tools.js validate-stage-output 
 node ${PLUGIN_ROOT}/../shared/tools/dev-pipeline-tools.js validate-stage-entry build review <feature-dir> --plugin frontend --wave N
 ```
 
-### Mandatory Checks (Every Wave)
+Run all four layers in order. Each layer must PASS before advancing. If a layer fails, fix and re-run THAT layer — do not skip ahead.
 
-These run regardless of user preferences from Discuss:
+### Layer 1: Mechanical Checks
 
 ```bash
-npm run type-check    # tsc --noEmit (if TypeScript)
+npm run type-check    # tsc --noEmit
 npm run lint          # ESLint
 ```
 
-Both must pass. If either fails, treat as a simple error — self-fix with one retry before escalating.
+Both must pass. If either fails, self-fix with one retry before escalating.
 
-### must_haves Verification Gate (Every Wave)
-
-**MANDATORY.** Run the mechanical verification tool before any semantic checks:
+### Layer 2: verify-must-haves
 
 ```bash
 node ${PLUGIN_ROOT}/../shared/tools/dev-pipeline-tools.js verify-must-haves <feature-dir> --plugin frontend --wave N
@@ -347,21 +355,37 @@ This checks:
 2. Component/page references in `must_haves.key_links` resolve to existing files
 3. No anti-stub patterns (`TODO`, `placeholder`, `() => {}`, `console.log`) in listed artifacts
 
-**If FAIL:** Treat as a blocking issue in Review. The orchestrator must fix missing artifacts or stubs before proceeding.
+**If FAIL:** Fix missing artifacts or stubs, then re-run Layer 2. Do not proceed to Layer 3.
 
-**If PASS:** Proceed to independent semantic verification.
+**If PASS:** Proceed to Layer 3.
 
-### Independent Semantic Verification (Every Wave)
+### Layer 3: code-reviewer (Independent Semantic Review)
 
-After the verification gate passes, dispatch an independent verification agent. This agent has NO context from the build process — it reads the must_haves and independently checks the codebase.
+Dispatch `code-reviewer` agent to review all files changed in this wave. This agent has NO context from the build process.
 
-**Agent:** `code-reviewer`
-**Input:** The wave's `must_haves` block (truths, artifacts, key_links) + codebase access (Read, Grep, Glob)
+**Input:** `git diff` for this wave's changed files + the wave's `must_haves` block (pass EXACT text — do NOT summarize)
 **NOT provided:** Build artifacts, execute results, architect prompts, or any context from earlier stages
+
+**Focus areas (frontend-specific):**
+- Design system compliance (color tokens, typography rules, component patterns)
+- Component composition patterns (prop drilling, context usage, render optimization)
+- Accessibility (ARIA attributes, keyboard navigation, focus management, semantic HTML)
+- State management correctness (React Context boundaries, hook dependencies, re-render prevention)
+- Import/export hygiene (barrel exports, circular dependencies, tree-shaking)
+
+**Issue Classification — the code-reviewer MUST tag every finding:**
+
+| Tag | Meaning | Action |
+|-----|---------|--------|
+| **CRITICAL + PATTERN** | Systemic issue across multiple files | Fix ALL instances now — one fix, batch apply |
+| **CRITICAL + UNIQUE** | One-off critical issue in a single location | Fix this specific instance now |
+| **NON-CRITICAL** | Style, minor pattern deviation, naming suggestion | Log in review artifact — do NOT fix now |
+
+**Blocking rule:** Only CRITICAL findings block the wave. NON-CRITICAL findings are logged but do not trigger fixes or retries.
 
 **Prompt pattern:**
 ```
-You are independently verifying work you did NOT build. You have no context about how this code was written.
+You are independently reviewing code you did NOT build. You have no context about how this code was written.
 
 Here are the must_haves for Wave [N]:
 [paste must_haves block from wave file]
@@ -370,10 +394,46 @@ For each truth: verify it is actually true in the codebase. Check the actual cod
 For each artifact: verify it exists AND is substantive (not a stub or placeholder).
 For each key_link: verify the connection is wired (component imports, route definitions, state connections, etc.).
 
-Report PASS/FAIL per item with file:line evidence. Be skeptical — assume nothing works until you verify it.
+Also review for: design system compliance, component patterns, accessibility, state management correctness, and import hygiene.
+
+Tag every finding as CRITICAL+PATTERN, CRITICAL+UNIQUE, or NON-CRITICAL.
+Report PASS/FAIL per must_have item with file:line evidence. Be skeptical — assume nothing works until you verify it.
 ```
 
-**Results:** Feed into the Review verdict. Semantic verification failures are surfaced to the user but are NOT auto-blocking — the user decides whether to accept or fix.
+### Layer 4: /simplify (Mode-Gated)
+
+**Gate:** Check `references/mode-propagation-reference.md`. Only run /simplify if execution mode is HOLD or EXPANSION. Skip for REDUCTION.
+
+**Mechanism:**
+1. `git stash` before running /simplify
+2. Invoke `/simplify` on all files changed in this wave with `--plugin frontend`
+3. Review /simplify's proposed changes
+4. If changes improve code: keep them. If /simplify introduces regressions or breaks must_haves: `git stash pop` to revert and log the reason
+
+**Why git stash:** /simplify may refactor working code into something that breaks type-check or must_haves. The stash provides a clean revert path without re-dispatching agents.
+
+### Optional Additional Checks (User Decides in Discuss)
+
+Based on HOW answers from Discuss, optionally dispatch:
+
+| Check | Agent | When |
+|-------|-------|------|
+| Design system compliance | `ui-designer` | MANIFEST domains include `design-system` |
+| Test coverage assessment | `test-automator` | User opted for coverage check |
+| Accessibility audit | `accessibility-tester` | MANIFEST domains include `accessibility` |
+
+### Verification Checklist
+
+- [ ] Layer 1: `npm run type-check` passes
+- [ ] Layer 1: `npm run lint` passes
+- [ ] Layer 2: `verify-must-haves` tool gate passed (zero issues)
+- [ ] Layer 3: `code-reviewer` completed — all CRITICAL findings resolved
+- [ ] Layer 3: NON-CRITICAL findings logged in review artifact
+- [ ] Layer 4: `/simplify` run (or skipped for REDUCTION mode) — result logged
+- [ ] Wave's `must_haves` truths are satisfied by the implementation
+- [ ] All artifacts listed in must_haves exist and are substantive (not stubs)
+- [ ] Key links in must_haves are wired (components connected, not orphaned)
+- [ ] Requirement IDs for this wave are on track to be satisfied
 
 ### Validation Tool
 
@@ -381,33 +441,9 @@ Report PASS/FAIL per item with file:line evidence. Be skeptical — assume nothi
 node ${PLUGIN_ROOT}/../shared/tools/dev-pipeline-tools.js validate-stage-output build review <feature-dir> --plugin frontend --wave N
 ```
 
-### Optional Checks (User Decides in Discuss)
-
-Based on HOW answers from Discuss, optionally run:
-
-**Mandatory: code-reviewer dispatch** — Dispatch `code-reviewer` agent every wave to review all changes. This catches N+1 queries, convention violations, and auth boundary issues that automated tests miss. Not optional.
-
-| Check | Agent | When |
-|-------|-------|------|
-| Code review | `code-reviewer` | Every wave (mandatory) |
-| Design system compliance | `ui-designer` | MANIFEST domains include `design-system` |
-| Test coverage assessment | `test-automator` | User opted for coverage check |
-| Accessibility audit | `accessibility-tester` | MANIFEST domains include `accessibility` |
-
-### Verification Checklist
-
-Verify every wave: files match Architect plan, all tasks completed or failures logged, type-check passes, lint passes, tests pass (if written), no regressions, deviations documented.
-
-- [ ] Wave's `must_haves` truths are satisfied by the implementation
-- [ ] All artifacts listed in must_haves exist and are substantive (not stubs)
-- [ ] Key links in must_haves are wired (components connected, not orphaned)
-- [ ] Requirement IDs for this wave are on track to be satisfied
-- [ ] `verify-must-haves` tool gate passed (zero issues)
-- [ ] Independent `code-reviewer` verification completed
-
 ### Surfacing Gaps
 
-Use `AskUserQuestion` to present: task summary, failures/deviations, type-check and lint results, optional check results, recommendations for next wave.
+Use `AskUserQuestion` to present: task summary, failures/deviations, type-check and lint results, code-reviewer findings (CRITICAL vs NON-CRITICAL), /simplify results, optional check results, recommendations for next wave.
 
 ### User Decision (No Auto-Looping — D08)
 
@@ -415,7 +451,7 @@ User picks one:
 
 | Option | When to Use |
 |--------|-------------|
-| **Accept wave** | All checks pass, output is satisfactory |
+| **Accept wave** | All layers pass, output is satisfactory |
 | **Retry Execute** | Re-dispatch failed tasks with adjusted prompts |
 | **Back to Architect** | Redesign subagent prompts for this wave |
 | **Back to Discuss** | Revisit implementation approach for this wave |
@@ -435,7 +471,7 @@ The next phase's Architect must address each listed agent — silent omission is
 .dev/build/wave-NN/review-code-quality.md
 ```
 
-Contains: check results, verdicts, deviations, user decision. For the final wave, this artifact IS the context bridge to VALIDATE.
+Contains: 4-layer results (mechanical, must_haves, code-reviewer findings with classification, /simplify outcome), verdicts, deviations, user decision. For the final wave, this artifact IS the context bridge to VALIDATE.
 
 ---
 
@@ -453,13 +489,11 @@ If FAIL, fix listed issues before proceeding.
 
 ### 2. Update Tracking Files
 
-| File | Update |
-|------|--------|
-| **MANIFEST** | `current_wave`, `build_progress`, task completion status, strike count |
-| **01_IMPLEMENTATION_STATUS.md** | Mark completed tasks, note deviations |
-| **CURRENT_STATUS.md** | Current wave, what is done, what remains |
-| **Wave file `## Upstream Context`** | Update the NEXT wave's file: fill `Key discoveries to carry forward` with discoveries from this wave's completion logs |
-| **Task completion logs** | Verify all tasks in this wave have their `## Completion Log` filled. If any are empty, fill them now from `execute-build-results.md`. |
+```bash
+node ${PLUGIN_ROOT}/../shared/tools/dev-pipeline-tools.js update-wave-tracking <feature-dir> --plugin frontend --wave N
+```
+
+This updates MANIFEST, 01_IMPLEMENTATION_STATUS.md, CURRENT_STATUS.md, next wave's Upstream Context, and verifies all task completion logs are filled. If any completion logs are empty, fill them now from `execute-build-results.md`.
 
 ### Notion Update (Between Waves)
 
@@ -615,7 +649,10 @@ docs/[Feature]/.dev/build/
 |---------|------------|
 | Running inner loop once for all waves | Inner loop runs PER WAVE — each wave gets Discuss/Architect/Execute/Review |
 | Executing tasks inline instead of dispatching | MUST dispatch subagents for every task — orchestrator never builds |
-| Skipping type-check/lint in Review | Mandatory for every wave, regardless of user preferences |
+| Skipping type-check/lint in Review (Layer 1) | Mandatory for every wave, regardless of user preferences |
+| Fixing NON-CRITICAL code-reviewer findings | Only CRITICAL findings block — log NON-CRITICAL and move on |
+| Skipping /simplify in HOLD/EXPANSION mode | Layer 4 is mandatory unless REDUCTION mode — use git stash for safety |
+| Not classifying batch-eligible tasks | If 2+ tasks share a change pattern, batch them — one agent, all files |
 | Not checkpointing between waves | Always run `checkpoint-state` before `/clear` or starting next wave |
 | Skipping `/prompt-generator` in Architect | MANDATORY for every subagent prompt — no shortcuts |
 | Repeating same fix strategy on strike 2-3 | Each retry must use a DIFFERENT approach |
@@ -637,6 +674,7 @@ docs/[Feature]/.dev/build/
 | Entry validation | `validate-stage-entry build discuss <dir> --plugin frontend --wave N` |
 | Output validation | `validate-stage-output build review <dir> --plugin frontend --wave N` |
 | Checkpoint | `checkpoint-state <dir> --scope wave --plugin frontend` |
+| Wave tracking update | `update-wave-tracking <dir> --plugin frontend --wave N` |
 | Context bridge IN | `.dev/document/review-documentation-quality.md` (first wave only) |
 | Context bridge OUT | Final wave's `.dev/build/wave-NN/review-code-quality.md` |
 | Strike tracking | Per feature, persists across waves, resets never |
