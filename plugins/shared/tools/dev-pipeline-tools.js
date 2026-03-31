@@ -28,7 +28,7 @@ function findArtifact(dirPath, prefix) {
 // --- Phase Chains & Schemas ---
 const PHASE_CHAINS = {
   backend: ["intake", "discover", "plan", "document", "build", "validate", "ship"],
-  frontend: ["intake", "discover", "plan", "design", "document", "build", "validate", "ship"],
+  frontend: ["intake", "discover", "design", "plan", "document", "build", "validate", "ship"],
 };
 
 const STAGES = ["discuss", "architect", "execute", "review"];
