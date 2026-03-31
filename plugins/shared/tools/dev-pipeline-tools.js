@@ -297,6 +297,18 @@ function cmdValidateStageEntry(args) {
       if (!dirExists(phaseDir)) {
         res.warnings.push(`Wave directory not found at ${phaseDir}. It should be created before executing build artifacts.`);
       }
+      // Artifact trail enforcement: previous wave must have all 4 stage artifacts
+      if (args.wave && args.wave > 1) {
+        const prevWave = args.wave - 1;
+        const prevWaveDir = path.join(resolvedDir, ".dev", "build", `wave-${String(prevWave).padStart(2, "0")}`);
+        if (dirExists(prevWaveDir)) {
+          for (const prefix of ["discuss-", "architect-", "execute-", "review-"]) {
+            if (!findArtifact(prevWaveDir, prefix)) {
+              res.issues.push(`Previous wave ${prevWave} missing ${prefix}*.md artifact`);
+            }
+          }
+        }
+      }
     }
   } else if (stage === "architect") {
     // Discuss artifact must exist
@@ -334,6 +346,34 @@ function cmdValidateStageEntry(args) {
       });
       if (missing.length > 0 && missing.length <= 10) {
         res.warnings.push(`Execute artifact references ${missing.length} path(s) not found on disk: ${missing.slice(0, 5).join(", ")}${missing.length > 5 ? "..." : ""}`);
+      }
+    }
+    // Completion log quality check for BUILD wave tasks
+    if (phase === "build" && args.wave) {
+      const wavePadded = String(args.wave).padStart(2, "0");
+      const waveFile = path.join(resolvedDir, "waves", `WAVE_${wavePadded}.md`);
+      const waveContent = safeReadFile(waveFile);
+      if (waveContent) {
+        const taskRefs = [...new Set((waveContent.match(/TASK_\d+/g) || []))];
+        for (const taskRef of taskRefs) {
+          const taskFile = path.join(resolvedDir, "tasks", `${taskRef}.md`);
+          const taskContent = safeReadFile(taskFile);
+          if (!taskContent) continue;
+          const logMatch = taskContent.match(/## Completion Log[\s\S]*?(?=\n## |\n---|\s*$)/);
+          if (!logMatch) {
+            res.warnings.push(`${taskRef} has no ## Completion Log section`);
+            continue;
+          }
+          const logSection = logMatch[0];
+          const filesTouchedMatch = logSection.match(/Files touched[:\s]*(.*)/i);
+          if (!filesTouchedMatch || !filesTouchedMatch[1].trim()) {
+            res.warnings.push(`${taskRef} Completion Log missing "Files touched" content`);
+          }
+          const discoveriesMatch = logSection.match(/Discoveries[:\s]*(.*)/i);
+          if (!discoveriesMatch || !discoveriesMatch[1].trim()) {
+            res.warnings.push(`${taskRef} Completion Log missing "Discoveries" content`);
+          }
+        }
       }
     }
   }
