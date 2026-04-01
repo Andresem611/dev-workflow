@@ -99,7 +99,7 @@ This verification appears in the Orchestration Log under `Map compliance`.
 | `COMPONENT_ARCHITECTURE.md` | `documentation-engineer` | Component hierarchy, state flow, props |
 | `REUSE_AUDIT.md` | `Explore` (subagent_type) | Scan codebase for reuse opportunities |
 | `FRONTEND_INTEGRATION_GUIDE.md` | `documentation-engineer` | API integration, backend deps, auth |
-| `tasks/TASK_01..N.md` | `prompt-engineer` | Task files need good prompts for BUILD |
+| `tasks/TASK_01..N.md` | `prompt-engineer` | Behavior-slice task files for BUILD |
 | `waves/WAVE_01..N.md` | `documentation-engineer` | Wave execution plans with task assignments |
 | `01_IMPLEMENTATION_STATUS.md` | `documentation-engineer` | Task tracking table |
 | `CURRENT_STATUS.md` | `documentation-engineer` | Quick status reference |
@@ -122,11 +122,11 @@ Per-subagent:
 - **Component Arch:** Component tree with exact file paths, TS props interfaces, state flow, data flow diagram. **Diagrams MUST use D2 syntax** (rendered to SVG via `d2 <file>.d2 <file>.svg --layout=elk`). Store `.d2` + `.svg` in `docs/[Feature]/.dev/document/diagrams/`. Include: component tree diagram, data flow diagram, and state flow diagram (if >3 states). Fallback to ASCII if `d2` unavailable.
 - **Reuse Audit:** Four tables — Reuse As-Is, Can Extend, Not Suitable, New Code Required (with justification)
 - **Integration Guide:** API endpoints with types, auth patterns, error handling, backend dependencies
-- **Task Files:** Duration 30min-2.5hr, wave assignment, dependencies, exact file paths, acceptance criteria, TDD steps
+- **Task Files:** Duration 1-3hr behavior slices, wave assignment, dependencies, exact file paths, acceptance criteria, suggested approach, relevant locked decisions
 - **Wave Plans:** Task assignments, strategy, duration, completion criteria, wave dependencies
 - **Status Files:** All tasks listed "Not Started" with wave and duration
 
-Overall: every PLAN requirement has a task, every task in exactly one wave, cross-references consistent, no task outside 20min-2.5hr range.
+Overall: every PLAN requirement has a task, every task in exactly one wave, cross-references consistent, tasks are 1-3hr behavior slices.
 
 ### 2.5 Stage Artifact
 
@@ -162,37 +162,13 @@ docs/[Feature]/
 
 ### 3.3 Task File Structure
 
-```markdown
-# Task NN: [Name]
-**Duration:** [30min-2.5hr]  **Wave:** [N]  **Dependencies:** [Task IDs or "None"]
-**Agent:** [specialist agent from routing table — see below]
-**Domain:** [routing | state | forms | animation | a11y | responsive | api-integration | auth-ui | design-system | performance | seo | analytics]
+Task files MUST follow the template in `${PLUGIN_ROOT}/../shared/references/task-template.md`.
 
-## Files
-- **Create:** `exact/path/file.tsx`
-- **Modify:** `exact/path/existing.tsx` (lines ~XX-YY)
-- **Test:** `__tests__/exact/path/test.tsx`
-- **Reuse:** `components/ui/existing.tsx` (from REUSE_AUDIT)
+**Behavior-Slice Tasks:** Each task represents a vertical slice of user-visible behavior, NOT a file type. A behavior slice groups all files needed for one coherent behavior: component + hook + API integration + test. Example: "UserProfile page" = page component + `useUserProfile` hook + API call + tests — not separate tasks for "components", "hooks", "API layer".
 
-## Acceptance Criteria
-- [ ] [Specific, testable criterion]
-- [ ] TypeScript strict passes
-- [ ] Component < 300 lines
+Task files include a "Suggested Approach" section with hints, not mandatory TDD steps. Agents follow the BUILD skill's TDD guidance.
 
-## Implementation Steps (TDD)
-1. Write failing test → 2. Verify failure → 3. Implement → 4. Verify pass → 5. Refactor → 6. Commit
-
-## Completion Log
-<!-- Filled by BUILD agent after task execution. Do not pre-populate. -->
-| Field | Value |
-|-------|-------|
-| **Status** | Not Started |
-| **Planned** | |
-| **Actual** | |
-| **Deviations** | |
-| **Discoveries** | |
-| **Files touched** | |
-```
+**Locked Decisions Extraction:** For each task, extract the 3-5 relevant locked decisions from `.dev/plan/execute-locked-decisions.md`. Include only decisions that constrain THIS task's behavior. Do not dump all decisions into every task.
 
 **Agent Assignment Guide** — auto-assign the `Agent:` field using keyword matching:
 
@@ -207,7 +183,7 @@ docs/[Feature]/
 | Framer Motion, animation, CSS transition | `ui-designer` |
 | General UI components, styling, layout, forms | `frontend-developer` |
 
-**Sizing:** >2.5hr split, <20min combine. Sweet spot 30min-2.5hr.
+**Sizing:** 2-4 behavior-slice tasks per wave, 1-3 hours each. Group files that import/call each other into the same task. See shared task template for grouping principle.
 
 ### 3.4 Wave File Structure
 
@@ -424,7 +400,7 @@ State persists to disk (MANIFEST + stage artifacts). Nothing is lost on `/clear`
 | COMPONENT_ARCHITECTURE.md | Component hierarchy, state flow, props/interfaces | documentation-engineer |
 | REUSE_AUDIT.md | Existing components to reuse vs build new | Explore |
 | FRONTEND_INTEGRATION_GUIDE.md | API integration, backend deps, auth | documentation-engineer |
-| tasks/TASK_NN_xxx.md | Individual task specs with acceptance criteria | prompt-engineer |
+| tasks/TASK_NN_xxx.md | Behavior-slice task specs with acceptance criteria | prompt-engineer |
 | waves/WAVE_NN.md | Wave execution plans with task assignments | documentation-engineer |
 | 01_IMPLEMENTATION_STATUS.md | Task tracking table | documentation-engineer |
 | CURRENT_STATUS.md | Quick status reference | documentation-engineer |
@@ -437,10 +413,13 @@ State persists to disk (MANIFEST + stage artifacts). Nothing is lost on `/clear`
 |---------|-----|
 | Writing docs inline instead of dispatching | Execute MUST dispatch subagents |
 | Tasks missing exact file paths | Every task needs create/modify/test/reuse paths |
-| Tasks outside 20min-2.5hr range | Split if too large, combine if too small |
+| Tasks outside 1-3hr range | Split if too large, combine if too small into behavior slices |
 | Reuse audit skipped | Mandatory — dispatch Explore agent |
 | Cross-references broken | Review cohesion check catches this |
 | Wave plans missing completion criteria | Every wave needs type-check + lint + acceptance |
-| Task files lack TDD steps | Add: failing test > verify > implement > verify > commit |
+| Task files prescribe exact TDD steps instead of using Suggested Approach | Use hints in Suggested Approach; BUILD skill owns TDD guidance |
 | execute-docs-manifest.md incomplete | Must list ALL files with paths and summaries |
+| Creating one task per file type (component task, hook task, API task) instead of behavior slices | Group component + hook + API + test into one behavior-slice task |
+| Dumping all locked decisions into every task instead of extracting relevant ones | Extract only the 3-5 decisions that constrain THIS task's behavior |
+| Tasks smaller than 1 hour — too granular | Combine into behavior slices (1-3 hours each) |
 | Review auto-loops on failure | Surface to user — user decides next action |
