@@ -87,7 +87,7 @@ Use `/prompt-generator` to craft every subagent prompt. No exceptions.
 |-----|-----------|-------|
 | `00_MASTER_PLAN.md` | `documentation-engineer` | Executive summary, architecture, phases |
 | `api/API_CONTRACT.md` | `documentation-engineer` | Endpoint specs, request/response, auth, errors |
-| `tasks/TASK_01..N.md` | `prompt-engineer` | Task files need good prompts for BUILD |
+| `tasks/TASK_01..N.md` | `prompt-engineer` | Behavior-slice task files — vertical slices, not file-type tasks |
 | `waves/WAVE_01..N.md` | `documentation-engineer` | Wave execution plans with task assignments |
 | `01_IMPLEMENTATION_STATUS.md` | `documentation-engineer` | Task tracking table |
 | `CURRENT_STATUS.md` | `documentation-engineer` | Quick status reference |
@@ -107,11 +107,11 @@ Adjust based on user preferences from Discuss.
 Per-subagent:
 - **Master Plan:** Business requirements, architecture overview, decision log, migration plan, task list, success criteria. **Diagrams MUST use D2 syntax** (rendered to SVG via `d2 <file>.d2 <file>.svg --layout=elk`). Store `.d2` + `.svg` in `docs/[Feature]/.dev/document/diagrams/`. Include: service dependency diagram, data flow diagram, migration chain diagram (if >2 migrations), model relationship diagram (if new models). Fallback to ASCII if `d2` unavailable.
 - **API Contract:** Endpoint specs with request/response, validation rules, status codes, error formats per `API_ERROR_RESPONSE_CONTRACT.md`, auth patterns
-- **Task Files:** Duration 30min-2.5hr, wave assignment, dependencies, exact file paths, acceptance criteria, TDD steps
+- **Task Files:** Duration 1-3hr behavior slices, wave assignment, dependencies, exact file paths, acceptance criteria, suggested approach hints, relevant locked decisions
 - **Wave Plans:** Task assignments, strategy, duration, completion criteria, wave dependencies
 - **Status Files:** All tasks listed "Not Started" with wave and duration
 
-Overall: every PLAN requirement has a task, every task in exactly one wave, cross-references consistent, no task outside 20min-2.5hr range, migration steps covered, API contract matches task endpoints.
+Overall: every PLAN requirement has a task, every task in exactly one wave, cross-references consistent, tasks are 1-3hr behavior slices (not file-type tasks), migration steps covered, API contract matches task endpoints.
 
 ### 2.5 Stage Artifact
 
@@ -146,38 +146,15 @@ docs/[Feature]/
 
 ### 3.3 Task File Structure
 
-```markdown
-# Task NN: [Name]
-**Duration:** [30min-2.5hr]  **Wave:** [N]  **Dependencies:** [Task IDs or "None"]
+Task files MUST follow the template in `${PLUGIN_ROOT}/../shared/references/task-template.md`.
 
-## Files
-- **Create:** `app/services/exact_path.rb`
-- **Modify:** `app/models/existing_model.rb` (lines ~XX-YY)
-- **Test:** `spec/services/exact_path_spec.rb`
-- **Migration:** `db/migrate/YYYYMMDDHHMMSS_description.rb` (if applicable)
+**Behavior-Slice Tasks:** Each task represents a vertical slice of user-visible behavior, NOT a single file type (model, controller, service). A behavior slice groups all files needed to deliver one testable behavior — e.g., "User can create a widget" includes the model, migration, service, controller endpoint, and tests together.
 
-## Acceptance Criteria
-- [ ] [Specific, testable criterion]
-- [ ] RSpec tests pass
-- [ ] No N+1 queries introduced
-- [ ] Migration reversible
+**Sizing:** 2-4 behavior-slice tasks per wave, 1-3 hours each. Group files that import/call each other into the same task. See shared task template for grouping principle.
 
-## Implementation Steps (TDD)
-1. Write failing spec -> 2. Verify failure -> 3. Implement -> 4. Verify pass -> 5. Refactor -> 6. Commit
+**Suggested Approach:** Task files include a "Suggested Approach" section with hints, not mandatory TDD steps. Agents follow the BUILD skill's TDD guidance.
 
-## Completion Log
-<!-- Filled by BUILD agent after task execution. Do not pre-populate. -->
-| Field | Value |
-|-------|-------|
-| **Status** | Not Started |
-| **Planned** | |
-| **Actual** | |
-| **Deviations** | |
-| **Discoveries** | |
-| **Files touched** | |
-```
-
-**Sizing:** >2.5hr split, <20min combine. Sweet spot 30min-2.5hr.
+**Locked Decisions:** For each task, extract the 3-5 relevant locked decisions from `.dev/plan/execute-locked-decisions.md`. Include only decisions that constrain THIS task's behavior. Do not dump all decisions into every task.
 
 ### 3.4 Wave File Structure
 
@@ -429,12 +406,15 @@ State persists to disk (MANIFEST + stage artifacts). Nothing is lost on `/clear`
 |---------|-----|
 | Writing docs inline instead of dispatching | Execute MUST dispatch subagents |
 | Tasks missing exact file paths | Every task needs create/modify/test/migration paths |
-| Tasks outside 20min-2.5hr range | Split if too large, combine if too small |
+| Tasks outside 1-3hr range | Split if too large, combine if too small into behavior slices |
 | Cross-references broken | Review cohesion check catches this |
 | Wave plans missing completion criteria | Every wave needs rspec + migration check + acceptance |
-| Task files lack TDD steps | Add: failing spec > verify > implement > verify > commit |
+| Task files prescribe exact TDD steps instead of using Suggested Approach | Use "Suggested Approach" section with hints; BUILD skill provides TDD guidance |
 | execute-docs-manifest.md incomplete | Must list ALL files with paths and summaries |
 | Review auto-loops on failure | Surface to user — user decides next action |
 | API contract written after implementation | API contract is produced in Execute, BEFORE BUILD |
 | Migration plan gaps | Every schema change needs a migration task with rollback |
 | Missing dual auth consideration | Tasks touching auth must specify User vs Student context |
+| Creating one task per file type (model, controller, service) instead of behavior slices | Group all files for one testable behavior into a single task |
+| Dumping all locked decisions into every task instead of extracting relevant ones | Extract only the 3-5 decisions that constrain THIS task's behavior |
+| Tasks smaller than 1 hour — combine into behavior slices | Merge related small tasks until each slice is 1-3 hours |
