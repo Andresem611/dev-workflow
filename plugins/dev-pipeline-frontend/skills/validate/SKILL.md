@@ -265,7 +265,44 @@ Evidence required: file:line citations for violations, actual audit output for a
 
 **Always run regardless of domains:** type-check, lint, stub scan, docs drift, code quality review.
 
-### 3.3 Optional Checks (If User Opted In)
+### 3.3 Visual QA Verification (MANDATORY when dev server available)
+
+Dispatch a subagent to verify the UI works visually, not just in code.
+
+**Pre-check:** Check if dev server is running:
+```bash
+curl -s -o /dev/null -w "%{http_code}" http://localhost:3000 || echo "NO_SERVER"
+```
+
+**If server running:** proceed with visual QA.
+**If not running:** attempt `npm run dev` in background, wait 10s, retry. If still fails, warn and skip: "Dev server unavailable — skipping visual QA verification. Run `npm run dev` manually and re-run VALIDATE."
+
+**Primary path — Playwright MCP tools:**
+
+1. Read must_haves key_links for page URLs to test
+2. For each page/route:
+   - `browser_navigate` to the URL
+   - `browser_snapshot` for accessibility tree (checks structure)
+   - `browser_take_screenshot` for visual evidence
+   - `browser_console_messages` to check for errors
+   - If interactive elements exist: `browser_click` key buttons, verify state changes
+3. Report: screenshot per page, console errors found, accessibility tree issues
+
+**Enhancement — /qa-only skill (when available):**
+
+If the /qa-only skill is detected (check: `Skill tool with skill: "qa-only"` responds), invoke it AFTER the Playwright baseline:
+- /qa-only provides: health score, structured QA report, visual diff comparison
+- Feed it the must_haves key_links as test scope
+- Its report supplements the Playwright baseline
+
+**Cleanup:** If subagent started dev server, kill it:
+```bash
+kill $(lsof -ti:3000) 2>/dev/null || true
+```
+
+**Results feed into Review verdict.** Console errors and broken layouts are BLOCKING. Screenshot evidence is attached to the review artifact.
+
+### 3.4 Optional Checks (If User Opted In)
 
 **Judge Scoring** — dispatch judge subagent:
 
@@ -281,7 +318,7 @@ Default score is 2. Justify scores above 2. Weighted total >= 4.0 passes.
 
 **Production Data Audit** — curl real endpoints, verify response shapes match TypeScript types, required fields present, auth guards return 401/403 for wrong roles.
 
-### 3.4 Post-Development Audit
+### 3.5 Post-Development Audit
 
 Final checklist (from `references/validation-checklists.md`):
 
@@ -296,7 +333,7 @@ Final checklist (from `references/validation-checklists.md`):
 - Works on mobile, tablet, desktop
 - No regressions in existing features
 
-### 3.5 Goal-Backward Verification
+### 3.6 Goal-Backward Verification
 
 **MANDATORY: Goal-Backward Verification**
 
@@ -314,7 +351,7 @@ Stub detection (from GSD verification-patterns):
 - Hardcoded returns: `return null`, `return []`, `return {}`
 - TODO markers: `grep -E "TODO|FIXME|XXX|HACK"`
 
-### 3.6 Failure Mode Analysis
+### 3.7 Failure Mode Analysis
 
 **MANDATORY.** For each new codepath or integration point identified during validation, document:
 
@@ -334,7 +371,7 @@ Stub detection (from GSD verification-patterns):
 
 Focus on codepaths that are NEW in this feature — don't audit the entire codebase.
 
-### 3.7 Artifact
+### 3.8 Artifact
 
 Write `.dev/validate/execute-validation-results.md` — every check with pass/fail and actual evidence. Include failure mode analysis table.
 
@@ -462,3 +499,4 @@ State persists to disk (MANIFEST + stage artifacts). Nothing is lost on `/clear`
 | Not checking custom acceptance criteria | PLAN-defined gates get ignored | Read MANIFEST criteria, check each explicitly |
 | Claiming "I already verified earlier" | Stale evidence from different context | Fresh evidence only — re-run in THIS session |
 | Orchestrator executing checks inline | Violates subagent dispatch rule (D03) | Always dispatch via Agent tool |
+| Skipping visual QA because dev server wasn't running | Misses visual regressions, console errors, broken layouts | Start server or warn user. Visual QA is mandatory when server is available. |
