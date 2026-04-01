@@ -1,7 +1,7 @@
 # VALIDATE Runtime Testing + Task Orientation + Inner Loop Tracking — Design Document
 
 **Date:** 2026-04-01
-**Status:** Brainstorm complete, pending eng review
+**Status:** Eng review CLEARED (2026-04-01)
 **Target:** dev-pipeline-backend v3.5.0 + dev-pipeline-frontend v4.2.0
 **Related:** BUILD Phase Overhaul v3.4.0/v4.1.0 (4-layer verify-fix loop, already shipped)
 
@@ -109,16 +109,27 @@ DOCUMENT (behavior slices + locked decisions)
       -> "Works when you use it"
 ```
 
-## Files Changed
+## Files Changed (updated after eng review)
 
 | File | Plugin | What |
 |------|--------|------|
-| `shared/references/inner-loop-reference.md` | Shared | Add TaskCreate tracking section |
-| `shared/references/task-template.md` | Shared (NEW) | Behavior-slice task template |
-| `skills/document/SKILL.md` | Backend | Behavior-slice task granularity |
-| `skills/document/SKILL.md` | Frontend | Same |
-| `skills/validate/SKILL.md` | Backend | Add Playwright API verification |
-| `skills/validate/SKILL.md` | Frontend | Add /qa-only visual QA |
+| `plugins/shared/references/inner-loop-reference.md` | Shared | Add TaskCreate tracking section + stage name lookup table |
+| `plugins/shared/references/task-template.md` | Shared (NEW) | Behavior-slice task template + grouping principle |
+| `plugins/dev-pipeline-backend/skills/document/SKILL.md` | Backend | Behavior-slice tasks, updated Common Mistakes table |
+| `plugins/dev-pipeline-frontend/skills/document/SKILL.md` | Frontend | Same |
+| `plugins/dev-pipeline-backend/skills/build/SKILL.md` | Backend | Agent routing for multi-domain behavior-slice tasks, updated Common Mistakes |
+| `plugins/dev-pipeline-frontend/skills/build/SKILL.md` | Frontend | Same |
+| `plugins/dev-pipeline-backend/skills/validate/SKILL.md` | Backend | Playwright API testing (supplements existing curl QA) |
+| `plugins/dev-pipeline-frontend/skills/validate/SKILL.md` | Frontend | /qa-only visual QA (supplements existing browser checks) |
+
+## Eng Review Findings (incorporated)
+
+1. **Server cleanup hook:** Subagent prompt must include explicit "kill server process" in cleanup section
+2. **Playwright MCP as primary:** Invert fallback order, Playwright primary, /qa-only enhancement
+3. **VALIDATE supplements, not replaces:** New layers supplement existing curl/browser QA, not replace
+4. **TDD steps become optional guidance:** Task template includes "Suggested approach" section, not mandatory TDD steps. Common Mistakes tables updated to remove "missing TDD steps" flag
+5. **BUILD agent routing updated:** Multi-domain behavior-slice tasks use primary domain agent with secondary concerns in prompt (existing pattern from domain-agent-map.md)
+6. **Task sizing rules updated:** 2-4 tasks per wave, individual tasks 1-3hr (up from 30min-2.5hr to accommodate behavior slices)
 
 ## NOT in Scope
 
