@@ -5,6 +5,53 @@ All notable changes to the dev-pipeline plugin marketplace will be documented in
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [4.2.0] - 2026-04-01
+
+### Added (Both Pipelines — VALIDATE)
+- **Runtime API verification in backend VALIDATE** — Playwright MCP tools or curl hit every endpoint from API_CONTRACT.md against a running Rails server. Verifies status codes and response shapes. Server auto-started if not running, mandatory cleanup on exit. Runtime failures are BLOCKING.
+- **Visual QA verification in frontend VALIDATE** — Playwright MCP tools navigate to affected pages, take screenshots, check console errors, verify accessibility trees. Enhanced by /qa-only skill when available (health scores, visual diffs). Console errors and broken layouts are BLOCKING.
+- **Inner loop visual tracking via TaskCreate** — New Section 11 in shared inner-loop-reference.md. All phases create TaskCreate entries for Discuss/Architect/Execute/Review stages. Stage name lookup table covers all 8 phases. DESIGN adds Gate 1 + Gate 2 tasks. BUILD creates per-wave task sets. Prevents silent stage skipping.
+
+### Added (Both Pipelines — DOCUMENT + BUILD)
+- **Behavior-slice task template** — New `shared/references/task-template.md`. Tasks group files that import/call each other (controller + service + spec = one task). 2-4 tasks per wave, 1-3hr each. Three sections: Acceptance Criteria (must_haves), Locked Decisions (from PLAN), Context. "Suggested Approach" replaces mandatory TDD step-by-step instructions.
+- **Multi-domain behavior-slice routing in BUILD** — Architect stage routes multi-domain tasks to PRIMARY domain agent with secondary concerns in prompt. No more dispatching 3 agents for one behavior slice. Existing single-domain routing from domain-agent-map.md unchanged.
+
+### Changed (Both Pipelines)
+- **DOCUMENT Execute** — Inline task template replaced with reference to shared task-template.md. Task sizing updated from 20min-2.5hr to 1-3hr behavior slices. Locked decisions extraction instruction added (3-5 relevant per task, not all).
+- **Common Mistakes tables** — Updated across DOCUMENT and BUILD skills: "one task per file type" anti-pattern, "dumping all locked decisions" anti-pattern, "tasks under 1 hour" anti-pattern, "dispatching 3 agents for one behavior slice" anti-pattern.
+- **Backend plugin.json** — Version bumped to 3.5.0
+- **Frontend plugin.json** — Version bumped to 4.2.0
+
+## [4.1.0] - 2026-03-31
+
+### Added (Both Pipelines — BUILD)
+- **4-layer verify-fix loop in BUILD Review** — Replaces single-pass review with: Layer 1 (Mechanical: rspec/type-check+lint), Layer 2 (Mechanical: verify-must-haves), Layer 3 (Semantic: code-reviewer with CRITICAL+PATTERN/UNIQUE/NON-CRITICAL classification), Layer 4 (Quality: /simplify with git stash revert on failure). Fix dispatches log must_haves/context_block/failure_details checklist.
+- **Batch-eligible task classification** — Architect stage identifies tasks applying same change pattern to different files. Execute dispatches one agent for the batch instead of N agents.
+- **Endpoint/component overlap check** — Sequential Awareness Gate extended: backend checks API endpoint overlap, frontend checks component import and shared endpoint overlap.
+- **update-wave-tracking command** — New tool command mechanically updates MANIFEST (current_wave, build_progress), CURRENT_STATUS.md, and next wave's upstream context between waves. Replaces error-prone manual file updates.
+
+### Added (Both Pipelines — Tools)
+- **Auto-append API contract** — verify-must-haves auto-discovers routes from routes.rb and appends missing ones to API_CONTRACT.md with TBD fields. Creates contract file if missing.
+- **Artifact trail enforcement** — validate-stage-entry blocks BUILD wave N+1 if previous wave missing any of 4 stage artifacts (discuss/architect/execute/review).
+- **Completion log quality check** — validate-stage-entry warns on BUILD review if task completion logs have empty Files touched or Discoveries fields.
+- **Enforcement in validate-stage-output** — Warns if review mentions /simplify without Post-simplify verification field, or fix dispatch without context checklist.
+- **Migration guard in checkpoint-state** — Only validates current wave directory, not retroactive check of all prior waves.
+- **Smoke test suite** — 8 tests covering all new tool commands and checks.
+
+### Added (Frontend — DESIGN)
+- **Context-aware design decisions** — 5 AskUserQuestion calls in Discuss: existing patterns, installed packages, design direction, component reuse, micro-interactions.
+- **Mandatory ASCII mockup + Gate 1** — Layout mockup required before Execute. User must approve via AskUserQuestion. Recorded in discuss artifact.
+- **Expansion mode component decomposition** — For layouts with 4+ sections, optional per-section ui-designer dispatch with cross-section consistency review.
+- **Gate 2 in Review** — Final design approval via AskUserQuestion before advancing to PLAN.
+- **Missing validate-stage-entry calls** — Added to Stages 2, 3, 4 (were missing in v4.0.0).
+
+### Fixed (Both Pipelines)
+- **Frontend phase chain ordering (P0)** — Frontend PHASE_CHAINS had "plan" before "design", breaking all validate-stage-entry prerequisite checks. Fixed to design→plan matching v4.0 intent.
+
+### Changed (Both Pipelines)
+- **Backend plugin.json** — Version bumped to 3.4.0
+- **Frontend plugin.json** — Version bumped to 4.1.0
+
 ## [4.0.0] - 2026-03-30
 
 ### Changed (Frontend — MAJOR)
