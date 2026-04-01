@@ -249,11 +249,48 @@ And a must_haves Verification table:
 Be skeptical. Assume nothing works until you verify it with file:line evidence.
 ```
 
-**Results:** The independent verifier's Requirements Coverage table becomes the PRIMARY source of truth for the Review stage's requirements assessment. Domain-specific agents (Section 3.2) provide additional depth but do not override the independent verifier's findings.
+**Results:** The independent verifier's Requirements Coverage table becomes the PRIMARY source of truth for the Review stage's requirements assessment. Domain-specific agents (Section 3.3) provide additional depth but do not override the independent verifier's findings.
 
 If the independent verifier finds BLOCKED requirements, these are treated as blocking issues in Review regardless of other check results.
 
-### 3.2 Domain-Triggered Checks
+### 3.2 Runtime API Verification (MANDATORY when server available)
+
+Dispatch a subagent to verify API endpoints work at runtime, not just in code.
+
+**Pre-check:** The subagent MUST first check if a Rails server is running:
+```bash
+curl -s -o /dev/null -w "%{http_code}" http://localhost:3001/health || echo "NO_SERVER"
+```
+
+**If server is running:** proceed with API testing.
+**If server is NOT running:** attempt to start:
+```bash
+RAILS_ENV=development rails s -p 3001 -d
+sleep 5
+curl -s -o /dev/null -w "%{http_code}" http://localhost:3001/health
+```
+If startup fails, warn and skip runtime testing: "Rails server unavailable — skipping runtime API verification. Run `rails s -p 3001` manually and re-run VALIDATE."
+
+**API Testing (when server available):**
+
+1. Read API_CONTRACT.md from `.dev/document/` or `api/` directory
+2. For each endpoint in the contract:
+   - Use Playwright MCP tools: `browser_navigate` to the endpoint URL
+   - Or use Bash: `curl -s -H "Authorization: Bearer TEST_TOKEN" http://localhost:3001/[endpoint]`
+   - Verify response status code matches contract
+   - Verify response JSON shape (top-level keys present)
+   - If error response: take screenshot via `browser_take_screenshot`
+3. Report PASS/FAIL per endpoint with evidence
+
+**Cleanup (MANDATORY):**
+If the subagent started the server, it MUST kill it before exiting:
+```bash
+kill $(cat tmp/pids/server.pid 2>/dev/null) 2>/dev/null || true
+```
+
+**Results feed into Review verdict.** Runtime failures are BLOCKING — if an endpoint returns 500 that the contract says should return 200, that's a ship-blocker.
+
+### 3.3 Domain-Triggered Checks
 
 Run ONLY when corresponding domain tag exists in MANIFEST.
 
@@ -281,7 +318,7 @@ Evidence required: same standard — file:line citations, actual command/query o
 
 **Always run regardless of domains:** RSpec, migration verification, secrets scan, stub scan, API contract compliance, docs drift, code quality review.
 
-### 3.3 Optional Checks (If User Opted In)
+### 3.4 Optional Checks (If User Opted In)
 
 **Judge Scoring** — dispatch judge subagent:
 
@@ -302,7 +339,7 @@ Default score is 2. Justify scores above 2. Weighted total >= 4.0 passes.
 - Compare against pre-BUILD audit (from PLAN phase) — any new risks?
 - Curl real endpoints, verify response shapes with production data
 
-### 3.4 Goal-Backward Verification
+### 3.5 Goal-Backward Verification
 
 **MANDATORY: Goal-Backward Verification**
 
@@ -322,7 +359,7 @@ Stub detection (from GSD verification-patterns):
 - Hardcoded responses: `render json: {}`, `render json: []`
 - Missing specs: Controller/service exists but no corresponding spec file
 
-### 3.5 Post-Development Audit
+### 3.6 Post-Development Audit
 
 Final checklist:
 
@@ -339,7 +376,7 @@ Final checklist:
 - No N+1 queries in new endpoints
 - No regressions in existing features
 
-### 3.6 Failure Mode Analysis
+### 3.7 Failure Mode Analysis
 
 **MANDATORY.** For each new codepath or integration point identified during validation, document:
 
@@ -365,7 +402,7 @@ Final checklist:
 
 Focus on codepaths that are NEW in this feature — don't audit the entire codebase.
 
-### 3.7 Artifact
+### 3.8 Artifact
 
 Write `.dev/validate/execute-validation-results.md` — every check with pass/fail and actual evidence. Include failure mode analysis table.
 
@@ -535,3 +572,4 @@ State persists to disk (MANIFEST + stage artifacts). Nothing is lost on `/clear`
 | Claiming "I already verified earlier" | Stale evidence from different context | Fresh evidence only — re-run in THIS session |
 | Orchestrator executing checks inline | Violates subagent dispatch rule (D03) | Always dispatch via Agent tool |
 | Skipping production data audit | NULL fields and missing associations cause 500s | Reference `/production-data-audit` for touched models |
+| Skipping runtime API testing because server wasn't running | Endpoints may return 500s despite passing static checks | Start server or warn user. Runtime testing is mandatory when server is available |
