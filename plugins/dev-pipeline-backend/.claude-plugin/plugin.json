@@ -1,7 +1,7 @@
 {
   "name": "dev-pipeline-backend",
-  "description": "Backend development pipeline v3.4.0 — 4-layer verify-fix loop, auto-append API contract, update-wave-tracking command, artifact trail enforcement, completion log quality checks, batch-eligible task classification",
-  "version": "3.4.0",
+  "description": "Backend development pipeline v3.5.0 — runtime API verification via Playwright, behavior-slice tasks, inner loop visual tracking via TaskCreate, multi-domain agent routing",
+  "version": "3.5.0",
   "author": {
     "name": "Thoven",
     "email": "andres@thoven.co"
