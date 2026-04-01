@@ -190,6 +190,18 @@ Before marking tasks as parallel, check for shared state:
 
 This gate prevents the most common parallel-dispatch failure: two agents modifying the same file with conflicting changes.
 
+### Multi-Domain Behavior-Slice Routing
+
+Behavior-slice tasks may span multiple domain types (e.g., a task that includes model + controller + service + spec). For multi-domain tasks:
+
+1. **Primary domain agent:** Select the agent for the task's PRIMARY domain (the core behavior). If the task is "Events API endpoint" with model + controller + serializer, the primary domain is `controllers/routes` → agent is `rails-expert`.
+
+2. **Secondary concerns in prompt:** Include secondary domain constraints in the agent's prompt, don't dispatch separate agents. Example: "This task includes a migration (use archived_at for soft deletes, UUID primary keys) and a controller (proper authorization, pagination)."
+
+3. **When to split:** If a behavior-slice task has TWO equally complex domains (e.g., a real-time WebSocket feature that also requires a complex database migration), consider splitting into two behavior slices. This is the exception, not the rule.
+
+The existing domain-agent-map.md single-domain routing still applies for tasks that only touch one domain.
+
 ### Batch-Eligible Task Classification
 
 If 2+ tasks in this wave apply the same change pattern to different files (e.g., add nil guard, add feature flag check, apply convention fix), mark them as `batch-eligible` in the execution plan. In Execute, dispatch ONE agent for the batch with all file paths instead of separate agents per task.
@@ -615,6 +627,8 @@ docs/[Feature]/.dev/build/
 | Not writing completion logs after tasks | MANDATORY — update task file's Completion Log after every agent completes |
 | Not reading prior wave completion logs | Step 0 requires reading completion logs from prior wave's tasks |
 | Parallel dispatch when tasks share files | Sequential Awareness Gate — check file/state/migration overlap before marking parallel |
+| Dispatching 3 agents for one behavior-slice task (one per domain) | Use primary domain agent with secondary concerns in prompt |
+| Assigning agent by first file in task instead of primary behavior | Read the task Goal to determine primary domain |
 
 ---
 
