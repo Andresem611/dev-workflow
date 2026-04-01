@@ -295,3 +295,78 @@ Every `architect-*.md` file MUST include this section:
 ```
 
 **Map compliance is the enforcement mechanism.** Every agent listed for this phase in `domain-agent-map.md` MUST appear — either dispatched or skipped with reason. Silent omission is not allowed. If an agent from the map is missing from the Orchestration Log, the Architect artifact is incomplete.
+
+---
+
+## 11. Inner Loop Visual Tracking via TaskCreate
+
+The orchestrator MUST create TaskCreate entries for each inner loop stage at the start of every phase (or every wave for BUILD). This provides visual accountability, self-regulation, and progress tracking across `/clear` breaks.
+
+### 11.1 The Rule
+
+1. At phase start (or wave start for BUILD), create 4 TaskCreate entries — one per stage
+2. Mark `in_progress` when entering the stage
+3. Mark `completed` when the stage artifact is written to disk
+4. If a stage is re-entered (e.g., Review sends back to Execute), mark the new attempt `in_progress` again
+
+### 11.2 Stage Name Lookup Table
+
+Use this table for TaskCreate subjects and activeForm text:
+
+| Phase | Discuss | Architect | Execute | Review |
+|-------|---------|-----------|---------|--------|
+| INTAKE | Classification | Manifest Plan | Manifest Created | Classification Confirmed |
+| DISCOVER | Feature Requirements | Exploration Plan | Design Doc | Design Approval |
+| DESIGN | Visual Direction | Design Plan | Design Spec | Design Compliance |
+| PLAN | Architecture Direction | Decision Framework | Locked Decisions | Plan Approval |
+| DOCUMENT | Documentation Scope | Documentation Plan | Docs Manifest | Documentation Quality |
+| BUILD (per wave) | Implementation Path | Subagent Prompts | Build Tasks | Verify-Fix Loop |
+| VALIDATE | Validation Strategy | Validation Plan | Validation Results | Ship Readiness |
+| SHIP | Release Scope | Release Plan | Release Output | Release Confirmation |
+
+### 11.3 TaskCreate Pattern
+
+```
+TaskCreate("[PHASE] / Discuss — [Name from table]", activeForm: "Discussing [name]...")
+TaskCreate("[PHASE] / Architect — [Name from table]", activeForm: "Architecting [name]...")
+TaskCreate("[PHASE] / Execute — [Name from table]", activeForm: "Executing [name]...")
+TaskCreate("[PHASE] / Review — [Name from table]", activeForm: "Reviewing [name]...")
+```
+
+**Example — DISCOVER phase:**
+```
+TaskCreate("DISCOVER / Discuss — Feature Requirements", activeForm: "Discussing feature requirements...")
+TaskCreate("DISCOVER / Architect — Exploration Plan", activeForm: "Architecting exploration plan...")
+TaskCreate("DISCOVER / Execute — Design Doc", activeForm: "Executing design doc...")
+TaskCreate("DISCOVER / Review — Design Approval", activeForm: "Reviewing design approval...")
+```
+
+### 11.4 Phase-Specific Gate Tasks
+
+**DESIGN** adds two extra gate tasks (from v4.1.0 approval gates):
+```
+TaskCreate("DESIGN / Gate 1 — Layout Mockup Approved", activeForm: "Awaiting layout approval...")
+TaskCreate("DESIGN / Gate 2 — Final Approval", activeForm: "Awaiting final design approval...")
+```
+
+Gate tasks are marked `completed` when the user approves via AskUserQuestion. They are marked `in_progress` when the approval question is presented.
+
+### 11.5 BUILD Per-Wave Pattern
+
+BUILD creates a fresh set of 4 stage tasks for EACH wave:
+
+```
+TaskCreate("BUILD W1 / Discuss — Implementation Path", activeForm: "Discussing W1 implementation...")
+TaskCreate("BUILD W1 / Architect — Subagent Prompts", activeForm: "Architecting W1 prompts...")
+TaskCreate("BUILD W1 / Execute — Build Tasks", activeForm: "Executing W1 build tasks...")
+TaskCreate("BUILD W1 / Review — Verify-Fix Loop", activeForm: "Reviewing W1 verify-fix...")
+```
+
+For wave 2: `BUILD W2 / Discuss — Implementation Path`, etc.
+
+### 11.6 Why This Matters
+
+- **Visual accountability:** User sees pending stages in their task list — impossible to silently skip
+- **Self-regulation:** Orchestrator follows its own task list rather than free-forming
+- **Progress tracking:** Tasks persist across `/clear` breaks — resuming sessions can check TaskList for state
+- **Gate visibility:** DESIGN approval gates appear as distinct tracked tasks
