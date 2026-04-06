@@ -108,6 +108,12 @@ Use the Read tool on each file before this wave. Do not proceed until all reads 
 
 If any file is missing, STOP and surface the gap to the user.
 
+**Advisory decision coverage check:**
+```bash
+node ${PLUGIN_ROOT}/../shared/tools/dev-pipeline-tools.js verify-decision-coverage docs/[Feature] --plugin frontend
+```
+If undistributed decisions found, surface to user via AskUserQuestion but do not block BUILD.
+
 ### Context Reading
 
 ### Notion Update (First Wave Only)

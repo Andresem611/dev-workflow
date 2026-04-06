@@ -262,6 +262,12 @@ Write `docs/[Feature]/.dev/document/execute-docs-manifest.md` — lists ALL file
 - This check is independent from Requirement Coverage (4.2) — requirements and decisions are orthogonal
 - **FAIL** the DOCUMENT Review if any LOCKED decision is undistributed
 
+**Mechanical verification:**
+```bash
+node ${PLUGIN_ROOT}/../shared/tools/dev-pipeline-tools.js verify-decision-coverage docs/[Feature] --plugin frontend
+```
+This check is BLOCKING — if it reports undistributed decisions, DOCUMENT Review cannot pass.
+
 ### 4.3 Wave Plan Completeness
 
 - Every task in exactly one wave
@@ -378,6 +384,9 @@ node ${PLUGIN_ROOT}/../shared/tools/dev-pipeline-tools.js validate-stage-output 
 
 # After MANIFEST changes
 node ${PLUGIN_ROOT}/../shared/tools/dev-pipeline-tools.js validate-manifest docs/[feature] --plugin frontend
+
+# During Review 4.2b — LOCKED decision coverage (BLOCKING)
+node ${PLUGIN_ROOT}/../shared/tools/dev-pipeline-tools.js verify-decision-coverage docs/[feature] --plugin frontend
 ```
 
 ---

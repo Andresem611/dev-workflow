@@ -1120,11 +1120,112 @@ function cmdUpdateWaveTracking(args) {
   );
 }
 
+// --- Verify Decision Coverage ---
+function cmdVerifyDecisionCoverage(args) {
+  const featureDir = args.positional[0];
+
+  if (!featureDir) {
+    error("Usage: verify-decision-coverage <feature-dir> --plugin backend|frontend");
+  }
+
+  const resolvedDir = resolvePath(args.cwd, featureDir);
+  const res = {
+    valid: true,
+    total_locked: 0,
+    covered: 0,
+    undistributed: [],
+    coverage_by_task: {},
+    issues: [],
+    warnings: []
+  };
+
+  // 1. Read MANIFEST
+  const manifestPath = path.join(resolvedDir, ".dev", "MANIFEST.md");
+  const manifestContent = safeReadFile(manifestPath);
+  if (!manifestContent) {
+    res.issues.push(`MANIFEST not found at ${manifestPath}`);
+    res.valid = false;
+    output(res, args.raw, `FAIL: ${res.issues.join("; ")}`);
+    return;
+  }
+
+  // 2. Parse Decision Ledger section
+  const ledgerMatch = manifestContent.match(/## Decision Ledger[\s\S]*?(?=\n## |\n#[^#]|$)/i);
+  if (!ledgerMatch) {
+    res.warnings.push("No Decision Ledger found in MANIFEST");
+    output(res, args.raw, `PASS: 0/0 LOCKED decisions covered (no Decision Ledger found)`);
+    return;
+  }
+
+  const ledgerSection = ledgerMatch[0];
+
+  // 3. Extract LOCKED rows — table format: | ID | Decision | Source | Status | ...
+  const lockedDecisions = [];
+  const rowRegex = /\|\s*([UADR]-\d+)\s*\|\s*([^|]+)\|[^|]*\|\s*LOCKED\s*\|/gi;
+  let rowMatch;
+  while ((rowMatch = rowRegex.exec(ledgerSection)) !== null) {
+    lockedDecisions.push({ id: rowMatch[1].trim(), decision: rowMatch[2].trim() });
+  }
+
+  res.total_locked = lockedDecisions.length;
+
+  if (lockedDecisions.length === 0) {
+    res.valid = true;
+    output(res, args.raw, `PASS: 0/0 LOCKED decisions covered`);
+    return;
+  }
+
+  // 4. Find task files
+  const tasksDir = path.join(resolvedDir, "tasks");
+  if (!dirExists(tasksDir)) {
+    res.issues.push(`Tasks directory not found at ${tasksDir}`);
+    res.valid = false;
+    output(res, args.raw, `FAIL: ${res.issues.join("; ")}`);
+    return;
+  }
+
+  const taskFiles = fs.readdirSync(tasksDir).filter((f) => f.endsWith(".md"));
+  const taskContents = {};
+  for (const tf of taskFiles) {
+    taskContents[tf] = safeReadFile(path.join(tasksDir, tf)) || "";
+    res.coverage_by_task[tf] = [];
+  }
+
+  // 5. Check coverage
+  for (const ld of lockedDecisions) {
+    let found = false;
+    for (const tf of taskFiles) {
+      if (taskContents[tf].includes(ld.id)) {
+        res.coverage_by_task[tf].push(ld.id);
+        found = true;
+      }
+    }
+    if (found) {
+      res.covered++;
+    } else {
+      res.undistributed.push({ id: ld.id, decision: ld.decision });
+    }
+  }
+
+  // 6. Build issues for undistributed
+  for (const ud of res.undistributed) {
+    res.issues.push(`UNDISTRIBUTED: ${ud.id} (${ud.decision}) — not in any task file`);
+  }
+
+  res.valid = res.undistributed.length === 0;
+
+  output(res, args.raw,
+    res.valid
+      ? `PASS: ${res.covered}/${res.total_locked} LOCKED decisions covered`
+      : `FAIL: ${res.undistributed.length} undistributed decisions\n${res.undistributed.map((u) => `- ${u.id}: ${u.decision}`).join("\n")}`
+  );
+}
+
 // --- CLI Router ---
 function main() {
   const argv = process.argv.slice(2);
   if (argv.length === 0) {
-    error("Usage: dev-pipeline-tools.js <command> [args] --plugin backend|frontend [--raw] [--wave N] [--scope wave|phase]\nCommands: validate-stage-entry, validate-stage-output, checkpoint-state, validate-manifest, verify-must-haves, update-wave-tracking");
+    error("Usage: dev-pipeline-tools.js <command> [args] --plugin backend|frontend [--raw] [--wave N] [--scope wave|phase]\nCommands: validate-stage-entry, validate-stage-output, checkpoint-state, validate-manifest, verify-must-haves, update-wave-tracking, verify-decision-coverage");
   }
 
   const command = argv[0];
@@ -1166,10 +1267,13 @@ function main() {
     case "update-wave-tracking":
       cmdUpdateWaveTracking(parsedArgs);
       break;
+    case "verify-decision-coverage":
+      cmdVerifyDecisionCoverage(parsedArgs);
+      break;
     default:
-      error(`Unknown command: ${command}. Valid: validate-stage-entry, validate-stage-output, checkpoint-state, validate-manifest, verify-must-haves, update-wave-tracking`);
+      error(`Unknown command: ${command}. Valid: validate-stage-entry, validate-stage-output, checkpoint-state, validate-manifest, verify-must-haves, update-wave-tracking, verify-decision-coverage`);
   }
 }
 
-module.exports = { cmdValidateStageEntry, cmdValidateStageOutput, cmdCheckpointState, cmdValidateManifest, cmdVerifyMustHaves, cmdUpdateWaveTracking, parseRoutesFile };
+module.exports = { cmdValidateStageEntry, cmdValidateStageOutput, cmdCheckpointState, cmdValidateManifest, cmdVerifyMustHaves, cmdUpdateWaveTracking, cmdVerifyDecisionCoverage, parseRoutesFile };
 if (require.main === module) main();

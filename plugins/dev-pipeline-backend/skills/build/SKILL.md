@@ -66,6 +66,12 @@ Extract from domain-agent-map.md for BUILD:
 
 These agents MUST be addressed in the Architect stage — either dispatched or explicitly skipped with reason.
 
+**Advisory decision coverage check:**
+```bash
+node ${PLUGIN_ROOT}/../shared/tools/dev-pipeline-tools.js verify-decision-coverage docs/[Feature] --plugin backend
+```
+If undistributed decisions found, surface to user via AskUserQuestion but do not block BUILD.
+
 **MANDATORY: Load Requirements Context**
 
 Before starting any wave, load `requirements.md` from the feature docs directory. This is the hard contract defining "done" — every build task must work toward satisfying these requirements. Pass relevant requirement IDs to build agents so they know what they're building toward.
