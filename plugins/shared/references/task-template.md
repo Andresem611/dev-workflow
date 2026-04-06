@@ -83,7 +83,7 @@ This section provides hints, not recipes.]
 | Create one task per file type (model task, controller task, service task) | Group files that call each other into one behavior-slice task |
 | Include TDD step-by-step instructions | Agent follows BUILD skill's TDD guidance. Use Suggested Approach for hints only |
 | Prescribe exact method signatures | Acceptance criteria define WHAT. Agent decides HOW within locked decisions |
-| List more than 5 locked decisions per task | Extract only the decisions that constrain THIS task's behavior |
+| LOCKED decision not in any task file | Every LOCKED decision must appear in at least one task. Coverage > brevity. |
 | Create tasks smaller than 1 hour | Combine with related behavior slices |
 | Create tasks larger than 3 hours | Split along a natural behavior boundary |
 

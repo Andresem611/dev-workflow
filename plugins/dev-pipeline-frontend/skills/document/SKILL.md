@@ -126,7 +126,7 @@ Per-subagent:
 - **Wave Plans:** Task assignments, strategy, duration, completion criteria, wave dependencies
 - **Status Files:** All tasks listed "Not Started" with wave and duration
 
-Overall: every PLAN requirement has a task, every task in exactly one wave, cross-references consistent, tasks are 1-3hr behavior slices.
+Overall: every PLAN requirement has a task, every task in exactly one wave, cross-references consistent, tasks are 1-3hr behavior slices, every LOCKED decision ID from the Decision Ledger appears in at least one task file.
 
 ### 2.5 Stage Artifact
 
@@ -168,7 +168,7 @@ Task files MUST follow the template in `${PLUGIN_ROOT}/../shared/references/task
 
 Task files include a "Suggested Approach" section with hints, not mandatory TDD steps. Agents follow the BUILD skill's TDD guidance.
 
-**Locked Decisions Extraction:** For each task, extract the 3-5 relevant locked decisions from `.dev/plan/execute-locked-decisions.md`. Include only decisions that constrain THIS task's behavior. Do not dump all decisions into every task.
+**Locked Decisions Extraction:** Extract ALL LOCKED decisions from `.dev/plan/execute-locked-decisions.md` that constrain THIS task's behavior. There is no upper limit per task. The coverage constraint (every LOCKED decision appears in at least one task) takes priority over keeping task files slim. After all tasks are created, verify that every LOCKED decision ID from the Decision Ledger appears in at least one task's 'Locked Decisions' or 'Acceptance Criteria' section. If any decision is undistributed, assign it to the most relevant task or create a dedicated task.
 
 **Agent Assignment Guide** — auto-assign the `Agent:` field using keyword matching:
 
@@ -250,6 +250,17 @@ Write `docs/[Feature]/.dev/document/execute-docs-manifest.md` — lists ALL file
 - Map every PLAN requirement to one or more task files
 - Flag requirements with no corresponding task
 - Flag tasks with no traceable requirement
+
+#### 4.2b LOCKED Decision Coverage (BLOCKING)
+
+- Read the complete Decision Ledger from MANIFEST (all entries with Status = LOCKED)
+- For each LOCKED decision ID (U-XX, A-XX, D-XX):
+  - Search all task files in `docs/[Feature]/tasks/` for the decision ID
+  - The ID must appear in either the "Locked Decisions" section or "Acceptance Criteria" section
+- Flag undistributed LOCKED decisions as BLOCKING issues
+- A decision that appears in zero task files is an UNDISTRIBUTED DECISION — it will never reach BUILD agents
+- This check is independent from Requirement Coverage (4.2) — requirements and decisions are orthogonal
+- **FAIL** the DOCUMENT Review if any LOCKED decision is undistributed
 
 ### 4.3 Wave Plan Completeness
 
@@ -420,6 +431,6 @@ State persists to disk (MANIFEST + stage artifacts). Nothing is lost on `/clear`
 | Task files prescribe exact TDD steps instead of using Suggested Approach | Use hints in Suggested Approach; BUILD skill owns TDD guidance |
 | execute-docs-manifest.md incomplete | Must list ALL files with paths and summaries |
 | Creating one task per file type (component task, hook task, API task) instead of behavior slices | Group component + hook + API + test into one behavior-slice task |
-| Dumping all locked decisions into every task instead of extracting relevant ones | Extract only the 3-5 decisions that constrain THIS task's behavior |
+| LOCKED decision appears in zero task files (undistributed) | Every LOCKED decision must appear in at least one task. Decision coverage is checked in Review 4.2b — undistributed decisions are BLOCKING |
 | Tasks smaller than 1 hour — too granular | Combine into behavior slices (1-3 hours each) |
 | Review auto-loops on failure | Surface to user — user decides next action |
