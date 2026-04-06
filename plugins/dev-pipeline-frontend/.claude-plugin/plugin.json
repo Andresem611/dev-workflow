@@ -1,7 +1,7 @@
 {
   "name": "dev-pipeline-frontend",
-  "description": "Frontend development pipeline v4.2.0 — visual QA via Playwright + /qa-only, behavior-slice tasks, inner loop visual tracking via TaskCreate, multi-domain agent routing, mandatory design mockup gates",
-  "version": "4.2.0",
+  "description": "Frontend development pipeline v4.3.0 — decision fidelity enforcement (verify-decision-coverage, two-tier LOCKED decisions, verbatim echo-back), visual QA, behavior-slice tasks, design mockup gates",
+  "version": "4.3.0",
   "author": {
     "name": "Thoven",
     "email": "andres@thoven.co"

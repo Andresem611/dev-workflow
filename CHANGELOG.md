@@ -5,6 +5,24 @@ All notable changes to the dev-pipeline plugin marketplace will be documented in
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [4.3.0] - 2026-04-06
+
+### Added (Both Pipelines — DOCUMENT)
+- **LOCKED Decision Coverage check (BLOCKING)** — New Review section 4.2b verifies every LOCKED decision ID from the Decision Ledger appears in at least one task file. Undistributed decisions block DOCUMENT completion. Prevents the compression that caused 18 gaps in the Teach Mode feature build.
+- **`verify-decision-coverage` tool command** — Mechanical enforcement in `dev-pipeline-tools.js`. Parses MANIFEST Decision Ledger, cross-references against all task files, reports PASS/FAIL with undistributed decision details. Called as BLOCKING in DOCUMENT Review, advisory in BUILD Step 0.
+- **Verbatim LOCKED decision echo-back** — DOCUMENT Discuss now lists every LOCKED decision ID + text verbatim (not just counts). Count verification against MANIFEST catches silent drops. Mismatch blocks progress.
+
+### Added (Both Pipelines — BUILD)
+- **Two-tier LOCKED decisions in agent prompts** — Tier 1: task-specific decisions (highlighted, from task file). Tier 2: full Decision Ledger (safety net, from MANIFEST). Prevents agents from contradicting decisions they weren't explicitly assigned. Backend BUILD now has a Hard Rules section (was missing).
+
+### Changed (Both Pipelines)
+- **Removed "3-5 relevant" decision cap** — DOCUMENT task creation no longer limits locked decisions per task. Coverage (every decision in at least one task) takes priority over brevity.
+- **Updated bridge-template.md echo-back protocol** — Verbatim decision listing required, count verification mandatory, failure conditions expanded.
+- **Updated decision-ledger-template.md** — BUILD integration section rewritten for two-tier approach.
+- **Common Mistakes tables** — "Dumping all decisions" anti-pattern replaced with "undistributed decision" anti-pattern.
+- **Backend plugin.json** — Version bumped to 3.6.0
+- **Frontend plugin.json** — Version bumped to 4.3.0
+
 ## [4.2.0] - 2026-04-01
 
 ### Added (Both Pipelines — VALIDATE)

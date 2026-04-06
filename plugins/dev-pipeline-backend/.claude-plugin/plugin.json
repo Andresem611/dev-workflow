@@ -1,7 +1,7 @@
 {
   "name": "dev-pipeline-backend",
-  "description": "Backend development pipeline v3.5.0 — runtime API verification via Playwright, behavior-slice tasks, inner loop visual tracking via TaskCreate, multi-domain agent routing",
-  "version": "3.5.0",
+  "description": "Backend development pipeline v3.6.0 — decision fidelity enforcement (verify-decision-coverage, two-tier LOCKED decisions, verbatim echo-back), runtime API verification, behavior-slice tasks",
+  "version": "3.6.0",
   "author": {
     "name": "Thoven",
     "email": "andres@thoven.co"
