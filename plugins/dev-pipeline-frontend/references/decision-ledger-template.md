@@ -77,16 +77,28 @@ Every Review stage MUST check:
 
 Every bridge's LOCKED Decisions table is a direct extract from the ledger. The bridge does NOT summarize or reword — it copies the decision text and status exactly.
 
-## Integration with BUILD
+## Integration with BUILD (Two-Tier Approach)
 
-BUILD agent prompts MUST include a "LOCKED Decisions" section listing all LOCKED items from the ledger. This ensures agents respect user intent even in the final implementation phase.
+BUILD agent prompts use a two-tier system for LOCKED decisions. This solves a tension: dumping all 66 decisions into every prompt dilutes focus on the 3-5 that actually constrain the current task, but omitting decisions causes silent gaps where agents unknowingly contradict user intent. Two tiers solve both problems.
+
+**Tier 1 — Task-specific (highlighted at top of agent prompt):** The LOCKED decisions listed in this task's "Locked Decisions" section. These directly constrain the task and the agent should treat them as primary requirements.
+
+**Tier 2 — Full ledger (safety net in agent prompt):** ALL remaining LOCKED items from the Decision Ledger in MANIFEST. Listed under a separate "Full LOCKED Decision Ledger" section. The agent must not contradict these, but they are secondary context — not the focus of this specific task.
+
+Format in agent prompts:
 
 ```markdown
-## LOCKED Decisions (DO NOT OVERRIDE)
-- U-01: Include calendar view
+## LOCKED Decisions — THIS TASK (DO NOT OVERRIDE)
+- U-01: Include calendar view ← directly constrains this task
+- U-03: Mobile-first layout ← directly constrains this task
+
+## LOCKED Decisions — FULL LEDGER (safety net — do not contradict)
 - U-02: Reuse TeacherCard component
-- U-03: Mobile-first layout
+- U-04: Spring animations for transitions
+- ... (all remaining LOCKED items from MANIFEST)
 ```
+
+**Why two tiers:** Task files from DOCUMENT contain 3-5 selectively filtered decisions. Without Tier 2, agents never see the other LOCKED decisions and can silently violate them. Without Tier 1, all decisions have equal weight and the agent cannot prioritize the ones that actually matter for its specific work.
 
 ## Common Mistakes
 

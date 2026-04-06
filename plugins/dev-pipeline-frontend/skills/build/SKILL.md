@@ -14,7 +14,22 @@ Execute implementation tasks wave by wave. Each wave runs its own full 4-stage i
 3. **Read domain-agent-map before dispatching.** Use `Read(references/domain-agent-map.md)` to select the right specialist for each task's domain — not just `frontend-developer` for everything.
 4. **Use agent-prompt-template for every dispatch.** Follow `references/agent-prompt-template.md`. Include: codebase context block, decision log entries, must_haves from requirements.md, exact file paths, verification criteria.
 5. **Include must_haves in every agent prompt.** Paste the specific must_haves from requirements.md that this task addresses. Without them, the agent can't verify its own output.
-6. **Include LOCKED decisions in every agent prompt (v4.0).** Every BUILD agent prompt MUST include a "LOCKED Decisions (DO NOT OVERRIDE)" section listing all LOCKED items from the Decision Ledger. This prevents agents from making scope changes that contradict user decisions. See `references/decision-ledger-template.md`.
+6. **Include LOCKED decisions in every agent prompt (v4.0 — two-tier).** Every BUILD agent prompt MUST include:
+   - **Tier 1 (task-specific):** The LOCKED decisions listed in this task's "Locked Decisions" section — these directly constrain this task. Highlight them prominently at the top.
+   - **Tier 2 (full ledger — safety net):** ALL remaining LOCKED items from the Decision Ledger in MANIFEST, listed under a "Full LOCKED Decision Ledger" section. This prevents agents from contradicting decisions that weren't assigned to their specific task.
+
+   Format in the agent prompt:
+   ```
+   ## LOCKED Decisions — THIS TASK (DO NOT OVERRIDE)
+   - U-01: [decision text] ← directly constrains this task
+   - U-03: [decision text] ← directly constrains this task
+
+   ## LOCKED Decisions — FULL LEDGER (safety net — do not contradict)
+   - U-02: [decision text]
+   - U-04: [decision text]
+   - ... (all remaining LOCKED items from MANIFEST)
+   ```
+   See `references/decision-ledger-template.md`.
 7. **Respect execution mode depth (v4.0).** Check `references/mode-propagation-reference.md` for BUILD depth settings. REDUCTION = 1 agent per task, quick review. HOLD = per domain-map. EXPANSION = per domain + independent reviewer.
 
 ### Anti-Rationalization Checklist (before Execute)
@@ -82,7 +97,7 @@ Use the Read tool on each file before this wave. Do not proceed until all reads 
 
 1. `Read(docs/[feature]/requirements.md)` → extract: must_haves for this wave's tasks, requirement IDs
 2. `Read(docs/[feature]/waves/WAVE_NN.md)` → extract: tasks, agent assignments, dependencies, completion criteria
-3. `Read(docs/[feature]/.dev/MANIFEST.md)` → extract: current wave number, domains, decision log
+3. `Read(docs/[feature]/.dev/MANIFEST.md)` → extract: current wave number, domains, decision log. **Read the Decision Ledger section from MANIFEST. Extract ALL LOCKED decision IDs and their text. This full list will be injected into every agent prompt as Tier 2 (safety net).**
 4. `Read(references/domain-agent-map.md)` → extract: correct agent types for this wave's domain tags
 5. `Read(references/agent-prompt-template.md)` → extract: prompt structure for agent dispatches
 6. `Read(references/codebase-context-block.md)` → extract: standard context block to embed in all agent prompts
@@ -185,6 +200,8 @@ Before crafting agent prompts:
 - `Read(references/agent-prompt-template.md)` — use this structure for every agent prompt
 - If `/prompt-generator` unavailable: the template IS the fallback (D04)
 
+When crafting each agent prompt, include Tier 1 (task-specific LOCKED decisions from the task file) AND Tier 2 (full LOCKED decision ledger from MANIFEST). The Tier 2 list was extracted in Step 0. Use the two-tier format from Hard Rule 6.
+
 For each task in this wave, define:
 
 | Field | Description |
@@ -192,6 +209,7 @@ For each task in this wave, define:
 | **Agent type** | From Agent Selection (3-tier priority below) |
 | **Prompt** | Crafted via `/prompt-generator` |
 | **File paths** | Exact files to create/modify/test |
+| **LOCKED decisions (two-tier)** | Tier 1: task-specific LOCKED decisions from task file. Tier 2: all remaining LOCKED items from MANIFEST Decision Ledger (extracted in Step 0). |
 | **Codebase context block** | Relevant architecture, patterns, existing code references |
 | **Architecture diagrams** | D2/SVG diagram paths from PLAN/DOCUMENT phases (data flow, component tree, state flow) — include in prompt so agent has visual architecture context |
 | **Upstream context** | Completion log discoveries from prior wave tasks + completion logs from earlier sequential tasks in same wave. Compile as "Prior Discoveries" bullet list in prompt. |

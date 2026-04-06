@@ -7,6 +7,25 @@ description: Executes implementation tasks wave-by-wave for a backend feature. R
 
 Execute implementation tasks wave by wave. Each wave runs its own full 4-stage inner loop: Discuss, Architect, Execute, Review. Subagents are dispatched for every task — the orchestrator never builds inline.
 
+## Hard Rules
+
+1. **Include LOCKED decisions in every agent prompt (v4.0 — two-tier).** Every BUILD agent prompt MUST include:
+   - **Tier 1 (task-specific):** The LOCKED decisions listed in this task's "Locked Decisions" section — these directly constrain this task. Highlight them prominently at the top.
+   - **Tier 2 (full ledger — safety net):** ALL remaining LOCKED items from the Decision Ledger in MANIFEST, listed under a "Full LOCKED Decision Ledger" section. This prevents agents from contradicting decisions that weren't assigned to their specific task.
+
+   Format in the agent prompt:
+   ```
+   ## LOCKED Decisions — THIS TASK (DO NOT OVERRIDE)
+   - U-01: [decision text] ← directly constrains this task
+   - U-03: [decision text] ← directly constrains this task
+
+   ## LOCKED Decisions — FULL LEDGER (safety net — do not contradict)
+   - U-02: [decision text]
+   - U-04: [decision text]
+   - ... (all remaining LOCKED items from MANIFEST)
+   ```
+   See `references/decision-ledger-template.md`.
+
 ## Inner Loop (Per Wave)
 
 ```
@@ -86,7 +105,7 @@ Move the Dev Tracker card to "Backend Dev". Reference `references/notion-integra
 
 | File | Extract |
 |------|---------|
-| `.dev/MANIFEST.md` | Current wave, completed tasks, domains, decision log |
+| `.dev/MANIFEST.md` | Current wave, completed tasks, domains, decision log. **Read the Decision Ledger section — extract ALL LOCKED decision IDs and their text. This full list will be injected into every agent prompt as Tier 2 (safety net).** |
 | `waves/WAVE_NN.md` | Tasks, agent assignments, dependencies, completion criteria |
 | `01_IMPLEMENTATION_STATUS.md` | What is already done |
 | Previous wave's `review-code-quality.md` | Issues, deviations, lessons (skip for wave-01) |
@@ -161,6 +180,8 @@ Also check the **Domain Combination Patterns** table. If MANIFEST domains match 
 
 Use `/prompt-generator` to craft EVERY subagent prompt. No exceptions. Prompt quality determines build quality.
 
+When crafting each agent prompt, include Tier 1 (task-specific LOCKED decisions from the task file) AND Tier 2 (full LOCKED decision ledger from MANIFEST). The Tier 2 list was extracted during context loading. Use the two-tier format from Hard Rule 1.
+
 For each task in this wave, define:
 
 | Field | Description |
@@ -168,6 +189,7 @@ For each task in this wave, define:
 | **Agent type** | From BUILD Agent Map (see below) |
 | **Prompt** | Crafted via `/prompt-generator` |
 | **File paths** | Exact files to create/modify/test |
+| **LOCKED decisions (two-tier)** | Tier 1: task-specific LOCKED decisions from task file. Tier 2: all remaining LOCKED items from MANIFEST Decision Ledger (extracted during context loading). |
 | **Codebase context block** | Relevant architecture, patterns, existing code references |
 | **Architecture diagrams** | D2/SVG diagram paths from PLAN/DOCUMENT phases (data flow, service dependencies, state machines, migration chains) — include in prompt so agent has visual architecture context |
 | **Upstream context** | Completion log discoveries from prior wave tasks + completion logs from earlier sequential tasks in same wave. Compile as "Prior Discoveries" bullet list in prompt. |
