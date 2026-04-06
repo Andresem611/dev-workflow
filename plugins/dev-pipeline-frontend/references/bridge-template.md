@@ -56,33 +56,42 @@ The next phase's Architect must address each listed agent. Silent omission is no
 
 ## Echo-Back Protocol
 
-When a phase starts and reads the bridge from the previous phase, it MUST echo back the LOCKED decisions before proceeding to any questions.
+When a phase starts and reads the bridge from the previous phase, it MUST echo back ALL LOCKED decisions verbatim before proceeding to any questions.
 
 ### How Echo-Back Works
 
 1. Phase starts → Discuss Stage 0 (Mandatory Context Loading)
 2. Read the bridge: `Read(.dev/[previous-phase]/review-*.md)`
-3. Extract LOCKED decisions from the bridge
-4. Display echo-back to user:
+3. Read the MANIFEST Decision Ledger: `Read(.dev/MANIFEST.md)` — count LOCKED entries
+4. Extract ALL LOCKED decisions from the bridge
+5. Display echo-back to user — every LOCKED decision listed by ID:
 
 ```
 Loaded context from [PREVIOUS PHASE]:
-- [N] LOCKED decisions: U-01 (calendar view), U-02 (reuse TeacherCard), ...
-- [N] OPEN decisions: A-01 (FullCalendar library), ...
+- LOCKED decisions ([N] total — ALL listed):
+  - U-01: [verbatim decision text]
+  - U-02: [verbatim decision text]
+  - A-01: [verbatim decision text]
+  - ... (every LOCKED entry, no ellipsis, no summarizing)
+- OPEN decisions ([N] total):
+  - [ID]: [verbatim decision text]
 - Key artifacts: [list]
 - Focus areas: [list]
+
+Decision count verification: bridge says [N] LOCKED, echo-back lists [N]. [MATCH / MISMATCH]
 ```
 
-5. If echo-back is incomplete or wrong → re-read the bridge
-6. Only proceed to Discuss questions after successful echo-back
+6. If echo-back count does not match bridge or MANIFEST LOCKED count → re-read both
+7. Only proceed to Discuss questions after successful echo-back with MATCH
 
 ### Echo-Back Failure
 
 If the echo-back doesn't match the bridge content (wrong count, missing items, wrong IDs):
 - DO NOT proceed
-- Re-read the bridge file
-- Try echo-back again
-- If still failing: surface the issue to the user
+- Re-read the bridge file AND the MANIFEST Decision Ledger
+- Count the LOCKED entries in MANIFEST — this is the source of truth
+- Try echo-back again listing every LOCKED decision by ID
+- If still failing: surface the issue to the user via AskUserQuestion
 
 ## Bridge Content Rules
 

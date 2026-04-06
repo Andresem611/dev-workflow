@@ -31,6 +31,25 @@ Extract from domain-agent-map.md for DOCUMENT:
 
 These agents MUST be addressed in the Architect stage — either dispatched or explicitly skipped with reason.
 
+**Echo-Back (MANDATORY — verbatim LOCKED decisions):**
+
+After loading context, echo back ALL LOCKED decisions from the Decision Ledger:
+
+```
+Loaded context from PLAN:
+- LOCKED decisions ([N] total — ALL listed):
+  - U-01: [verbatim decision text]
+  - U-02: [verbatim decision text]
+  - A-01: [verbatim decision text]
+  - ... (every LOCKED entry, no ellipsis, no summarizing)
+- Execution mode: [Expansion/Hold/Reduction]
+- Tasks: [N] across [N] waves
+
+Decision count verification: MANIFEST ledger shows [N] LOCKED entries. Echo-back lists [N]. [MATCH / MISMATCH]
+```
+
+If echo-back count does not match MANIFEST Decision Ledger LOCKED count: re-read MANIFEST and the bridge. Count mismatch means context was not fully loaded. Do not proceed until counts match.
+
 ### 1.1 Read Context Bridge
 
 ```

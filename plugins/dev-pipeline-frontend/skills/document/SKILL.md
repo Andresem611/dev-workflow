@@ -33,15 +33,24 @@ Use the Read tool on each file. Do not proceed until all reads complete.
 
 If any file is missing, STOP and surface the gap to the user.
 
-**Echo-Back (v4.0):** After loading, echo back LOCKED decisions from the Decision Ledger:
+**Echo-Back (MANDATORY — verbatim LOCKED decisions):**
+
+After loading context, echo back ALL LOCKED decisions from the Decision Ledger:
+
 ```
 Loaded context from PLAN:
-- [N] LOCKED decisions: U-01 (description), ...
+- LOCKED decisions ([N] total — ALL listed):
+  - U-01: [verbatim decision text]
+  - U-02: [verbatim decision text]
+  - A-01: [verbatim decision text]
+  - ... (every LOCKED entry, no ellipsis, no summarizing)
 - Execution mode: [Expansion/Hold/Reduction]
 - Tasks: [N] across [N] waves
-- Architecture decisions: [N] locked
+
+Decision count verification: MANIFEST ledger shows [N] LOCKED entries. Echo-back lists [N]. [MATCH / MISMATCH]
 ```
-If echo-back is incomplete → re-read bridge.
+
+If echo-back count does not match MANIFEST Decision Ledger LOCKED count: re-read MANIFEST and the bridge. Count mismatch means context was not fully loaded. Do not proceed until counts match.
 
 ### 1.1 Read Context Bridge
 
