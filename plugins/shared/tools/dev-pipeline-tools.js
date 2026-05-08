@@ -1221,11 +1221,141 @@ function cmdVerifyDecisionCoverage(args) {
   );
 }
 
+function cmdVerifyRequirementsCoverage(args) {
+  const featureDir = args.positional[0];
+
+  if (!featureDir) {
+    error("Usage: verify-requirements-coverage <feature-dir> --plugin backend|frontend [--scope wave|phase] [--wave N]");
+  }
+
+  const resolvedDir = resolvePath(args.cwd, featureDir);
+  const scope = args.scope || "phase";
+
+  if (scope !== "wave" && scope !== "phase") {
+    error(`Invalid --scope value: "${scope}". Must be 'wave' or 'phase'.`);
+  }
+
+  if (scope === "wave" && !args.wave) {
+    error("Usage: verify-requirements-coverage <feature-dir> --scope wave --wave N");
+  }
+
+  const res = {
+    valid: true,
+    total: 0,
+    bound: 0,
+    open: 0,
+    unbound: [],
+    errors: [],
+    warnings: []
+  };
+
+  // 1. Read MANIFEST
+  const manifestPath = path.join(resolvedDir, ".dev", "MANIFEST.md");
+  const manifestContent = safeReadFile(manifestPath);
+  if (!manifestContent) {
+    res.errors.push(`MANIFEST not found at ${manifestPath}`);
+    res.valid = false;
+    output(res, args.raw, `FAIL: ${res.errors.join("; ")}`);
+    return;
+  }
+
+  // 2. Extract ## Requirements Coverage section
+  const coverageMatch = manifestContent.match(/## Requirements Coverage[\s\S]*?(?=\n## |\n#[^#]|$)/i);
+  if (!coverageMatch) {
+    res.warnings.push("No Requirements Coverage section found in MANIFEST");
+    output(res, args.raw, `PASS: 0/0 requirements bound (no Requirements Coverage section found)`);
+    return;
+  }
+
+  const coverageSection = coverageMatch[0];
+
+  // 3. Parse requirement rows — 3-state: OPEN | BOUND | UNBOUND
+  const requirements = [];
+  const rowRegex = /\|\s*(R-\d+)\s*\|\s*([^|]+)\|[^|]*\|\s*(OPEN|BOUND|UNBOUND)\s*\|/gi;
+  let rowMatch;
+  while ((rowMatch = rowRegex.exec(coverageSection)) !== null) {
+    requirements.push({
+      id: rowMatch[1].trim(),
+      text: rowMatch[2].trim(),
+      claimedStatus: rowMatch[3].trim().toUpperCase()
+    });
+  }
+
+  res.total = requirements.length;
+
+  if (requirements.length === 0) {
+    res.valid = true;
+    output(res, args.raw, `PASS: 0/0 requirements bound (no requirement rows found)`);
+    return;
+  }
+
+  // 4. Build scope content (the corpus to search for R-IDs)
+  let scopeContent = "";
+
+  if (scope === "wave") {
+    const wavePadded = String(args.wave).padStart(2, "0");
+    const wavePath = path.join(resolvedDir, "waves", `WAVE_${wavePadded}.md`);
+    const waveContent = safeReadFile(wavePath);
+    if (!waveContent) {
+      res.errors.push(`Wave file not found at ${wavePath}`);
+      res.valid = false;
+      output(res, args.raw, `FAIL: ${res.errors.join("; ")}`);
+      return;
+    }
+    scopeContent = waveContent;
+  } else {
+    // scope === "phase": scan all task files under tasks/
+    const tasksDir = path.join(resolvedDir, "tasks");
+    if (!dirExists(tasksDir)) {
+      res.errors.push(`Tasks directory not found at ${tasksDir}`);
+      res.valid = false;
+      output(res, args.raw, `FAIL: ${res.errors.join("; ")}`);
+      return;
+    }
+    const taskFiles = fs.readdirSync(tasksDir).filter((f) => f.endsWith(".md"));
+    for (const tf of taskFiles) {
+      scopeContent += safeReadFile(path.join(tasksDir, tf)) || "";
+    }
+    if (taskFiles.length === 0) {
+      res.warnings.push("No task files found under tasks/ — all requirements treated as open");
+    }
+  }
+
+  // 5. Classify each requirement
+  for (const req of requirements) {
+    const isReferenced = scopeContent.includes(req.id);
+    if (isReferenced) {
+      res.bound++;
+    } else if (req.claimedStatus === "BOUND") {
+      // Table claims BOUND but R-ID not found in scope — real mismatch
+      res.unbound.push({ id: req.id, text: req.text });
+    } else {
+      // OPEN or UNBOUND in table, no binding asserted — not a failure
+      res.open++;
+    }
+  }
+
+  // 6. Build errors for unbound mismatches
+  for (const ub of res.unbound) {
+    res.errors.push(`UNBOUND: ${ub.id} (${ub.text}) — claimed BOUND in table but not found in scope`);
+  }
+
+  res.valid = res.unbound.length === 0;
+
+  output(
+    res,
+    args.raw,
+    res.valid
+      ? `PASS: ${res.bound}/${res.total} requirements bound (${res.open} open)`
+      : `FAIL: ${res.unbound.length} unbound requirement(s)\n${res.unbound.map((u) => `- ${u.id}: ${u.text}`).join("\n")}`
+  );
+}
+
 // --- CLI Router ---
 function main() {
   const argv = process.argv.slice(2);
   if (argv.length === 0) {
-    error("Usage: dev-pipeline-tools.js <command> [args] --plugin backend|frontend [--raw] [--wave N] [--scope wave|phase]\nCommands: validate-stage-entry, validate-stage-output, checkpoint-state, validate-manifest, verify-must-haves, update-wave-tracking, verify-decision-coverage");
+    error("Usage: dev-pipeline-tools.js <command> [args] --plugin backend|frontend [--raw] [--wave N] [--scope wave|phase]\nCommands: validate-stage-entry, validate-stage-output, checkpoint-state, validate-manifest, verify-must-haves, update-wave-tracking, verify-decision-coverage, verify-requirements-coverage");
   }
 
   const command = argv[0];
@@ -1270,10 +1400,13 @@ function main() {
     case "verify-decision-coverage":
       cmdVerifyDecisionCoverage(parsedArgs);
       break;
+    case "verify-requirements-coverage":
+      cmdVerifyRequirementsCoverage(parsedArgs);
+      break;
     default:
-      error(`Unknown command: ${command}. Valid: validate-stage-entry, validate-stage-output, checkpoint-state, validate-manifest, verify-must-haves, update-wave-tracking, verify-decision-coverage`);
+      error(`Unknown command: ${command}. Valid: validate-stage-entry, validate-stage-output, checkpoint-state, validate-manifest, verify-must-haves, update-wave-tracking, verify-decision-coverage, verify-requirements-coverage`);
   }
 }
 
-module.exports = { cmdValidateStageEntry, cmdValidateStageOutput, cmdCheckpointState, cmdValidateManifest, cmdVerifyMustHaves, cmdUpdateWaveTracking, cmdVerifyDecisionCoverage, parseRoutesFile };
+module.exports = { cmdValidateStageEntry, cmdValidateStageOutput, cmdCheckpointState, cmdValidateManifest, cmdVerifyMustHaves, cmdUpdateWaveTracking, cmdVerifyDecisionCoverage, cmdVerifyRequirementsCoverage, parseRoutesFile };
 if (require.main === module) main();
