@@ -27,6 +27,19 @@ Total: [N] LOCKED, [N] OPEN
 |----------|------|---------|
 | [name] | `.dev/[phase]/[file]` | [one-line what it contains] |
 
+### Requirements Coverage
+
+Aggregated must_haves across this phase (and across all completed waves, when emitted from BUILD).
+
+| Req ID | Source | Status | Bound To |
+|--------|--------|--------|----------|
+| R-01 | requirements.md / DOCUMENT | OPEN | wave-01 must_haves.truths "user can save canvas" |
+| R-02 | requirements.md / DOCUMENT | BOUND | src/lib/canvas-save.ts:saveSnapshot |
+| R-03 | requirements.md / DOCUMENT | UNBOUND | NOT YET ASSIGNED TO A WAVE |
+
+Total: [N] OPEN, [N] BOUND, [N] UNBOUND
+Aggregation gate: must_haves UNION across all waves ⊇ requirement_set (status=BOUND or OPEN, never UNBOUND when bridge emitted from BUILD→VALIDATE).
+
 ### Focus for Next Phase
 
 Specific, actionable guidance for the next phase. Reference LOCKED items by ID.
@@ -81,6 +94,7 @@ Loaded context from [PREVIOUS PHASE]:
 Decision count verification: bridge says [N] LOCKED, echo-back lists [N]. [MATCH / MISMATCH]
 ```
 
+5b. Echo-back lists Requirements Coverage stats: `R-OPEN: N, R-BOUND: N, R-UNBOUND: N`. If UNBOUND > 0 at BUILD→VALIDATE, refuse to advance.
 6. If echo-back count does not match bridge or MANIFEST LOCKED count → re-read both
 7. Only proceed to Discuss questions after successful echo-back with MATCH
 
