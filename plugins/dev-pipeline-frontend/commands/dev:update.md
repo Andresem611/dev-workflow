@@ -132,3 +132,29 @@ Display:
 The cached versions in ~/.claude/plugins/cache/thoven-dev/ will be
 refreshed on next Claude Code startup.
 ```
+
+### Step 8: Stale Skill Check (F9 / SKILL_AUDIT §2.9)
+
+After update, surface any stale local skill files outside the plugin path. The sandbox cannot auto-delete user-managed files; this is a warning-only check.
+
+```bash
+# F9: Stale skill detection (post-update warning)
+echo ""
+echo "=== Stale skill check (F9 / SKILL_AUDIT §2.9) ==="
+if [ -d "$HOME/.claude/skills/dev" ]; then
+  echo "WARNING: Found stale local skill files outside the plugin:"
+  ls -la "$HOME/.claude/skills/dev/" 2>/dev/null
+  echo ""
+  echo "v3.x layout detected. The plugin now lives at \$CLAUDE_PLUGINS/dev-pipeline-frontend/skills/."
+  echo "Recommend manual delete: rm -rf \"$HOME/.claude/skills/dev\""
+  echo "Sandbox does not auto-delete to preserve user-managed files."
+else
+  echo "Clean: no stale ~/.claude/skills/dev/ directory found."
+fi
+```
+
+If files are found, surface to user:
+
+> Found stale local skill files outside the plugin. v3.x layout detected. Recommend manual delete: `rm -rf ~/.claude/skills/dev`. Sandbox cannot auto-delete; user must run.
+
+If `~/.claude/skills/dev/` does not exist or is empty: log "no stale skills" and continue.
