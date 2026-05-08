@@ -167,6 +167,36 @@ node ${PLUGIN_ROOT}/../shared/tools/dev-pipeline-tools.js validate-manifest <fea
 ```
 
 4. Surface any gaps or issues via `AskUserQuestion`
+
+**Q-DEPS:** Does this feature require any of the following?
+
+1. New npm packages (not currently in package.json)?
+2. New backend services / endpoints?
+3. New environment variables?
+4. New third-party integrations (with auth keys)?
+
+For each YES, capture in this exact structured format:
+
+- **Type:** `npm` | `service` | `env-var` | `integration`
+- **Name:** canonical identifier (e.g., `@tldraw/sync`, `calendar-webhook`, `TEACH_MODE_FLAG`)
+- **Version constraint:** if applicable (e.g., `^3.0.0`, `n/a`, `bool`)
+- **Source decision ID:** the U-NN or A-NN from the MANIFEST Decision Ledger that authorized this dependency
+- **Wave it's required by:** best-guess wave number (refined during PLAN)
+
+Write each captured dependency as a row in MANIFEST `## Dependencies (typed)` table:
+
+```markdown
+| npm  | @tldraw/sync | ^3.0.0 | U-17 | wave-01 collab-sync |
+```
+
+If user answers "none" to all four sub-questions, emit a single `n/a` row to confirm the question was asked:
+
+```markdown
+| n/a | none | n/a | n/a | n/a |
+```
+
+This row distinguishes "no dependencies" from "the question was skipped."
+
 5. Present classification summary to user:
 
 ```
