@@ -114,10 +114,18 @@ node ${PLUGIN_ROOT}/../shared/tools/dev-pipeline-tools.js checkpoint-state <feat
 
 ## Step 6: WIP Commit
 
-Stage all changes and create a WIP commit:
+Stage pause-handoff artifacts and any in-progress feature edits, then create a WIP commit. NEVER blanket-stage with `-A` or `.` — pause must capture in-progress work for resume but cannot stage arbitrary files (potential secrets).
 
 ```bash
-git add -A
+# Stage pause-handoff artifacts (not arbitrary files)
+git add .dev/
+
+# If feature files were modified during the active wave (must capture for resume):
+# User reviews modified files and stages explicitly
+git status --porcelain | awk '$1 ~ /^[MA]/ {print $2}' | grep -v '^\.dev/' | head -20
+echo "Stage these files? (y/N) — pause must capture in-progress feature edits"
+# If yes:
+# git add <specific-files-listed-above>
 ```
 
 Commit message format:
