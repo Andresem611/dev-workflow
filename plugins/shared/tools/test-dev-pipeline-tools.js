@@ -529,6 +529,161 @@ function test8_validateStageOutputEnforcement() {
 }
 
 // ─────────────────────────────────────────────────
+// Test 9: verify-requirements-coverage PASS
+// ─────────────────────────────────────────────────
+function test9_verifyRequirementsCoveragePass() {
+  const name = "verify-requirements-coverage pass (all 3 requirements bound)";
+  const tmp = mktemp("t9");
+  try {
+    const feat = path.join(tmp, "feat");
+
+    writeFile(feat, ".dev/MANIFEST.md", [
+      "# MANIFEST",
+      "",
+      "| **Feature** | coverage-pass-fixture |",
+      "| **Current Phase** | build |",
+      "| **Status** | in-progress |",
+      "",
+      "## Requirements Coverage",
+      "",
+      "| ID    | Requirement                  | Source | Status |",
+      "|-------|------------------------------|--------|--------|",
+      "| R-01  | User can create an event     | disco  | BOUND  |",
+      "| R-02  | User can edit an event       | disco  | BOUND  |",
+      "| R-03  | User can delete an event     | disco  | BOUND  |",
+    ].join("\n"));
+
+    writeFile(feat, "waves/WAVE_01.md", [
+      "# Wave 1",
+      "",
+      "## must_haves",
+      "",
+      "**truths**",
+      '- "R-01: create event endpoint must exist"',
+      '- "R-02: edit event endpoint must exist"',
+      '- "R-03: delete event endpoint must exist"',
+    ].join("\n"));
+
+    writeFile(feat, "tasks/TASK_01.md", [
+      "# TASK_01: Implement event CRUD",
+      "",
+      "## Description",
+      "Implement R-01 (create), R-02 (edit), and R-03 (delete) endpoints.",
+      "",
+      "## Completion Log",
+      "Files touched: app/controllers/events_controller.rb",
+      "Discoveries: none",
+    ].join("\n"));
+
+    const result = run(
+      ["verify-requirements-coverage", feat, "--plugin", "frontend"],
+      tmp
+    );
+
+    let res;
+    try {
+      res = JSON.parse(result.stdout);
+    } catch (_) {
+      report(name, false, `stdout not valid JSON: ${result.stdout.substring(0, 200)}`);
+      return;
+    }
+
+    if (res.valid !== true) {
+      report(name, false, `expected res.valid===true, got ${res.valid}. errors: ${JSON.stringify(res.errors)}`);
+      return;
+    }
+    if (res.bound !== 3) {
+      report(name, false, `expected res.bound===3, got ${res.bound}`);
+      return;
+    }
+    if (res.total !== 3) {
+      report(name, false, `expected res.total===3, got ${res.total}`);
+      return;
+    }
+    if (!Array.isArray(res.unbound) || res.unbound.length !== 0) {
+      report(name, false, `expected res.unbound===[], got ${JSON.stringify(res.unbound)}`);
+      return;
+    }
+    report(name, true);
+  } finally {
+    fs.rmSync(tmp, { recursive: true, force: true });
+  }
+}
+
+// ─────────────────────────────────────────────────
+// Test 10: verify-requirements-coverage FAIL
+// ─────────────────────────────────────────────────
+function test10_verifyRequirementsCoverageFail() {
+  const name = "verify-requirements-coverage fail (R-02 claimed BOUND but not in scope)";
+  const tmp = mktemp("t10");
+  try {
+    const feat = path.join(tmp, "feat");
+
+    writeFile(feat, ".dev/MANIFEST.md", [
+      "# MANIFEST",
+      "",
+      "| **Feature** | coverage-fail-fixture |",
+      "| **Current Phase** | build |",
+      "| **Status** | in-progress |",
+      "",
+      "## Requirements Coverage",
+      "",
+      "| ID    | Requirement                  | Source | Status |",
+      "|-------|------------------------------|--------|--------|",
+      "| R-01  | User can create an event     | disco  | BOUND  |",
+      "| R-02  | User can edit an event       | disco  | BOUND  |",
+      "| R-03  | User can delete an event     | disco  | OPEN   |",
+    ].join("\n"));
+
+    writeFile(feat, "tasks/TASK_01.md", [
+      "# TASK_01: Implement event CRUD",
+      "",
+      "## Description",
+      "Implements R-01 (create) and touches R-03 (delete) endpoints.",
+      "The edit requirement is tracked separately.",
+      "",
+      "## Completion Log",
+      "Files touched: app/controllers/events_controller.rb",
+      "Discoveries: none",
+    ].join("\n"));
+
+    const result = run(
+      ["verify-requirements-coverage", feat, "--plugin", "frontend"],
+      tmp
+    );
+
+    let res;
+    try {
+      res = JSON.parse(result.stdout);
+    } catch (_) {
+      report(name, false, `stdout not valid JSON: ${result.stdout.substring(0, 200)}`);
+      return;
+    }
+
+    if (res.valid !== false) {
+      report(name, false, `expected res.valid===false, got ${res.valid}`);
+      return;
+    }
+    if (!Array.isArray(res.unbound) || res.unbound.length === 0) {
+      report(name, false, `expected res.unbound to be non-empty, got ${JSON.stringify(res.unbound)}`);
+      return;
+    }
+    const unboundIds = res.unbound.map((u) => u.id);
+    if (!unboundIds.includes("R-02")) {
+      report(name, false, `expected R-02 in res.unbound, got ${JSON.stringify(unboundIds)}`);
+      return;
+    }
+    if (unboundIds.includes("R-03")) {
+      report(name, false, `R-03 is OPEN so must NOT appear in res.unbound, but got ${JSON.stringify(unboundIds)}`);
+      return;
+    }
+    report(name, true);
+  } finally {
+    fs.rmSync(tmp, { recursive: true, force: true });
+  }
+}
+
+// ─────────────────────────────────────────────────
 // Run all tests
 // ─────────────────────────────────────────────────
 function main() {
@@ -541,6 +696,8 @@ function main() {
     test6_updateWaveTracking,
     test7_checkpointStateMigrationGuard,
     test8_validateStageOutputEnforcement,
+    test9_verifyRequirementsCoveragePass,
+    test10_verifyRequirementsCoverageFail,
   ];
 
   for (const testFn of tests) {
