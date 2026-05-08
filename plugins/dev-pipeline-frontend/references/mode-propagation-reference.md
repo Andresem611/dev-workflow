@@ -77,7 +77,8 @@ Mode is selected by the user during DISCOVER Zone 4 (HOW zone) and LOCKED in the
 | Universal agents | `typescript-pro` only | `code-reviewer` + `typescript-pro` | Both + independent re-verification |
 | Domain agents | Skip | Per domain tags | All domain agents regardless of tags |
 | QA depth | Type-check + lint pass | Standard checklist | Full QA runbook + manual testing |
-| Requirements check | Spot check | Full requirements.md verification | Line-by-line with evidence |
+| Requirements check | Mechanical aggregation gate (verify-requirements-coverage) — cannot reduce | Full requirements.md verification | Line-by-line with evidence |
+| Manual line-by-line | Spot check | Full requirements.md verification | Line-by-line with evidence |
 
 ### SHIP Phase
 
