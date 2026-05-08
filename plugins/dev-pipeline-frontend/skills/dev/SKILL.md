@@ -209,11 +209,28 @@ Each phase validates that its predecessors completed before executing.
 | PLAN | DESIGN completed (architecture informed by actual design spec) |
 | DOCUMENT | PLAN completed |
 | BUILD | DOCUMENT completed |
-| VALIDATE | BUILD completed (all waves) |
+| VALIDATE | BUILD completed (all waves) AND `verify-decision-coverage <feature> --plugin frontend` returns JSON `res.valid===true` AND `verify-requirements-coverage <feature> --plugin frontend` returns JSON `res.valid===true` AND every wave's `verify-must-haves --wave N` returns JSON `res.valid===true` |
 | SHIP | VALIDATE passed |
 | PAUSE | Any phase in progress |
 
 If prerequisites are not met, warn the user and suggest the correct phase.
+
+### Phase Boundary Aggregation
+
+Before any phase advances, the orchestrator runs the boundary check for that transition. Each `verify-*` command exits with process code 0 by design (see `output()` helper); the gate's binary-ness lives in the parsed JSON. Orchestrator must read stdout, `JSON.parse(stdout)`, and gate on `res.valid`.
+
+| From → To | Mechanical checks (gate on JSON `res.valid===true`) |
+|-----------|------------------------------------------------------|
+| INTAKE → DISCOVER | `validate-manifest` (existing) |
+| PLAN → DOCUMENT | `verify-decision-coverage` |
+| DOCUMENT → BUILD | `verify-decision-coverage` AND `verify-requirements-coverage` |
+| BUILD wave N → wave N+1 | `verify-must-haves --wave N` |
+| BUILD (final wave) → VALIDATE | `verify-decision-coverage` AND `verify-requirements-coverage` AND `verify-must-haves --wave (every)` |
+| VALIDATE → SHIP | (per validate skill) |
+
+A failed mechanical check (`res.valid===false` in any of the JSON outputs above) **blocks** the transition. The user can override only by editing the underlying artifact and re-running the check (no `--skip` flag).
+
+**Auto-rerun (Δ12):** the orchestrator runs `verify-requirements-coverage --scope phase` unconditionally at every phase-exit hook before writing the context bridge. There is no caching, no `--refresh` flag, no `Last Verified Against` column. The run is always fresh; runtime is <200ms on a 50-requirement feature (Wave 0 spike Q3 sign-off).
 
 ---
 
