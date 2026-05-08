@@ -122,7 +122,10 @@ git add .dev/
 
 # If feature files were modified during the active wave (must capture for resume):
 # User reviews modified files and stages explicitly
-git status --porcelain | awk '$1 ~ /^[MA]/ {print $2}' | grep -v '^\.dev/' | head -20
+git status --porcelain | awk '$1 ~ /^[MARD?]/ {print $2}' | grep -v '^\.dev/' | head -20
+# Untracked (?) files are intentionally included — pause must capture
+# newly-created feature files for resume. Deletions (D) and renames (R)
+# are also captured so the resume state matches working-directory state.
 echo "Stage these files? (y/N) — pause must capture in-progress feature edits"
 # If yes:
 # git add <specific-files-listed-above>
