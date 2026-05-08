@@ -83,8 +83,19 @@ After WHAT questions, scan the codebase for design context using an Explore agen
 
 1. **Existing patterns:** "We recommend matching [component X] found in the codebase. It handles [similar pattern]. Match that style, extend it, or create something new?"
    - Only ask if Explore found similar components
-2. **Installed packages:** "You have [framer-motion / emoji-mart / confetti / lottie] installed. We recommend using [specific package] for [specific effect]. Use it here?"
-   - Check package.json for animation, UI, and effect libraries
+2. **Installed packages — MANIFEST Dependencies reconciliation (was animation/UI/effect-only check):**
+
+   Read MANIFEST `## Dependencies (typed)` for any rows where `Type=npm`. For each such row:
+
+   ```bash
+   grep -n "<pkg-name>" /path/to/repo/package.json
+   ```
+
+   If the named npm package is NOT present in package.json, surface as a Discuss escalation (BLOCKING):
+
+   > **DESIGN escalation:** INTAKE captured `<pkg-name>` as required (decision <U-NN>) but it is not in `package.json`. Resolve before BUILD — either install (`npm install <pkg-name>@<version>`) or amend the source decision (`U-NN`) to remove the dependency. Bridge cannot advance to PLAN until resolved.
+
+   Generalizes the narrower v4.4 question that asked only about animation/UI/effect libraries.
 3. **Design direction:** "Current app tone is [playful with 3D buttons / clean minimal]. We recommend [matching / enhancing] for this feature. Match, enhance, or contrast?"
 4. **Component reuse:** "These existing components could work here: [list from dedup audit]. We recommend [reusing X / extending Y]. Reuse directly, extend, or build new?"
 5. **Micro-interactions:** "We recommend [specific animation] for [specific interaction]. Want micro-interactions? (hover effects, page transitions, loading animations, reveal-on-scroll)"
