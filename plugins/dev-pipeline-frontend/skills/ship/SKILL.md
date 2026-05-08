@@ -11,7 +11,7 @@ Terminal phase of the /dev pipeline. Takes a validated feature through changelog
 
 1. **Read before acting.** Use the Read tool on MANIFEST, CHANGELOG, and the validate review artifact before any commit action. Shipping from memory risks wrong version numbers and missed changelog entries.
 2. **Never skip the publish/staging gate.** Always ask the user — they decide deployment intent.
-3. **Stage specific files only.** Never `git add -A` or `git add .` — list files explicitly.
+3. **Stage specific files only.** Never use `git add` with the `-A` flag or `git add .` — list files explicitly.
 
 ## Inner Loop: Discuss > Architect > Execute > Review
 
@@ -63,6 +63,23 @@ All Q&A, locked decisions (publish vs staging, version bump, exclusions), user p
 
 ---
 
+### Stage 1c — Files to Stage (explicit list)
+
+Before any `git add` in subsequent stages, this stage emits a definitive `FILES_TO_STAGE` list:
+
+```bash
+# Capture all files modified during the feature (excluding .dev/ pause artifacts)
+git status --porcelain | awk '$1 ~ /^[MA?]/ {print $2}' | grep -v '^\.dev/' > /tmp/files_to_stage.txt
+
+# Surface to user for confirmation
+echo "Files to stage in commit:"
+cat /tmp/files_to_stage.txt
+```
+
+User MUST confirm the list. The list is then used in Stages 2 and 3c via `git add $(cat /tmp/files_to_stage.txt)`.
+
+---
+
 ## Stage 2: Architect — Release Plan
 
 **D04 ENFORCEMENT:** Follow the D04 Enforcement Protocol from `inner-loop-reference.md`. Every subagent prompt MUST go through `/prompt-generator`. Log status in the Orchestration Log section of this artifact.
@@ -81,7 +98,7 @@ This verification appears in the Orchestration Log under `Map compliance`.
 ### Define the Release Plan
 
 1. **Changelog entries** — categorized: Added, Changed, Fixed, Breaking Changes
-2. **Files to stage** — `git add -A` per solo dev convention
+2. **Files to stage** — explicit list from Stage 1c `/tmp/files_to_stage.txt` (user-confirmed; NEVER use `git add` with the `-A` flag)
 3. **Commit message draft** — project convention:
 
 ```
@@ -135,7 +152,8 @@ Before staging, check all changed files for `.env` files, API keys, tokens, cred
 ### 3c. Stage and Commit
 
 ```bash
-git add -A
+# Stage the explicit, user-confirmed file list from Stage 1c (NEVER use `git add` with `-A` or `.`)
+git add $(cat /tmp/files_to_stage.txt)
 
 git commit -m "$(cat <<'EOF'
 <Title: Brief description>
@@ -284,7 +302,7 @@ If STAGED: remind user they can publish later via the deployment UI.
 - ALWAYS update CHANGELOG.md before committing
 - ALWAYS remind user about deployment after commit
 - Commit message follows project convention from CLAUDE.md
-- `git add -A` per solo developer convention
+- NEVER use `git add` with the `-A` flag or `git add .` — Stage 1c emits an explicit `FILES_TO_STAGE` list (user-confirmed); Stages 2 and 3c consume it via `git add $(cat /tmp/files_to_stage.txt)`
 - AskUserQuestion for every question — one at a time, no batching
 - Subagent dispatch in Execute — orchestrator never executes inline
 - `/prompt-generator` in Architect — mandatory
