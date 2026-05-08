@@ -63,6 +63,16 @@ Status: not-started / in-progress / complete / skipped
 | Artifact | Path | Created By |
 |----------|------|------------|
 
+## Dependencies (typed)
+
+Populated during INTAKE Stage 4; updated during PLAN.
+
+| Type | Name | Version | Source decision | Required by |
+|------|------|---------|-----------------|-------------|
+| npm  | @tldraw/sync | ^3.0.0 | U-17 | wave-01 collab-sync |
+| service | calendar-webhook | n/a | U-23 | wave-04 reminders |
+| env-var | TEACH_MODE_FLAG | bool | U-09 | wave-01 feature gate |
+
 ## Notion Integration
 - **Card ID:** [notion-page-uuid — populated by INTAKE after card creation]
 - **Sprint:** [sprint-name — populated by INTAKE]
