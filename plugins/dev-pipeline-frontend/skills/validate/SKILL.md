@@ -496,6 +496,30 @@ Write `.dev/validate/execute-validation-results.md` — every check with pass/fa
 node ${PLUGIN_ROOT}/../shared/tools/dev-pipeline-tools.js validate-stage-output validate execute <feature-dir> --plugin frontend
 ```
 
+### 3.12 Cross-Model Independent Review (VALIDATE→SHIP, Expansion only)
+
+**Trigger:** mode = **Expansion only**. Skipped on Hold + Reduction.
+
+**Pre-check:** if `DEV_PIPELINE_CROSS_MODEL=off`, skip. Otherwise (default `codex`):
+
+**Steps:**
+
+1. Generate consult prompt from `references/cross-model-consult-prompt-template.md`. Substitute variables; this consult uses a lighter prompt focused on ship-readiness:
+   - Files changed since BUILD→VALIDATE bridge.
+   - VALIDATE failures resolved this pass.
+   - Outstanding warnings carrying into SHIP.
+
+2. Invoke Codex CLI (same command shape as build/SKILL.md Cross-Model Independent Review). Cost ceiling: `$DEV_PIPELINE_CROSS_MODEL_CEILING` (default `$1.00`).
+
+3. **Findings consumption:** same semantics as BUILD's consult — PASS advances, WARN advisory, NEEDS_WORK BLOCKS, HIGH_RISK BLOCKS + auto-escalates (escalation here means "remain in VALIDATE for another pass," since SHIP is the next phase).
+
+4. Log invocation to `<feature>/.dev/cross-model-consult.log` (append-only).
+
+**Why Expansion-only at this boundary:**
+
+- Hold mode already ran the BUILD→VALIDATE consult; the VALIDATE→SHIP consult is largely redundant for that mode.
+- Expansion explicitly opts into the deeper rigor; cost ($2/feature in Expansion vs $1/feature in Hold) is bounded.
+
 ---
 
 ## Stage 4: Review — Ship Readiness
