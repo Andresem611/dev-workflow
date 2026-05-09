@@ -4,6 +4,53 @@ All notable changes to the `dev-pipeline-frontend` plugin are documented here. F
 
 ---
 
+## v4.6.0 — Verify Against Real Systems
+
+**Released:** 2026-05-09
+
+This release lands the real-system verification proposals from the Teach Mode post-mortem: two-client smoke for collaborative features, live-backend integration vitest (no mocks), curl contract gate diffed against API_CONTRACT.md, and a BUILD-time CONTRACT DRIFT scan on `lib/*-api.ts` waves. v4.5 made decisions and requirements bind to artifacts; v4.6 makes those artifacts bind to running systems.
+
+### Added
+
+- **Δ1** — `skills/validate/SKILL.md` Section 3.4 Two-Client Smoke Test. Triggered by collaborative-keyword set (15 keywords incl. `tldraw/sync`, `websocket`, `webrtc`). 6-step symmetric-propagation test across two browser contexts. **Blocking** on no-keyword-skip and on fail. Closes F3.
+- **Δ2** — Section 3.5 Live-BE Integration Vitest. Triggered by `lib/*-api.ts` touches in the wave. Spec **must not mock fetch** — vi.mock( in spec file produces explicit FAIL message. Real-fetch against staging; asserts response envelope against API_CONTRACT.md. Closes F1, F13.
+- **Δ3** — Section 3.6 Curl Contract Gate. Triggered when MANIFEST domains include `api-integration`. For each row in `<feature>/api/API_CONTRACT.md`, runs `curl -i` against staging and diffs status code + top-level JSON keys. Closes F10, F12.
+- **Δ7** — Section 3.0 Layer 0 `/qa --diff-aware`. Advisory tier; runs unconditionally before manual VALIDATE. Skipped on Reduction mode. Closes F17 (partial; advisor flagged H evidence — polish tier).
+- **Δ4** — `skills/build/SKILL.md` Layer 2 CONTRACT DRIFT re-verification. When wave touches `lib/*-api.ts` or `cross-stack: backend` flag set, runs verify-must-haves and emits warning if `auto_appended > 0`. WARN gates VALIDATE Section 3.6 (does not block Layer 2 itself). Closes F10, F33.
+- **Δ5** — `skills/document/SKILL.md` appends `## test-anti-patterns` block to every wave file's must_haves, pointing BUILD Layer 2 at the catalog. Closes F16.
+- **Δ6** — NEW `references/testing-anti-patterns.md`. 5-pattern catalog (mock-of-FuT, tautology, it.skip, expect(_), snapshot-only). Each pattern: regex / severity / FP caveat / override path / feasibility note. WARN severity per O5.
+- **Δ8** — `skills/pause/SKILL.md` resume Step 7. After environment freshness checks, runs `git diff --stat <pause-commit>..HEAD -- src/`; warns (non-blocking) on non-empty diff. Closes F27.
+
+### Changed
+
+- **Renumber prep** — validate Sections 3.4-3.8 (Optional Checks, Post-Development Audit, Goal-Backward Verification, Failure Mode Analysis, Artifact) shifted to 3.7-3.11 to accommodate new blocking gates at 3.4/3.5/3.6. Cross-ref scan confirmed locally contained — no other plugin file referenced these sections by number.
+
+### Fixed (Wave 2.5 quality-gate follow-ups)
+
+- **pause Step 6→Step 7 wire** (BLOCK fix) — Step 6 now appends `pause-commit: <sha>` to `.dev/pause-handoff.md`. Step 7 reads that field. Step 7 opening line clarified: runs ON RESUME, not at pause-time. Removed misleading "freshness checks (Step 5/6)" wording.
+- **build catalog wire** (BLOCK fix) — Layer 2 now references `references/testing-anti-patterns.md` and applies each pattern's regex with `// AP-T<N>-OVERRIDE:` comment honor. document/SKILL.md's promise that BUILD scans the catalog is now honored.
+- **build line-range cite** — replaced "lines 907-953 in tools.js" with function name `cmdVerifyMustHaves`.
+- **build CONTRACT DRIFT clarity** — added "This warning does not block Layer 2 PASS; it gates VALIDATE Section 3.6" to remove AP-13-style ambiguity.
+- **document Δ6 leak** — stripped internal-changelog tag "(see Δ6)" from shipped skill text.
+- **document Reduction-mode reconciliation** — embedded test-anti-patterns block now matches reference doc's pattern-subset semantics ("AP-T1 + AP-T2 + AP-T4 only on Reduction") instead of the contradictory "severity reduces to log-only" wording.
+- **testing-anti-patterns feasibility notes** — AP-T1 path-resolution and AP-T5 AST-aware scoping flagged as v4.6-simplified with explicit deferral notes (AST tooling deferred to v5.0+).
+
+### Plan deviations (recorded for audit)
+
+- **2a section-numbering collision** — runbook spec said validate had only Sections 3.1/3.2/3.3 (per SKILL_AUDIT §2.3). File actually had 3.1-3.8. Renumbering prep commit added; cross-ref scan confirmed no external dependencies. Plan was stale relative to file.
+- **G-2a-3 grep window** — plan-prescribed verification used `grep -A 5 '### 3.4'` which couldn't reach the keyword line at offset 7. Adjusted to `-A 10`. Functional content unaffected.
+
+### Out of scope / deferred
+
+- F11 (verify-fix retry loop), F14 (test-strategy loader), F15 (PLAN test plan), and the AST-tooling for AP-T5 are explicitly DEFERRED to v5.0 per plan §7.1 anti-pattern guard against AP-04.
+- Backend plugin's stale duplicate cleanup remains scoped to backend release.
+
+### Restraint gate
+
+Wave 3 (v5.0 decomposition) cannot start until v4.6.0 has caught ≥1 real failure that the prior pipeline missed (any of: 2-client smoke, live-BE vitest, curl gate, contract drift, anti-pattern scan). Per EXECUTION_PLAN §8 sequencing rule.
+
+---
+
 ## v4.5.0 — Make Decisions and Requirements Both Bind
 
 **Released:** 2026-05-09
