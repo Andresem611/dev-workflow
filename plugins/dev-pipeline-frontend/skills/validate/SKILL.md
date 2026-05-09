@@ -384,6 +384,41 @@ TEST_API_BASE=https://staging.thoven.co npx vitest run <feature>/tests/integrati
 
 **Why no mocks:** F1 evidence — Teach Mode tests passed by mocking the integration. Real-fetch against staging is the only mechanism that catches `vi.mock('@/lib/lesson-channel')` shape failures.
 
+### 3.6 Curl Contract Gate (api-integration Domain)
+
+**Blocking** when MANIFEST `## Domains` includes `api-integration`.
+
+**Trigger:** `grep -q 'api-integration' <feature>/.dev/MANIFEST.md` (Domains list).
+
+**Inputs:**
+
+- `<feature>/api/API_CONTRACT.md` — produced by DESIGN; lists endpoint rows (method / path / status code / response envelope).
+
+**Steps:**
+
+For each endpoint row in API_CONTRACT.md:
+
+```bash
+TOKEN=$THOVEN_TEST_ACCOUNT_TOKEN
+curl -i -H "Authorization: Bearer $TOKEN" -X <METHOD> https://staging.thoven.co<PATH>
+```
+
+For each response, parse the status code line + top-level JSON keys. Diff against the contract row's expected envelope.
+
+**Pass criterion:** every endpoint row's response status code matches AND every contract-named top-level key is present (extra keys allowed; missing keys = FAIL).
+
+**Fail handling:**
+- Status code mismatch: BLOCK with "Endpoint <PATH> returned <X>, contract expects <Y>".
+- Missing key: BLOCK with "Endpoint <PATH> response missing key <KEY> (contract requires)".
+- Auth failure (401): BLOCK with "ENVIRONMENT FAIL — staging auth token expired or scope wrong"; user refreshes before retry.
+
+**Mode propagation:**
+- Reduction: trigger applies; reduces to happy-path only (skip negative cases).
+- Hold: full per-row diff.
+- Expansion: + diff response body shape (recursive key check), not just top-level.
+
+**Why this gate:** F12 evidence — Pass 2 Homework had `video/webm` MIME mismatch and FE/BE type drift that no other gate caught. The Calendar webhook URL drift (W1→W4) would have surfaced here.
+
 ### 3.7 Optional Checks (If User Opted In)
 
 **Judge Scoring** — dispatch judge subagent:
