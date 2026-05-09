@@ -2,6 +2,82 @@
 
 Template for `.dev/discover/REQUIREMENTS.md` — checkable requirements that define "done" for a frontend feature.
 
+## EARS Sentence Shapes (v5.0+)
+
+Adopted in v5.0 (user-locked Wave 6 checkpoint 2026-05-09). Each requirement bullet — regardless of categorical prefix (UI-NN, A11Y-NN, RSP-NN, INT-NN, API-NN, PERF-NN, STATE-NN, FORM-NN, ANIM-NN, SEO-NN, TRK-NN, AUTH-NN, DS-NN) — uses one of four EARS sentence shapes plus a clear `shall` verb form.
+
+EARS = Easy Approach to Requirements Syntax. The categorical prefix scheme defined elsewhere in this document (UI-NN etc.) is preserved; EARS is the **bullet-level grammar** that replaces free prose within each category.
+
+### Four EARS shapes
+
+**1. Ubiquitous (always-true behavior)**
+
+```
+<PREFIX-NN>: The <feature|component> shall <observable behavior>.
+```
+
+Example: `UI-03: The lobby header shall display the current room participant count to all joined users.`
+
+**2. Event-driven (response to a trigger)**
+
+```
+<PREFIX-NN>: When <trigger event>, the <feature|component> shall <observable behavior>.
+```
+
+Example: `INT-04: When a teacher draws a stroke on the canvas, the sync layer shall propagate the stroke to all student clients within 200ms.`
+
+**3. State-driven (behavior conditional on a state)**
+
+```
+<PREFIX-NN>: While <state>, the <feature|component> shall <observable behavior>.
+```
+
+Example: `STATE-07: While the recording is active, the canvas UI shall display a persistent recording indicator visible to all participants.`
+
+**4. Optional/conditional (feature/role-gated)**
+
+```
+<PREFIX-NN>: Where <feature|role> applies, the <feature|component> shall <observable behavior>.
+```
+
+Example: `AUTH-12: Where the user has 'teacher' role, the lobby shall expose a 'Start Recording' control.`
+
+### Combinations
+
+EARS shapes can compose:
+
+```
+<PREFIX-NN>: When <event>, while <state>, the <feature> shall <response>.
+<PREFIX-NN>: Where <feature>, when <event>, the <feature> shall <response>.
+```
+
+### Why EARS within existing prefix categories
+
+The categorical prefix scheme answers **what kind of requirement** this is (UI vs accessibility vs API vs performance). EARS answers **what shape the verb takes** (always, on event, while state, when feature). They're orthogonal and complementary:
+
+- Categorical prefixes → traceability (groups requirements by domain for skill dispatch).
+- EARS shapes → mechanical clarity (forces a `shall` verb that maps to a single observable behavior).
+
+Both must be present for v5.0+ features. Pre-v5.0 features remain on free-prose authoring within categorical prefixes; new features adopt EARS.
+
+### Aggregation in MANIFEST (unchanged)
+
+The `verify-requirements-coverage` tool (v4.5-Δ3) reads MANIFEST `## Requirements Coverage` table by row regex (column-oriented, not sentence-oriented). EARS lives in `requirements.md`, NOT the MANIFEST table — so the tool needs no extension for EARS. Existing column-oriented gates keep working unchanged.
+
+### Mode propagation
+
+- Reduction: shorter requirements list (3-5 typical); EARS shapes still required.
+- Hold: full categorical authoring (8-15 requirements typical); EARS shapes required for each bullet.
+- Expansion: + non-functional requirements section (PERF-NN); EARS shapes required for each bullet including non-functional.
+
+### Acceptance criteria
+
+A v5.0+ feature's `requirements.md`:
+- Has at least one requirement of each EARS shape (Ubiquitous + at least one of Event/State/Optional).
+- Every bullet has a categorical prefix (UI-NN / A11Y-NN / etc.) AND a `shall` verb form.
+- Every requirement ID appears in MANIFEST `## Requirements Coverage` table.
+- Out-of-scope items use `OOS-NN` prefix (still applies; EARS is for in-scope items).
+
 ## Table of Contents
 
 1. [Template](#template)
