@@ -1,7 +1,7 @@
 {
   "name": "dev-pipeline-frontend",
-  "description": "Frontend development pipeline v4.6.0 — real-system verification (Two-Client Smoke, Live-BE Vitest, Curl Contract Gate, testing-anti-patterns scan, BUILD CONTRACT DRIFT re-verification), decision + requirement binding (verify-requirements-coverage, Phase Boundary Aggregation), MANIFEST Dependencies typed, visual QA, behavior-slice tasks, design mockup gates",
-  "version": "4.6.0",
+  "description": "Frontend development pipeline v5.0.0 — personas, TDD strict-edit guardrail, decomposition, cross-model review (Codex consult Hold+Expansion; configurable via DEV_PIPELINE_CROSS_MODEL), EARS-within-categorical-prefixes requirements, real-system verification (Two-Client Smoke, Live-BE Vitest, Curl Contract Gate), decision + requirement binding (verify-requirements-coverage, Phase Boundary Aggregation), MANIFEST Dependencies typed, visual QA, behavior-slice tasks, design mockup gates",
+  "version": "5.0.0",
   "author": {
     "name": "Thoven",
     "email": "andres@thoven.co"
