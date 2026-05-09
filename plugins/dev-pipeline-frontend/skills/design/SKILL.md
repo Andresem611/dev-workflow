@@ -1,6 +1,6 @@
 ---
 name: design
-description: Creates visual specifications for a frontend feature. Reads DISCOVER bridge, performs backend requirements check, produces contract stubs when endpoints are missing. Produces full DESIGN_SPEC with Tailwind classes, typography, animation, responsive behavior, and accessibility. ALWAYS RUNS in frontend pipeline. Triggers on /dev:design or when /dev router advances past DISCOVER.
+description: Creates visual specifications for a frontend feature. Reads DISCOVER bridge, performs backend requirements check, produces contract stubs when endpoints are missing AND MANIFEST Dependencies reconciliation against package.json. Produces full DESIGN_SPEC with Tailwind classes, typography, animation, responsive behavior, and accessibility. ALWAYS RUNS in frontend pipeline. Triggers on /dev:design or when /dev router advances past DISCOVER.
 ---
 
 # /dev:design — Visual Specification + Design System Compliance
@@ -84,6 +84,10 @@ After WHAT questions, scan the codebase for design context using an Explore agen
 1. **Existing patterns:** "We recommend matching [component X] found in the codebase. It handles [similar pattern]. Match that style, extend it, or create something new?"
    - Only ask if Explore found similar components
 2. **Installed packages — MANIFEST Dependencies reconciliation (was animation/UI/effect-only check):**
+
+   **Pre-check:** If MANIFEST `## Dependencies (typed)` section is MISSING entirely (e.g., feature predates v4.5 INTAKE), this is itself a BLOCKING escalation:
+
+   > **DESIGN escalation:** MANIFEST has no `## Dependencies (typed)` section. The feature was created before v4.5 INTAKE structured-capture. Run `/dev:intake` Stage 4 in retrospect-mode to populate the table, then resume DESIGN. Bridge cannot advance to PLAN until populated.
 
    Read MANIFEST `## Dependencies (typed)` for any rows where `Type=npm`. For each such row:
 
