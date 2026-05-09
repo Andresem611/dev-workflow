@@ -1,6 +1,6 @@
 ---
 name: validate
-description: Verifies a completed feature build before shipping. Runs evidence-based validation checks — type-check, lint, stubs, a11y, responsive, performance, visual regression. Triggers on /dev:validate or when /dev router advances past BUILD.
+description: Verifies a completed feature build before shipping. Runs evidence-based validation checks — type-check, lint, stubs, a11y, responsive, performance, visual regression, and Cross-Model Independent Review (Codex consult; Hold + Expansion modes; configurable via DEV_PIPELINE_CROSS_MODEL env). Triggers on /dev:validate or when /dev router advances past BUILD.
 ---
 
 # /dev:validate
