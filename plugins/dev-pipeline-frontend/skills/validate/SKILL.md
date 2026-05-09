@@ -388,7 +388,12 @@ TEST_API_BASE=https://staging.thoven.co npx vitest run <feature>/tests/integrati
 
 **Blocking** when MANIFEST `## Domains` includes `api-integration`.
 
-**Trigger:** `grep -q 'api-integration' <feature>/.dev/MANIFEST.md` (Domains list).
+**Trigger (any condition fires the gate):**
+
+1. MANIFEST `## Domains` includes `api-integration` (`grep -q 'api-integration' <feature>/.dev/MANIFEST.md`).
+2. BUILD emitted a CONTRACT DRIFT warning (Layer 2 v4.6-Δ4) — check `<feature>/.dev/build/review-build.md` for any "CONTRACT DRIFT detected" line. If present, this gate runs regardless of domain tag.
+
+The combined trigger ensures BUILD's contract-drift detection has an enforced consumer at VALIDATE.
 
 **Inputs:**
 
