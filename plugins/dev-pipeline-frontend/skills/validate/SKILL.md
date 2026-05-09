@@ -302,7 +302,7 @@ kill $(lsof -ti:3000) 2>/dev/null || true
 
 **Results feed into Review verdict.** Console errors and broken layouts are BLOCKING. Screenshot evidence is attached to the review artifact.
 
-### 3.4 Optional Checks (If User Opted In)
+### 3.7 Optional Checks (If User Opted In)
 
 **Judge Scoring** — dispatch judge subagent:
 
@@ -318,7 +318,7 @@ Default score is 2. Justify scores above 2. Weighted total >= 4.0 passes.
 
 **Production Data Audit** — curl real endpoints, verify response shapes match TypeScript types, required fields present, auth guards return 401/403 for wrong roles.
 
-### 3.5 Post-Development Audit
+### 3.8 Post-Development Audit
 
 Final checklist (from `references/validation-checklists.md`):
 
@@ -333,7 +333,7 @@ Final checklist (from `references/validation-checklists.md`):
 - Works on mobile, tablet, desktop
 - No regressions in existing features
 
-### 3.6 Goal-Backward Verification
+### 3.9 Goal-Backward Verification
 
 **MANDATORY: Goal-Backward Verification**
 
@@ -351,7 +351,7 @@ Stub detection (from GSD verification-patterns):
 - Hardcoded returns: `return null`, `return []`, `return {}`
 - TODO markers: `grep -E "TODO|FIXME|XXX|HACK"`
 
-### 3.7 Failure Mode Analysis
+### 3.10 Failure Mode Analysis
 
 **MANDATORY.** For each new codepath or integration point identified during validation, document:
 
@@ -371,7 +371,7 @@ Stub detection (from GSD verification-patterns):
 
 Focus on codepaths that are NEW in this feature — don't audit the entire codebase.
 
-### 3.8 Artifact
+### 3.11 Artifact
 
 Write `.dev/validate/execute-validation-results.md` — every check with pass/fail and actual evidence. Include failure mode analysis table.
 
