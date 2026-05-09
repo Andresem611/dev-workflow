@@ -69,7 +69,7 @@ Before any `git add` in subsequent stages, this stage emits a definitive `FILES_
 
 ```bash
 # Capture all files modified during the feature (excluding .dev/ pause artifacts)
-git status --porcelain | awk '$1 ~ /^[MA?]/ {print $2}' | grep -v '^\.dev/' > /tmp/files_to_stage.txt
+git status --porcelain | awk '$1 ~ /^[MARD?]/ {print $2}' | grep -v '^\.dev/' > /tmp/files_to_stage.txt
 
 # Surface to user for confirmation
 echo "Files to stage in commit:"
