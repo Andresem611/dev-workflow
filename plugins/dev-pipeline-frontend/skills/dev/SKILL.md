@@ -209,7 +209,7 @@ Each phase validates that its predecessors completed before executing.
 | PLAN | DESIGN completed (architecture informed by actual design spec) |
 | DOCUMENT | PLAN completed |
 | BUILD | DOCUMENT completed |
-| VALIDATE | BUILD completed (all waves) AND `verify-decision-coverage <feature> --plugin frontend` returns JSON `res.valid===true` AND `verify-requirements-coverage <feature> --plugin frontend` returns JSON `res.valid===true` AND every wave's `verify-must-haves --wave N` returns JSON `res.valid===true` |
+| VALIDATE | BUILD completed (all waves) AND `verify-decision-coverage <feature> --plugin frontend` returns JSON `res.valid===true` AND `verify-requirements-coverage <feature> --plugin frontend` returns JSON `res.valid===true` AND loop `verify-must-haves --wave N` for each completed wave 1..final, gate on JSON `res.valid===true` for every iteration |
 | SHIP | VALIDATE passed |
 | PAUSE | Any phase in progress |
 
@@ -225,7 +225,7 @@ Before any phase advances, the orchestrator runs the boundary check for that tra
 | PLAN → DOCUMENT | `verify-decision-coverage` |
 | DOCUMENT → BUILD | `verify-decision-coverage` AND `verify-requirements-coverage` |
 | BUILD wave N → wave N+1 | `verify-must-haves --wave N` |
-| BUILD (final wave) → VALIDATE | `verify-decision-coverage` AND `verify-requirements-coverage` AND `verify-must-haves --wave (every)` |
+| BUILD (final wave) → VALIDATE | `verify-decision-coverage` AND `verify-requirements-coverage` AND loop `verify-must-haves --wave N` for each completed wave 1..final, gate on JSON `res.valid===true` for every iteration |
 | VALIDATE → SHIP | (per validate skill) |
 
 A failed mechanical check (`res.valid===false` in any of the JSON outputs above) **blocks** the transition. The user can override only by editing the underlying artifact and re-running the check (no `--skip` flag).
