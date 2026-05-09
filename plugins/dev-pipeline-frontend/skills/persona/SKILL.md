@@ -139,6 +139,18 @@ After PERSONA closes, the orchestrator writes a context bridge `<feature>/.dev/p
 
 This was clarified at Wave 6.5 quality gate — earlier draft phrased PERSONA as "advisory" which conflicted with the orchestrator's BLOCK semantics. Authoritative: BLOCK at presence-of-population. The questions themselves are user-driven (the user can exit any single question), but the section must be populated to advance.
 
+## AP-15 Amendment Propagation
+
+When a LOCKED Decision Ledger entry sourced from a persona (`Source=PERSONA:<name>`) is later amended (e.g., DESIGN amends U-NN that originated in PERSONA:Frontend Q4), the corresponding persona must be re-run for the questions that surface that decision.
+
+**Trigger:** orchestrator detects a LOCKED-decision amendment via `git log` of MANIFEST `## Decisions Log` after the persona's bridge timestamp.
+
+**Action:** orchestrator surfaces "PERSONA-sourced decision <U-NN> was amended after PERSONA closed. Re-run `/dev:persona --persona Frontend --question Q4` to refresh the answer." User confirms; persona re-runs the single question; MANIFEST `## <Persona> Persona Answers` updates the corresponding Q+A pair; new ledger row supersedes the old.
+
+**Why:** AP-15 (LOCKED amendment propagation). Without this, persona-sourced decisions become stale signals — the answer was captured against an earlier scope.
+
+**Mode propagation:** Reduction skips re-runs (lower bar). Hold + Expansion run the single-question refresh.
+
 ## Acceptance criteria
 
 A new feature passing through PERSONA emits MANIFEST sections:
