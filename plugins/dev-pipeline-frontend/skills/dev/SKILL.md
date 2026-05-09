@@ -33,6 +33,7 @@ Each phase is a plugin skill invoked via colon notation:
 /dev              → This file. Routes to correct phase or resumes.
 /dev intake       → Skill(dev-pipeline-frontend:intake)    — Classify, scope, create MANIFEST + Decision Ledger
 /dev discover     → Skill(dev-pipeline-frontend:discover)  — 4-Zone Discuss + codebase research + reuse audit
+/dev persona      → Skill(dev-pipeline-frontend:persona)   — Frontend + Product + Backend (opt-in) personas grill the user (sub-phase between DISCOVER and DESIGN)
 /dev design       → Skill(dev-pipeline-frontend:design)    — UI spec + design system compliance + backend gate (ALWAYS RUNS)
 /dev plan         → Skill(dev-pipeline-frontend:plan)      — Architecture decisions + task breakdown (informed by DESIGN)
 /dev document     → Skill(dev-pipeline-frontend:document)  — 5-layer docs + wave execution plans
@@ -54,10 +55,12 @@ Skill(dev-pipeline-frontend:intake)     # Plugin colon notation
 ## Phase Chain
 
 ```
-INTAKE → DISCOVER → DESIGN → [BACKEND GATE] → PLAN → DOCUMENT → BUILD → VALIDATE → SHIP
-                                                                                      ↑
-                                                                                PAUSE (any point)
+INTAKE → DISCOVER → PERSONA → DESIGN → [BACKEND GATE] → PLAN → DOCUMENT → BUILD → VALIDATE → SHIP
+                                                                                                ↑
+                                                                                          PAUSE (any point)
 ```
+
+**v5.0 sub-phase:** PERSONA runs between DISCOVER Zone 4 close and DESIGN entry. Three personas (Frontend Designer, Product, Backend opt-in for `Cross-Stack: backend`) grill the user one question at a time. Persona answers feed MANIFEST and Decision Ledger; DESIGN reads them on entry.
 
 **v4.0 ordering:** DESIGN runs before PLAN so architecture decisions are informed by the actual UI spec. The backend gate in DESIGN Review checks for missing API endpoints and produces a contract stub if needed.
 
@@ -205,7 +208,8 @@ Each phase validates that its predecessors completed before executing.
 |-------|----------|
 | INTAKE | Nothing |
 | DISCOVER | MANIFEST exists |
-| DESIGN | DISCOVER completed (or skipped per entry mode). ALWAYS RUNS — not conditional on domain tags |
+| PERSONA | DISCOVER completed; persona answers captured to MANIFEST `## Frontend Persona Answers` AND `## Product Persona Answers` AND (if Cross-Stack: backend) `## Backend Persona Answers` |
+| DESIGN | PERSONA completed (or skipped per entry mode). ALWAYS RUNS — not conditional on domain tags |
 | PLAN | DESIGN completed (architecture informed by actual design spec) |
 | DOCUMENT | PLAN completed |
 | BUILD | DOCUMENT completed |
@@ -222,6 +226,8 @@ Before any phase advances, the orchestrator runs the boundary check for that tra
 | From → To | Mechanical checks (gate on JSON `res.valid===true`) |
 |-----------|------------------------------------------------------|
 | INTAKE → DISCOVER | `validate-manifest` (existing) |
+| DISCOVER → PERSONA | (no mechanical gate; PERSONA is question-driven) |
+| PERSONA → DESIGN | persona-bridge written; MANIFEST has 3 (or 2 non-CrossStack) Persona Answers sections populated |
 | PLAN → DOCUMENT | `verify-decision-coverage` |
 | DOCUMENT → BUILD | `verify-decision-coverage` AND `verify-requirements-coverage` |
 | BUILD wave N → wave N+1 | `verify-must-haves --wave N` |
