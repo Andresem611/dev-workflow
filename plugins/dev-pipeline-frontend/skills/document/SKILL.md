@@ -275,6 +275,35 @@ When emitting `<feature>/requirements.md`, follow the template at `references/re
 
 EARS authoring is required for all v5.0+ features. Pre-v5.0 features remain on free-prose within categorical prefixes; existing requirements.md files are not retroactively migrated unless their feature undergoes a major iteration.
 
+### 3.5.2 Amendment-driven re-DOCUMENT path (AP-15)
+
+When an upstream phase amends a must_have after a test file has been hash-locked (e.g., PLAN amends U-NN; the must_have for T-NN's wave changes; the existing test asserts the old must_have):
+
+**Two-step re-emit:**
+
+1. User runs the override-test command for the affected task:
+
+   ```bash
+   node ${PLUGIN_ROOT}/../shared/tools/dev-pipeline-tools.js override-test \
+     <feature> --plugin frontend --task T-NN \
+     --reason "must_have R-NN amended in U-NN; test contract stale" \
+     --attestation "OVERRIDE T-NN: must_have R-NN amended in U-NN; test contract stale"
+   ```
+
+   This logs to `.dev/test-overrides.log` and removes the `@sha256` line from the test file (per `references/test-immutability-protocol.md`).
+
+2. User re-runs DOCUMENT for that task only:
+
+   ```bash
+   /dev:document --task T-NN
+   ```
+
+   DOCUMENT regenerates the test file using the current must_have, computes a new `@sha256`, and re-locks. The next BUILD Layer 0 verification PASSes.
+
+**Why this path differs from "test was provably wrong":** the override-test command is the same; what differs is the reason text. Both flows append to the same audit log; SHIP audits log size as a soft signal of test-spec churn during build.
+
+**Acceptance:** if `must_have` amendment count > 0 in a wave's bridge AND test files were hash-locked before the amendment, the orchestrator emits a "stale test contracts" warning. User addresses via the two-step path above before BUILD Layer 0.
+
 ### 3.6 Stage Artifact
 
 Write `docs/[Feature]/.dev/document/execute-docs-manifest.md` — lists ALL files produced:
