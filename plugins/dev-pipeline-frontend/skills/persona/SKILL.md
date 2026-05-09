@@ -133,7 +133,11 @@ After PERSONA closes, the orchestrator writes a context bridge `<feature>/.dev/p
 
 - **AP-04 wire-in ceremony:** PERSONA must produce MANIFEST artifacts that DESIGN reads. Sub-phase is not "ask questions then forget" — answers feed downstream.
 - **AP-07 aspirational:** every question has a concrete answer shape (count, name, list). No "ensure good UX" framing.
-- **AP-13 advisory-as-gate:** PERSONA does NOT block DESIGN entry on missing answers — it surfaces them. Gating happens later (DESIGN pre-check on persona artifacts).
+- **AP-13 advisory-as-gate:** *(superseded — see PERSONA → DESIGN gate semantics below).*
+
+**PERSONA → DESIGN gate semantics (BLOCK):** PERSONA gates DESIGN entry on presence-of-sections — `dev/SKILL.md`'s Phase Boundary Aggregation table requires that `## Frontend Persona Answers` AND `## Product Persona Answers` (AND `## Backend Persona Answers` if Cross-Stack: backend) sections be populated in MANIFEST before DESIGN can begin. Empty placeholder sections do not count; each persona must have at least its mode-budgeted Q+A count.
+
+This was clarified at Wave 6.5 quality gate — earlier draft phrased PERSONA as "advisory" which conflicted with the orchestrator's BLOCK semantics. Authoritative: BLOCK at presence-of-population. The questions themselves are user-driven (the user can exit any single question), but the section must be populated to advance.
 
 ## Acceptance criteria
 
