@@ -323,6 +323,36 @@ kill $(lsof -ti:3000) 2>/dev/null || true
 
 **Results feed into Review verdict.** Console errors and broken layouts are BLOCKING. Screenshot evidence is attached to the review artifact.
 
+### 3.4 Two-Client Smoke Test (Collaborative Features Only)
+
+**Blocking** when the collaborative-trigger keyword set matches.
+
+**Trigger:** any keyword from the collaborative-trigger set appears in MANIFEST or DESIGN_SPEC (case-insensitive substring match):
+
+`real-time | sync | broadcast | collaborative | peer | multi-user | join | presence | shared session | live cursors | yjs | tldraw/sync | websocket | socketio | webrtc`
+
+**Skip protocol:** if no keyword matches, log "Section 3.4 SKIPPED — no collaborative trigger" and continue. Do not skip silently.
+
+**Steps:**
+
+1. Open Browser A as Teacher persona (existing test account). Navigate to feature route. Take screenshot.
+2. Open Browser B (separate Chrome profile or Playwright incognito context — `mcp__plugin_playwright_playwright__browser_tabs` supports multi-tab) as Student persona. Same room/session ID. Take screenshot.
+3. Action in A: perform the canonical collaborative action (e.g., draw a stroke, send a message, drop a cursor). Capture A screenshot.
+4. Wait ≤2s. Capture B screenshot.
+5. Diff B-before vs B-after: assert the action propagated. If no visible change in B, FAIL with screenshots attached.
+6. Reverse direction: action in B → assert visible in A within ≤2s. If symmetric propagation fails, FAIL.
+
+**Pass criterion:** both directions of state propagation visibly succeed.
+
+**Fail handling:** report screenshots to user; **block VALIDATE→SHIP transition**. Do not auto-retry.
+
+**Mode propagation:**
+- Reduction: skipped only if no keyword matches (mechanical trigger applies in all modes).
+- Hold: as above.
+- Expansion: above + 3rd client (observer) for read-only verification.
+
+**Fallback (if Playwright multi-tab unavailable):** spawn two browser binaries with distinct user-data-dirs, manually orchestrate the 6 steps; capture screenshots via `mcp__plugin_playwright_playwright__browser_take_screenshot`.
+
 ### 3.7 Optional Checks (If User Opted In)
 
 **Judge Scoring** — dispatch judge subagent:
