@@ -133,6 +133,52 @@ Loaded context from INTAKE:
 - NOT-in-scope items → LOCKED
 - Reuse decisions → LOCKED
 
+### Stage 3.5 — Decomposition Detection (mandatory)
+
+After Zone 3 IN/OUT scope is captured and before Zone 4 (HOW) entry, run the decomposition trigger check. This catches Teach Mode-class features that should ship as parallel sub-pipelines instead of one long pipeline.
+
+**Inputs:**
+- Zone 3 IN list (the locked scope)
+- Zone 1 JTBD list (the user-journey set)
+- PLAN's wave-estimate heuristic (used internally to estimate effort; if PLAN hasn't run yet, project from Zone 3 surface area)
+
+**4 trigger signals (any 2 must fire to surface the proposal):**
+
+1. **Multi-journey:** IN list spans >3 distinct user journeys. Heuristic: count distinct primary actors OR distinct first-screen entry points.
+2. **Multi-model:** IN list spans >2 distinct data models. Heuristic: count distinct nouns capable of independent CRUD operations.
+3. **Multi-integration:** IN list spans >2 distinct integration surfaces. Heuristic: count distinct WebSocket / REST / file-storage / third-party-API touchpoints.
+4. **Multi-wave:** Wave count estimate >5 from PLAN heuristic (or projection if PLAN unrun).
+
+**Threshold:** 2-of-4 signals firing surfaces the proposal. (User-locked at Wave 3 checkpoint 2026-05-09; re-checkpointable per future audit.)
+
+**If trigger fires, AskUserQuestion with 3 options:**
+
+- **A) Decompose** — propose split into N sub-pipelines with explicit dependency graph. Each sub-pipeline gets its own `docs/<sub-feature-name>/.dev/MANIFEST.md` (per-sub topology, user-locked at Wave 3 checkpoint). All sub-pipelines proceed in parallel through DISCOVER → DESIGN → PLAN → DOCUMENT → BUILD → VALIDATE; SHIP enforces upstream completeness via the Upstream Pipelines section in MANIFEST.
+- **B) Acknowledge but proceed in-place** — log decision; pipeline continues unchanged but a `Multi-Journey-Risk` tag attaches to MANIFEST and downstream phases get a warning banner.
+- **C) Reject signal** — user disagrees with the heuristic. Capture one-sentence rationale. Pipeline continues unchanged. No tag.
+
+**Decomposition acceptance flow (option A):**
+
+1. User names each sub-pipeline (e.g., for Teach Mode: `teach-mode-core`, `teach-mode-canvas-save`, `teach-mode-recording`, `teach-mode-lesson-mgmt`, `teach-mode-homework`).
+2. For each sub-pipeline, declare upstream dependencies (which other sub-pipelines must ship before this one can SHIP).
+3. Spawn N sub-pipeline directories under `docs/<sub-feature-name>/.dev/MANIFEST.md`. Each MANIFEST gets:
+   - Standard Metadata / Domains / Pipeline Status / Phase Progress / Decisions Log / Artifacts sections.
+   - **`## Upstream Pipelines`** section (added in Δ2) listing each upstream's path + required artifact + Mock fallback path.
+
+**Frame as agile parallel shipping, not v2 punting:** sub-pipelines ship independently. Downstream pipelines may stub upstream artifacts (mock canvas-save endpoint, mock recording component) until upstream ships and SHIP swaps to real.
+
+**Concrete Teach Mode mapping (informational example):**
+- Pipeline A: Core Teach Mode (room creation + multi-user canvas + roles)
+- Pipeline B: Canvas-save (snapshot persistence; A depends on B for snapshot endpoint)
+- Pipeline C: Recording (audio capture; can ship after A)
+- Pipeline D: Lesson management (CRUD + scheduling; independent of A)
+- Pipeline E: Homework submission (independent of A; reuses canvas component from A's design system)
+
+**Mode propagation:**
+- Reduction: skip Stage 3.5 entirely (decomposition only relevant on Hold/Expansion-class features).
+- Hold: run; threshold remains 2-of-4.
+- Expansion: run; threshold tightens to 1-of-4 (any signal surfaces the proposal — user can option-C reject if false-positive).
+
 ### Zone 4: HOW (Execution Preferences)
 
 **Technique:** Temporal Interrogation + Mode Selection (from /product-advisor)
