@@ -201,6 +201,8 @@ Check Execute output against Architect's success criteria with evidence-based pa
 | Git status clean | Working tree clean |
 | Commit format correct | Co-Authored-By present, Publication Status matches decision |
 
+- **Upstream Pipelines:** every row in MANIFEST `## Upstream Pipelines` (if section exists) has `Status=shipped` OR `Mock fallback != n/a`. If `Status=in-progress` AND `Mock fallback=n/a`, **block ship** with the message: "Cannot ship: upstream `<pipeline-name>` is in-progress and no mock fallback declared. Either ship the upstream first, or add a mock at `<path>` and resume."
+
 ### Present to User
 
 ```
