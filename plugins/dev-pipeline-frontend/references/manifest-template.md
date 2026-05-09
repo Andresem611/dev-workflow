@@ -93,6 +93,36 @@ When this feature was decomposed at DISCOVER (Stage 3.5), this section lists sis
 
 **SHIP gate (added in Wave 3 ship-side change):** every Upstream Pipelines row must have `Status=shipped` OR `Mock fallback != n/a`. If a row has `Status=in-progress` and `Mock fallback=n/a`, SHIP refuses to advance. Encoding: any pipeline that depends on an unshipped upstream MUST have a working mock; any pipeline whose upstream has shipped MUST have removed its mock.
 
+## Frontend Persona Answers
+
+[Populated during PERSONA sub-phase. Empty for features that haven't run PERSONA yet.]
+
+**Q1 — <persona question>**
+A: [user's answer verbatim]
+
+**Q2 — <persona question>**
+A: [user's answer verbatim]
+
+[Q3-Q5 in Hold, Q3-Q8 in Expansion. Q+A pairs that surface decisions also appear in `## Decisions Log` with Source=PERSONA:Frontend.]
+
+## Product Persona Answers
+
+[Populated during PERSONA sub-phase.]
+
+**Q1 — <persona question>**
+A: [verbatim]
+
+[Same shape as Frontend.]
+
+## Backend Persona Answers
+
+[Populated during PERSONA sub-phase ONLY if `Cross-Stack: backend` flag is set. Empty otherwise.]
+
+**Q1 — <persona question>**
+A: [verbatim]
+
+[Same shape; question count per mode-propagation.]
+
 ## Notion Integration
 - **Card ID:** [notion-page-uuid — populated by INTAKE after card creation]
 - **Sprint:** [sprint-name — populated by INTAKE]
