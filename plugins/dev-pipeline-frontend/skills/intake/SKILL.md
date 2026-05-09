@@ -183,6 +183,8 @@ For each YES, capture in this exact structured format:
 - **Source decision ID:** the U-NN or A-NN from the MANIFEST Decision Ledger that authorized this dependency
 - **Wave it's required by:** best-guess wave number (refined during PLAN)
 
+**Column-name parity:** Use the MANIFEST template's exact column order when populating the row: `| Type | Name | Version | Source decision | Required by |`. Renaming columns at write-time breaks downstream parse in DESIGN Δ10 reconciliation and Phase Boundary Aggregation gates.
+
 Write each captured dependency as a row in MANIFEST `## Dependencies (typed)` table:
 
 ```markdown
