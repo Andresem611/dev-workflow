@@ -388,6 +388,8 @@ node ${PLUGIN_ROOT}/../shared/tools/dev-pipeline-tools.js \
 - If `res.valid === false`: BLOCK wave dispatch. Surface to user with the drift list (`res.drift[].file`, `res.drift[].reason`).
 - Override path: see `references/test-immutability-protocol.md`. Tool requires typed attestation matching `OVERRIDE T-NN: <reason>` exactly. No `--force` flag.
 
+**Test file format reference:** `references/test-file-template.md` — frontmatter shape (`@test-contract` / `@feature` / `@task` / `@must-haves` / `@sha256` / `@locked-at`). BUILD Layer 0 reads but does NOT modify these files; the override-test command is the only sanctioned mutation path.
+
 **Why pre-wave (not Layer 1):**
 - Layer 1 is type-check + lint, which can run on the production code only.
 - Layer 0 (this) is metadata gate: test contract integrity before BUILD agents touch any code.
