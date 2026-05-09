@@ -1,7 +1,7 @@
 {
   "name": "dev-pipeline-frontend",
-  "description": "Frontend development pipeline v4.3.0 — decision fidelity enforcement (verify-decision-coverage, two-tier LOCKED decisions, verbatim echo-back), visual QA, behavior-slice tasks, design mockup gates",
-  "version": "4.3.0",
+  "description": "Frontend development pipeline v4.5.0 — decision + requirement binding (verify-requirements-coverage, Phase Boundary Aggregation, MANIFEST Dependencies typed, bridge Requirements Coverage section), decision fidelity enforcement, visual QA, behavior-slice tasks, design mockup gates",
+  "version": "4.5.0",
   "author": {
     "name": "Thoven",
     "email": "andres@thoven.co"
