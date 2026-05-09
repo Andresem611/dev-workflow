@@ -648,6 +648,42 @@ State persists to disk (MANIFEST + stage artifacts). Nothing is lost on `/clear`
 
 **STOP.** Do not invoke VALIDATE.
 
+### Cross-Model Independent Review (RP3 / F23)
+
+**Trigger:** mode = Hold or Expansion. **Skipped on Reduction.**
+
+**Pre-check:** if `DEV_PIPELINE_CROSS_MODEL=off`, skip with log "cross-model consult disabled". Otherwise (default `codex`):
+
+**Steps:**
+
+1. Generate consult prompt from `references/cross-model-consult-prompt-template.md`. Substitute the variables: feature name, mode, files-changed list, must_haves aggregate, requirements.md content, API_CONTRACT.md content, Decision Ledger LOCKED rows. Write the rendered prompt to `<feature>/.dev/codex-consult-build-final.md`.
+
+2. Invoke Codex CLI:
+
+   ```bash
+   codex consult --prompt <feature>/.dev/codex-consult-build-final.md \
+     --max-cost $DEV_PIPELINE_CROSS_MODEL_CEILING
+   ```
+
+   Default ceiling: `$1.00` (env var `DEV_PIPELINE_CROSS_MODEL_CEILING`, user-set in Wave 6 2026-05-09).
+
+3. Parse verdict and findings. Cost ceiling enforcement: if consult exceeded ceiling, pause pipeline and AskUserQuestion before invoking the next consult.
+
+4. **Findings consumption:**
+   - **PASS:** log to bridge `<feature>/.dev/build/review-build.md`. Advance.
+   - **WARN:** log findings as advisory to bridge. Advance.
+   - **NEEDS_WORK:** **BLOCK transition** to VALIDATE. Surface findings; user addresses each before re-running. No bypass.
+   - **HIGH_RISK:** **BLOCK + auto-escalate to Expansion mode** (per LEARNINGS Lesson 4). Re-runs the boundary on next pass with Expansion-mode rigor.
+
+5. Log invocation to `<feature>/.dev/cross-model-consult.log` (append-only): timestamp, mode, prompt-path, cost, verdict.
+
+**Mode propagation:**
+- Reduction: skip entirely.
+- Hold: BUILD→VALIDATE only (one consult per feature).
+- Expansion: BUILD→VALIDATE + VALIDATE→SHIP (two consults per feature; see validate/SKILL.md).
+
+**Disable path (intentional):** `DEV_PIPELINE_CROSS_MODEL=off`. Logged as a feature-level decision in MANIFEST. NOT the default — AP-05 watchdog requires that default be a real cross-model.
+
 ---
 
 ## BUILD Agent Map
