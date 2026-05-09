@@ -151,7 +151,30 @@ Co-Authored-By: Claude <noreply@anthropic.com>
 
 ---
 
-## Step 7: Confirm
+### Step 7 — Artifact-vs-Code Consistency (warn, non-blocking)
+
+After environment freshness checks (Step 5/6) pass, run:
+
+```bash
+PAUSE_COMMIT=$(grep '^pause-commit:' .dev/pause-handoff.md | cut -d: -f2 | tr -d ' ')
+git diff --stat "${PAUSE_COMMIT}..HEAD" -- src/ 2>/dev/null
+```
+
+If output is non-empty: surface to user (warn, non-blocking):
+
+> **Code drifted during pause.** `git diff --stat` shows changes since pause-commit:
+>
+> <stat>
+>
+> Re-load context before continuing. The `.dev/build/<phase>` artifacts may not reflect current src/ state. Run `/dev:document` review pass or revisit affected wave files.
+
+If output is empty: log "Step 7: no src/ drift since pause-commit" and continue.
+
+This step does NOT block resume — pause checkpoint is recoverable from. The warning gives the user the opportunity to re-load before BUILD/VALIDATE consume stale artifacts.
+
+---
+
+## Step 8: Confirm
 
 Use `AskUserQuestion` to confirm:
 
