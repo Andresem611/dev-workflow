@@ -353,6 +353,37 @@ kill $(lsof -ti:3000) 2>/dev/null || true
 
 **Fallback (if Playwright multi-tab unavailable):** spawn two browser binaries with distinct user-data-dirs, manually orchestrate the 6 steps; capture screenshots via `mcp__plugin_playwright_playwright__browser_take_screenshot`.
 
+### 3.5 Live-BE Integration Vitest (Backend-Touching Waves)
+
+**Blocking** when the wave touches `lib/*-api.ts` (any added/modified file matching the glob).
+
+**Trigger:** grep added/modified files in the wave for `lib/.*-api\.ts` pattern. If match: this section runs. Otherwise skip with log "Section 3.5 SKIPPED — no lib/*-api.ts touched."
+
+**Spec authoring requirements:**
+
+- Spec file lives at `<feature>/tests/integration/<api-name>.live.test.ts`.
+- Spec **must not mock fetch**. **No `vi.mock()` of fetch, the API client, or any layer between the test and the real backend.** If `vi.mock(` appears in the spec file: FAIL with explicit error: `Live-BE integration spec must not mock fetch — Section 3.5 forbids it. Convert to real-fetch or move to integration unit-test layer (Section 3.2).`
+- Spec asserts response envelope (status code + top-level JSON keys) against `<feature>/api/API_CONTRACT.md`.
+- Spec exercises at least 1 happy-path (200) + 1 4xx negative case per endpoint.
+
+**Runtime:**
+
+```bash
+TEST_API_BASE=https://staging.thoven.co npx vitest run <feature>/tests/integration --timeout=10000
+```
+
+**Failure modes:**
+- Network/timeout/staging-down: surface as "ENVIRONMENT FAIL not feature FAIL"; user retries once before marking blocking.
+- Schema mismatch: BLOCK ship.
+- 4xx case missing: BLOCK ship.
+
+**Mode propagation:**
+- Reduction: trigger applies (mechanical); spec authoring depth reduces (skip 4xx case requirement).
+- Hold: full requirements.
+- Expansion: + add 1 5xx test case.
+
+**Why no mocks:** F1 evidence — Teach Mode tests passed by mocking the integration. Real-fetch against staging is the only mechanism that catches `vi.mock('@/lib/lesson-channel')` shape failures.
+
 ### 3.7 Optional Checks (If User Opted In)
 
 **Judge Scoring** — dispatch judge subagent:
