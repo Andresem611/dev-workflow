@@ -391,6 +391,18 @@ This checks:
 2. Component/page references in `must_haves.key_links` resolve to existing files
 3. No anti-stub patterns (`TODO`, `placeholder`, `() => {}`, `console.log`) in listed artifacts
 
+**testing-anti-patterns.md catalog scan (Δ5 + Δ6 wire-in):**
+
+In addition to the generic anti-stub patterns above, Layer 2 reads
+`references/testing-anti-patterns.md` and applies each cataloged pattern's
+regex to the wave's added/modified test files. For each match:
+
+1. Check for an inline `// AP-T<N>-OVERRIDE: <reason>` comment within 5 lines of the match.
+2. If override present: log to `<feature>/.dev/build/anti-pattern-overrides.log` (Layer 2 creates this directory if missing) and continue.
+3. If no override: emit a WARN with file:line + pattern name. Reviewer must acknowledge before Layer 2 passes.
+
+Severity: **WARN, not BLOCK** — does not fail Layer 2 by itself; reviewer's acknowledgment is the gate.
+
 **If FAIL:** Fix missing artifacts or stubs, then re-run Layer 2. Do not proceed to Layer 3.
 
 **If PASS:** Proceed to Layer 3.
@@ -401,9 +413,9 @@ If the wave touches `lib/*-api.ts` OR MANIFEST has `cross-stack: backend` flag s
 
 1. Read `<feature>/api/API_CONTRACT.md`.
 2. Run `node ${PLUGIN_ROOT}/../shared/tools/dev-pipeline-tools.js verify-must-haves <feature> --plugin frontend --wave N`.
-3. The tool's auto-append behavior (lines 907–953 in tools.js) discovers any backend routes the wave referenced but didn't list in API_CONTRACT.md. Inspect the result's `auto_appended` field.
+3. The tool's auto-append behavior (the auto-append branch in `cmdVerifyMustHaves`) discovers any backend routes the wave referenced but didn't list in API_CONTRACT.md. Inspect the result's `auto_appended` field.
 4. If `auto_appended > 0`, emit **CONTRACT DRIFT** warning:
-   > **CONTRACT DRIFT detected:** wave touched <N> backend routes not listed in API_CONTRACT.md. Auto-appended: <list>. Reviewer must update API_CONTRACT.md to reflect actual routes before VALIDATE Section 3.6 runs.
+   > **CONTRACT DRIFT detected:** wave touched <N> backend routes not listed in API_CONTRACT.md. Auto-appended: <list>. Reviewer must update API_CONTRACT.md to reflect actual routes before VALIDATE Section 3.6 runs. This warning does not block Layer 2 PASS; it gates VALIDATE Section 3.6 (Curl Contract Gate).
 
 **Mode propagation:**
 - Reduction: trigger applies (mechanical); skip the inline reviewer ack (auto-log only).
