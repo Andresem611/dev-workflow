@@ -222,6 +222,23 @@ Task files include a "Suggested Approach" section with hints, not mandatory TDD 
 - **Key discoveries to carry forward:** [Filled by BUILD orchestrator after prior wave completes]
 ```
 
+**test-anti-patterns block (appended to every wave's must_haves):**
+
+When emitting `<feature>/waves/WAVE_NN.md`, append the following block at the end of the must_haves section:
+
+```markdown
+## test-anti-patterns
+
+BUILD Layer 2 will scan this wave's tests for patterns documented in
+`references/testing-anti-patterns.md` (WARN severity). Reviewer must
+acknowledge each finding before the wave passes Layer 2.
+
+Mode-propagation: this scan runs in all modes; severity reduces to log-only
+on Reduction, full reviewer ack on Hold + Expansion.
+```
+
+Reference: `references/testing-anti-patterns.md` (see Δ6).
+
 ### 3.5 Stage Artifact
 
 Write `docs/[Feature]/.dev/document/execute-docs-manifest.md` — lists ALL files produced:
