@@ -233,11 +233,10 @@ BUILD Layer 2 will scan this wave's tests for patterns documented in
 `references/testing-anti-patterns.md` (WARN severity). Reviewer must
 acknowledge each finding before the wave passes Layer 2.
 
-Mode-propagation: this scan runs in all modes; severity reduces to log-only
-on Reduction, full reviewer ack on Hold + Expansion.
+Mode-propagation: Reduction: scan applies AP-T1 + AP-T2 + AP-T4 only (skip T3/T5 to keep noise low). Hold/Expansion: full 5-pattern scan. See `references/testing-anti-patterns.md` §Mode propagation.
 ```
 
-Reference: `references/testing-anti-patterns.md` (see Δ6).
+Reference: `references/testing-anti-patterns.md`.
 
 ### 3.5 Stage Artifact
 
