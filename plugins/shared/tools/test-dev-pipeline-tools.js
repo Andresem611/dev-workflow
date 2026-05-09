@@ -684,6 +684,156 @@ function test10_verifyRequirementsCoverageFail() {
 }
 
 // ─────────────────────────────────────────────────
+// Test 11: verify-test-immutability PASS (hash match)
+// ─────────────────────────────────────────────────
+function test11_verifyTestImmutabilityPass() {
+  const name = "verify-test-immutability pass (hash matches)";
+  const tmp = mktemp("t11");
+  try {
+    const feat = path.join(tmp, "feat");
+    const crypto = require("crypto");
+
+    // Author the file body (everything except the @sha256 line)
+    const contentLines = [
+      "/**",
+      " * @test-contract",
+      " * @feature: test-fixture",
+      " * @task: T-01",
+      " * @must-haves: [\"truth 1\"]",
+      " * @sha256: PLACEHOLDER",
+      " * @locked-at: 2026-05-09T00:00:00Z",
+      " */",
+      "",
+      "import { describe, it, expect } from 'vitest';",
+      "",
+      "describe('T-01', () => {",
+      "  it('exists', () => { expect(true).toBeTruthy(); });",
+      "});",
+      ""
+    ];
+
+    // Compute hash of content with the @sha256 line empty (matches the verifier's regex strip)
+    const stripped = contentLines.map((l) => l.startsWith(" * @sha256:") ? "" : l).join("\n");
+    const hash = crypto.createHash("sha256").update(stripped, "utf8").digest("hex");
+
+    contentLines[5] = ` * @sha256: ${hash}`;
+    writeFile(feat, "tests/T-01.test.ts", contentLines.join("\n"));
+
+    const result = run(["verify-test-immutability", feat, "--plugin", "frontend"], tmp);
+    let res;
+    try { res = JSON.parse(result.stdout); } catch (_) {
+      report(name, false, `stdout not JSON: ${result.stdout.substring(0, 200)}`);
+      return;
+    }
+    if (res.valid !== true || res.drift.length !== 0) {
+      report(name, false, `expected valid=true drift=[], got valid=${res.valid} drift=${JSON.stringify(res.drift)}`);
+      return;
+    }
+    report(name, true);
+  } finally {
+    fs.rmSync(tmp, { recursive: true, force: true });
+  }
+}
+
+// ─────────────────────────────────────────────────
+// Test 12: verify-test-immutability FAIL (hash mismatch)
+// ─────────────────────────────────────────────────
+function test12_verifyTestImmutabilityFail() {
+  const name = "verify-test-immutability fail (hash mismatch detected)";
+  const tmp = mktemp("t12");
+  try {
+    const feat = path.join(tmp, "feat");
+    // Author the file with a deliberately wrong hash
+    const content = [
+      "/**",
+      " * @test-contract",
+      " * @feature: test-fixture",
+      " * @task: T-02",
+      " * @must-haves: [\"truth 2\"]",
+      " * @sha256: 0000000000000000000000000000000000000000000000000000000000000000",
+      " * @locked-at: 2026-05-09T00:00:00Z",
+      " */",
+      "",
+      "// Edited content that does not match the wrong hash",
+      ""
+    ].join("\n");
+    writeFile(feat, "tests/T-02.test.ts", content);
+
+    const result = run(["verify-test-immutability", feat, "--plugin", "frontend"], tmp);
+    let res;
+    try { res = JSON.parse(result.stdout); } catch (_) {
+      report(name, false, `stdout not JSON`);
+      return;
+    }
+    if (res.valid !== false || res.drift.length === 0) {
+      report(name, false, `expected valid=false drift!=[], got valid=${res.valid} drift=${JSON.stringify(res.drift)}`);
+      return;
+    }
+    report(name, true);
+  } finally {
+    fs.rmSync(tmp, { recursive: true, force: true });
+  }
+}
+
+// ─────────────────────────────────────────────────
+// Test 13: override-test typed attestation enforcement
+// ─────────────────────────────────────────────────
+function test13_overrideTestTypedAttestation() {
+  const name = "override-test rejects mismatched attestation, accepts exact match";
+  const tmp = mktemp("t13");
+  try {
+    const feat = path.join(tmp, "feat");
+    writeFile(feat, "tests/T-03.test.ts", "// stub");
+
+    // 1. Wrong attestation: must FAIL
+    const wrong = run(
+      ["override-test", feat, "--plugin", "frontend", "--task", "T-03", "--reason", "test was wrong", "--attestation", "OVERRIDE T-03: WRONG-REASON"],
+      tmp
+    );
+    let r1;
+    try { r1 = JSON.parse(wrong.stdout); } catch (_) {
+      report(name, false, "wrong-attestation stdout not JSON");
+      return;
+    }
+    if (r1.valid !== false) {
+      report(name, false, `expected valid=false on wrong attestation, got valid=${r1.valid}`);
+      return;
+    }
+
+    // 2. Correct attestation: must PASS
+    const ok = run(
+      ["override-test", feat, "--plugin", "frontend", "--task", "T-03", "--reason", "test was wrong", "--attestation", "OVERRIDE T-03: test was wrong"],
+      tmp
+    );
+    let r2;
+    try { r2 = JSON.parse(ok.stdout); } catch (_) {
+      report(name, false, "correct-attestation stdout not JSON");
+      return;
+    }
+    if (r2.valid !== true) {
+      report(name, false, `expected valid=true on correct attestation, got valid=${r2.valid} errors=${JSON.stringify(r2.errors)}`);
+      return;
+    }
+
+    // 3. Confirm log file written
+    const logPath = path.join(feat, ".dev", "test-overrides.log");
+    if (!fs.existsSync(logPath)) {
+      report(name, false, "test-overrides.log not created");
+      return;
+    }
+    const logContent = fs.readFileSync(logPath, "utf8");
+    if (!logContent.includes("T-03") || !logContent.includes("test was wrong")) {
+      report(name, false, `log content missing expected fields: ${logContent}`);
+      return;
+    }
+
+    report(name, true);
+  } finally {
+    fs.rmSync(tmp, { recursive: true, force: true });
+  }
+}
+
+// ─────────────────────────────────────────────────
 // Run all tests
 // ─────────────────────────────────────────────────
 function main() {
@@ -698,6 +848,9 @@ function main() {
     test8_validateStageOutputEnforcement,
     test9_verifyRequirementsCoveragePass,
     test10_verifyRequirementsCoverageFail,
+    test11_verifyTestImmutabilityPass,
+    test12_verifyTestImmutabilityFail,
+    test13_overrideTestTypedAttestation,
   ];
 
   for (const testFn of tests) {
