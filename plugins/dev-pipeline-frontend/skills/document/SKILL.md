@@ -263,6 +263,18 @@ After task files (Section 3.3) and wave files (Section 3.4) are emitted but BEFO
 
 **Acceptance:** Every task in `<feature>/tasks/` has a corresponding `<feature>/tests/T-NN.test.ts` with valid frontmatter that passes `verify-test-immutability`.
 
+### 3.5.1 Requirements Authoring (EARS within categorical prefixes, v5.0+)
+
+**Requirements file authoring (EARS within categorical prefixes, v5.0+):**
+
+When emitting `<feature>/requirements.md`, follow the template at `references/requirements-template.md`. Each bullet:
+
+- Uses an existing categorical prefix (UI-NN / A11Y-NN / RSP-NN / INT-NN / API-NN / PERF-NN / STATE-NN / FORM-NN / ANIM-NN / SEO-NN / TRK-NN / AUTH-NN / DS-NN — see template for domain mapping).
+- Uses one of four EARS sentence shapes (Ubiquitous / Event-driven / State-driven / Optional/conditional) with a clear `shall` verb form. See template §EARS Sentence Shapes.
+- Has a corresponding row in MANIFEST `## Requirements Coverage` table for `verify-requirements-coverage` (Δ3) to operate.
+
+EARS authoring is required for all v5.0+ features. Pre-v5.0 features remain on free-prose within categorical prefixes; existing requirements.md files are not retroactively migrated unless their feature undergoes a major iteration.
+
 ### 3.6 Stage Artifact
 
 Write `docs/[Feature]/.dev/document/execute-docs-manifest.md` — lists ALL files produced:
