@@ -73,6 +73,26 @@ Populated during INTAKE Stage 4; updated during PLAN.
 | service | calendar-webhook | n/a | U-23 | wave-04 reminders |
 | env-var | TEACH_MODE_FLAG | bool | U-09 | wave-01 feature gate |
 
+## Upstream Pipelines
+
+When this feature was decomposed at DISCOVER (Stage 3.5), this section lists sister pipelines this one depends on. Empty for non-decomposed features.
+
+| Pipeline name | Path | Required artifact | Status | Mock fallback |
+|---------------|------|-------------------|--------|---------------|
+| teach-mode-canvas-save | `docs/teach-mode-canvas-save/.dev/MANIFEST.md` | `src/lib/canvas-save.ts:saveSnapshot` | shipped | n/a |
+| teach-mode-recording | `docs/teach-mode-recording/.dev/MANIFEST.md` | `src/components/RecordingControls.tsx` | in-progress | `src/lib/__mocks__/canvas-save.ts:saveSnapshot` |
+
+**Status values:**
+- `shipped` — upstream's SHIP phase completed; required artifact is real.
+- `in-progress` — upstream still in DISCOVER/DESIGN/PLAN/BUILD/VALIDATE; this pipeline uses Mock fallback.
+- `not-started` — upstream hasn't begun; Mock fallback required.
+
+**Mock fallback values:**
+- `n/a` — upstream is `shipped`, no mock needed.
+- `<path>` — relative path to a mock implementation; SHIP gate refuses to advance until either upstream is `shipped` (and mock removed) or Mock fallback is genuinely a permanent stub (rare).
+
+**SHIP gate (added in Wave 3 ship-side change):** every Upstream Pipelines row must have `Status=shipped` OR `Mock fallback != n/a`. If a row has `Status=in-progress` and `Mock fallback=n/a`, SHIP refuses to advance. Encoding: any pipeline that depends on an unshipped upstream MUST have a working mock; any pipeline whose upstream has shipped MUST have removed its mock.
+
 ## Notion Integration
 - **Card ID:** [notion-page-uuid — populated by INTAKE after card creation]
 - **Sprint:** [sprint-name — populated by INTAKE]
