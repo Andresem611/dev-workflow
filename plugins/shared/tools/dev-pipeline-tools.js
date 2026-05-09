@@ -1351,11 +1351,172 @@ function cmdVerifyRequirementsCoverage(args) {
   );
 }
 
+// --- Verify Test Immutability ---
+function cmdVerifyTestImmutability(args) {
+  const featureDir = args.positional[0];
+  if (!featureDir) {
+    error("Usage: verify-test-immutability <feature-dir> --plugin backend|frontend [--task T-NN]");
+  }
+
+  const resolvedDir = resolvePath(args.cwd, featureDir);
+  const testsDir = path.join(resolvedDir, "tests");
+  const taskFilter = args.task ? `${args.task}.test` : null;
+
+  const res = {
+    valid: true,
+    total: 0,
+    drift: [],
+    errors: [],
+    warnings: []
+  };
+
+  if (!dirExists(testsDir)) {
+    res.warnings.push(`No tests/ directory at ${testsDir}; nothing to verify`);
+    output(res, args.raw, `PASS: 0 test files (no tests/ directory)`);
+    return;
+  }
+
+  const testFiles = fs.readdirSync(testsDir).filter((f) => {
+    if (!f.endsWith(".test.ts") && !f.endsWith(".test.tsx")) return false;
+    if (taskFilter && !f.startsWith(taskFilter)) return false;
+    return true;
+  });
+
+  res.total = testFiles.length;
+
+  const crypto = require("crypto");
+
+  for (const tf of testFiles) {
+    const filePath = path.join(testsDir, tf);
+    const content = safeReadFile(filePath);
+    if (!content) {
+      res.drift.push({ file: tf, reason: "could not read file" });
+      continue;
+    }
+
+    // Extract claimed hash from @sha256 line
+    const claimedMatch = content.match(/^\s*\*\s*@sha256:\s*([a-f0-9]{64})\s*$/m);
+    if (!claimedMatch) {
+      res.drift.push({ file: tf, reason: "missing @sha256 frontmatter line" });
+      continue;
+    }
+    const claimedHash = claimedMatch[1];
+
+    // Compute hash of content excluding the @sha256 line
+    const contentSansHashLine = content.replace(/^\s*\*\s*@sha256:\s*[a-f0-9]{64}\s*$/m, "");
+    const computed = crypto.createHash("sha256").update(contentSansHashLine, "utf8").digest("hex");
+
+    if (computed !== claimedHash) {
+      res.drift.push({
+        file: tf,
+        reason: "hash mismatch — file modified post-DOCUMENT",
+        claimed: claimedHash,
+        computed: computed
+      });
+    }
+  }
+
+  res.valid = res.drift.length === 0;
+
+  for (const d of res.drift) {
+    res.errors.push(`DRIFT: ${d.file} — ${d.reason}`);
+  }
+
+  output(
+    res,
+    args.raw,
+    res.valid
+      ? `PASS: ${res.total}/${res.total} test files immutability verified`
+      : `FAIL: ${res.drift.length} drift(s)\n${res.drift.map((d) => `- ${d.file}: ${d.reason}`).join("\n")}\n\nOverride protocol: see references/test-immutability-protocol.md.`
+  );
+}
+
+// --- Override Test ---
+function cmdOverrideTest(args) {
+  const featureDir = args.positional[0];
+  if (!featureDir || !args.task) {
+    error("Usage: override-test <feature-dir> --plugin backend|frontend --task T-NN [--reason \"<text>\"] [--attestation \"OVERRIDE T-NN: <reason>\"]");
+  }
+
+  const resolvedDir = resolvePath(args.cwd, featureDir);
+  const taskId = args.task;
+  const reason = args.reason || "";
+  const attestation = args.attestation || "";
+
+  const expectedAttestation = `OVERRIDE ${taskId}: ${reason}`;
+
+  if (!attestation) {
+    // Surface the expected string and exit
+    const res = {
+      valid: false,
+      next_step: "provide --attestation",
+      expected: expectedAttestation,
+      errors: ["Missing --attestation flag. Re-run with --attestation \"" + expectedAttestation + "\" exactly."],
+      warnings: []
+    };
+    output(res, args.raw, `Type the following exact string and re-run with --attestation:\n  ${expectedAttestation}`);
+    return;
+  }
+
+  if (attestation !== expectedAttestation) {
+    const res = {
+      valid: false,
+      errors: [`Attestation mismatch. Expected: "${expectedAttestation}". Got: "${attestation}".`],
+      warnings: []
+    };
+    output(res, args.raw, `FAIL: attestation mismatch.\nExpected: ${expectedAttestation}\nGot: ${attestation}`);
+    return;
+  }
+
+  // Match — perform override
+  const overrideLog = path.join(resolvedDir, ".dev", "test-overrides.log");
+  const ts = new Date().toISOString();
+  const logLine = `${ts}\t${taskId}\t${reason}\n`;
+
+  // Ensure .dev/ exists
+  const devDir = path.join(resolvedDir, ".dev");
+  if (!dirExists(devDir)) {
+    fs.mkdirSync(devDir, { recursive: true });
+  }
+
+  fs.appendFileSync(overrideLog, logLine, "utf8");
+
+  // Remove @sha256 line from the test file so verify-test-immutability passes after re-DOCUMENT
+  const testsDir = path.join(resolvedDir, "tests");
+  const testFiles = dirExists(testsDir)
+    ? fs.readdirSync(testsDir).filter((f) => f.startsWith(`${taskId}.test`))
+    : [];
+
+  for (const tf of testFiles) {
+    const tp = path.join(testsDir, tf);
+    const content = safeReadFile(tp);
+    if (!content) continue;
+    const stripped = content.replace(/^\s*\*\s*@sha256:\s*[a-f0-9]{64}\s*$\n?/m, " * @sha256: <UNLOCKED — pending re-DOCUMENT>\n");
+    fs.writeFileSync(tp, stripped, "utf8");
+  }
+
+  const res = {
+    valid: true,
+    task: taskId,
+    reason,
+    log_path: overrideLog,
+    files_unlocked: testFiles,
+    next_step: `Re-author the test, then run /dev:document --task ${taskId} to regenerate hash`,
+    errors: [],
+    warnings: []
+  };
+  output(
+    res,
+    args.raw,
+    `PASS: ${taskId} test contract unlocked.\n  Reason: ${reason}\n  Files: ${testFiles.join(", ")}\n  Logged to: ${overrideLog}\n  Next: re-author the test, then run /dev:document --task ${taskId} to regenerate hash.`
+  );
+}
+
 // --- CLI Router ---
 function main() {
   const argv = process.argv.slice(2);
   if (argv.length === 0) {
-    error("Usage: dev-pipeline-tools.js <command> [args] --plugin backend|frontend [--raw] [--wave N] [--scope wave|phase]\nCommands: validate-stage-entry, validate-stage-output, checkpoint-state, validate-manifest, verify-must-haves, update-wave-tracking, verify-decision-coverage, verify-requirements-coverage");
+    error("Usage: dev-pipeline-tools.js <command> [args] --plugin backend|frontend [--raw] [--wave N] [--scope wave|phase] [--task T-NN] [--reason \"<text>\"] [--attestation \"<text>\"]\nCommands: validate-stage-entry, validate-stage-output, checkpoint-state, validate-manifest, verify-must-haves, update-wave-tracking, verify-decision-coverage, verify-requirements-coverage, verify-test-immutability, override-test");
   }
 
   const command = argv[0];
@@ -1375,6 +1536,9 @@ function main() {
     if (argv[i] === "--plugin") { i++; continue; }
     if (argv[i] === "--scope") { parsedArgs.scope = argv[++i]; continue; }
     if (argv[i] === "--wave") { parsedArgs.wave = parseInt(argv[++i], 10); continue; }
+    if (argv[i] === "--task") { parsedArgs.task = argv[++i]; continue; }
+    if (argv[i] === "--reason") { parsedArgs.reason = argv[++i]; continue; }
+    if (argv[i] === "--attestation") { parsedArgs.attestation = argv[++i]; continue; }
     parsedArgs.positional.push(argv[i]);
   }
 
@@ -1403,10 +1567,16 @@ function main() {
     case "verify-requirements-coverage":
       cmdVerifyRequirementsCoverage(parsedArgs);
       break;
+    case "verify-test-immutability":
+      cmdVerifyTestImmutability(parsedArgs);
+      break;
+    case "override-test":
+      cmdOverrideTest(parsedArgs);
+      break;
     default:
-      error(`Unknown command: ${command}. Valid: validate-stage-entry, validate-stage-output, checkpoint-state, validate-manifest, verify-must-haves, update-wave-tracking, verify-decision-coverage, verify-requirements-coverage`);
+      error(`Unknown command: ${command}. Valid: validate-stage-entry, validate-stage-output, checkpoint-state, validate-manifest, verify-must-haves, update-wave-tracking, verify-decision-coverage, verify-requirements-coverage, verify-test-immutability, override-test`);
   }
 }
 
-module.exports = { cmdValidateStageEntry, cmdValidateStageOutput, cmdCheckpointState, cmdValidateManifest, cmdVerifyMustHaves, cmdUpdateWaveTracking, cmdVerifyDecisionCoverage, cmdVerifyRequirementsCoverage, parseRoutesFile };
+module.exports = { cmdValidateStageEntry, cmdValidateStageOutput, cmdCheckpointState, cmdValidateManifest, cmdVerifyMustHaves, cmdUpdateWaveTracking, cmdVerifyDecisionCoverage, cmdVerifyRequirementsCoverage, cmdVerifyTestImmutability, cmdOverrideTest, parseRoutesFile };
 if (require.main === module) main();
