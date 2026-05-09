@@ -171,6 +171,27 @@ node ${PLUGIN_ROOT}/../shared/tools/dev-pipeline-tools.js validate-stage-output 
 
 Dispatch subagents per the Architect plan. The orchestrator NEVER executes validation work inline.
 
+### 3.0 Layer 0 — Automated `/qa --diff-aware`
+
+Run before any manual VALIDATE work. **Advisory tier only — does NOT block VALIDATE→SHIP.** Manual walkthrough proceeds regardless of Layer 0 findings.
+
+**Trigger:** unconditional. Every VALIDATE entry runs Layer 0 first.
+
+**Command:**
+
+```bash
+/qa --diff-aware --since=BUILD-start-commit
+```
+
+**Output handling:** report findings as a "Layer 0 /qa scan" block in the VALIDATE summary. User reviews and may incorporate findings into the manual pass, but cannot use Layer 0 alone to block ship.
+
+**Mode propagation:**
+- Reduction: skip (depth-matrix mode reduces /qa to type-check + lint per `mode-propagation-reference.md`).
+- Hold: run.
+- Expansion: run with extended scope (`--include-cosmetic`).
+
+**Why advisory:** F17 evidence is hypothetical (no Teach Mode failure attributed). Tier confined to /qa noise filtering rather than primary verification.
+
 ### 3.1 Always-Run Checks
 
 Every check produces EVIDENCE — actual command output, not summaries.
