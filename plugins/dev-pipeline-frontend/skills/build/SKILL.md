@@ -395,6 +395,21 @@ This checks:
 
 **If PASS:** Proceed to Layer 3.
 
+**API_CONTRACT.md re-verification (per wave):**
+
+If the wave touches `lib/*-api.ts` OR MANIFEST has `cross-stack: backend` flag set:
+
+1. Read `<feature>/api/API_CONTRACT.md`.
+2. Run `node ${PLUGIN_ROOT}/../shared/tools/dev-pipeline-tools.js verify-must-haves <feature> --plugin frontend --wave N`.
+3. The tool's auto-append behavior (lines 907–953 in tools.js) discovers any backend routes the wave referenced but didn't list in API_CONTRACT.md. Inspect the result's `auto_appended` field.
+4. If `auto_appended > 0`, emit **CONTRACT DRIFT** warning:
+   > **CONTRACT DRIFT detected:** wave touched <N> backend routes not listed in API_CONTRACT.md. Auto-appended: <list>. Reviewer must update API_CONTRACT.md to reflect actual routes before VALIDATE Section 3.6 runs.
+
+**Mode propagation:**
+- Reduction: trigger applies (mechanical); skip the inline reviewer ack (auto-log only).
+- Hold: full reviewer ack.
+- Expansion: + git-blame each auto-appended route to identify which task introduced it.
+
 ### Layer 3: code-reviewer (Independent Semantic Review)
 
 Dispatch `code-reviewer` agent to review all files changed in this wave. This agent has NO context from the build process.
