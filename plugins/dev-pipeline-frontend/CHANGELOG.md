@@ -4,6 +4,83 @@ All notable changes to the `dev-pipeline-frontend` plugin are documented here. F
 
 ---
 
+## v5.0.0 — Personas, TDD, Decomposition, Cross-Model
+
+**Released:** 2026-05-09
+
+This release lands the four major v5.0 capabilities: a PERSONA sub-phase with three sequential personas (Frontend Designer, Product, Backend opt-in), TDD strict-edit guardrail with SHA256-locked test files, DISCOVER decomposition detection for Teach Mode-class features, and Codex cross-model consult at BUILD→VALIDATE / VALIDATE→SHIP boundaries. Also adopts EARS sentence shapes within the existing categorical-prefix scheme.
+
+### Added — Wave 3 (Decomposition / R-NEW-3)
+
+- **Δ1** — `skills/discover/SKILL.md` Stage 3.5 Decomposition Detection. 4 trigger signals (multi-journey >3 / multi-model >2 / multi-integration >2 / multi-wave >5); 2-of-4 fires on Hold (1-of-4 on Expansion); 3-option AskUserQuestion (Decompose / Acknowledge in-place / Reject signal). Reduction skips entirely.
+- **Δ2** — `references/manifest-template.md` `## Upstream Pipelines` section (Pipeline name / Path / Required artifact / Status / Mock fallback).
+- **Δ3 ship-side** — `skills/ship/SKILL.md` Verification Checklist gate: every Upstream Pipelines row must have `Status=shipped` OR `Mock fallback != n/a`. Otherwise BLOCK ship.
+
+### Added — Wave 4 (PERSONA / R-NEW-1)
+
+- **NEW** `skills/persona/SKILL.md` — three sequential personas: Frontend Designer (always), Product (always), Backend (opt-in via Cross-Stack: backend tag — locked at user pre-flight Q4). Question budget per mode: Reduction 3/3/skip; Hold 5/5/5; Expansion 8/8/8 + cross-persona challenge round. Style lifted from grill-me: one question at a time, recommended answers, codebase-exploration shortcut.
+- **NEW** `commands/dev:persona.md` invoker.
+- `skills/dev/SKILL.md` — PERSONA inserted between DISCOVER Zone 4 and DESIGN entry in phase chain. Phase Boundary Aggregation gains DISCOVER→PERSONA + PERSONA→DESIGN rows. PERSONA→DESIGN gate: presence-of-population on Persona Answers MANIFEST sections.
+- `references/manifest-template.md` — three new sections: `## Frontend Persona Answers`, `## Product Persona Answers`, `## Backend Persona Answers` (last only populated for Cross-Stack: backend features).
+
+### Added — Wave 5 (TDD strict-edit / R-NEW-2)
+
+- **NEW tools.js commands** — `cmdVerifyTestImmutability` and `cmdOverrideTest`. Total tools.js: 10 commands.
+- **`@test-contract` frontmatter** — TypeScript test files emit JSDoc frontmatter with `@feature`, `@task`, `@must-haves`, `@sha256` (SHA256 of content excluding the @sha256 line itself), `@locked-at`. Cross-tool sanity: hash matches between Node `crypto.createHash("sha256")` and shell `shasum -a 256`.
+- **NEW `references/test-file-template.md`** — frontmatter shape + per-field semantics + DOCUMENT generates / BUILD verifies pattern.
+- **NEW `references/test-immutability-protocol.md`** — 4-step override path. User types attestation `OVERRIDE T-NN: <reason>` exactly. NO `--force` flag. Append-only `.dev/test-overrides.log`.
+- `skills/document/SKILL.md` Section 3.5 Test Authoring (TDD-first) — emit one test per task per must-have. Section 3.5.1 EARS-within-categorical-prefixes paragraph. Section 3.5.2 Amendment-driven re-DOCUMENT path (AP-15).
+- `skills/build/SKILL.md` Layer 0 Test Immutability Check — pre-wave gate; BLOCKs on hash drift; references both immutability-protocol and test-file-template.
+- 3 new test fixtures (test11/test12/test13) — total 13/13 passing.
+
+### Added — Wave 6 (Cross-model + EARS / RP3 + O3)
+
+- **NEW `references/cross-model-consult-prompt-template.md`** — adapted from LEARNINGS Phase 3 Codex shard. 7 review classes (contract drift, auth bypass, conditional side effects, must_haves silent-drop, mock-of-FuT, frontend-specific, decision-ledger fidelity). Verdict: PASS / WARN / NEEDS_WORK / HIGH_RISK. Cost ceiling **$1.00/consult** (user-set in Wave 6 checkpoint, raised from runbook's recommended $0.50).
+- `skills/build/SKILL.md` After Final Wave — Cross-Model Independent Review section. Hold + Expansion runs Codex consult. NEEDS_WORK BLOCKS; HIGH_RISK BLOCKS + auto-escalates to Expansion. Env: `DEV_PIPELINE_CROSS_MODEL=codex|gemini|off` (default codex per AP-05 watchdog); `DEV_PIPELINE_CROSS_MODEL_CEILING=1.00`.
+- `skills/validate/SKILL.md` Section 3.12 Cross-Model Review (Expansion only) — same mechanism, lighter prompt focused on ship-readiness. Cost-bounded ($2/feature in Expansion vs $1/feature in Hold).
+- `references/requirements-template.md` — merged in **EARS Sentence Shapes** section (Ubiquitous / Event-driven / State-driven / Optional/conditional). EARS lives at the bullet-grammar level WITHIN existing categorical prefixes (UI-NN / A11Y-NN / etc.). `verify-requirements-coverage` tool unaffected — reads MANIFEST table by column, not sentence.
+- `skills/document/SKILL.md` 3.5.1 — EARS-within-categorical-prefixes paragraph; required for v5.0+ features.
+
+### Fixed (Wave 6.5 quality-gate follow-ups)
+
+- **validate frontmatter widening** (BLOCK fix) — description now mentions Cross-Model consult so skill discovery surfaces it.
+- **build references test-file-template.md** (BLOCK fix) — Layer 0 now points at the format spec; producer-consumer wire complete.
+- **persona AP-13 gate reconciliation** — explicitly BLOCK on presence-of-population (was ambiguously phrased "advisory" earlier).
+- **persona AP-15 amendment-propagation protocol** — when a PERSONA-sourced LOCKED decision is amended, single-question refresh.
+- **document Section 3.5.2 amendment-driven re-DOCUMENT path** — two-step flow (override-test then `/dev:document --task T-NN`).
+- **validate Section 3.6 consumes BUILD CONTRACT DRIFT** — gate triggers on `api-integration` domain OR BUILD-emitted drift warning.
+
+### Plan deviations (recorded for audit)
+
+- **Wave 6.5-C subagent-creator elevate-existing pass skipped** — subagent-creator skill is for agent file creation/elevation; the W6.5-A skill-reviewer covered the same surface for SKILL.md files.
+- **Wave 6 Cost ceiling raised** — user chose $1.00/consult vs runbook's recommended $0.50. EARS adopted now in v5.0 vs runbook's recommended defer-to-v5.1.
+- **Wave 6 requirements-template.md merge variant** — file already existed (191 LOC, in-use by dev/ and plan/SKILL.md); spec asserted "NEW reference" but reality required merge to preserve downstream contracts. Option B (merge) selected: existing categorical prefix scheme preserved + new EARS Sentence Shapes section added.
+- **Wave 5 Section 3.5 placement (DOCUMENT)** — runbook said Section 4.6 Test Authoring; existing 4.6 was Notion Update. Pivoted to Section 3.5 (between Wave File Structure and Stage Artifact). Cross-references aligned.
+
+### Restraint gates fired
+
+- **1.5→2a:** "Has v4.5.0 been used through ≥1 real feature?" — user override YES (proceeded).
+- **2.5→3:** "Has v4.6.0 caught ≥1 real failure?" — user override YES (proceeded).
+
+Both overrides recorded as user-acknowledged escape hatches.
+
+### Anti-pattern watchdog log
+
+Zero unresolved trips. AP-05 (Cross-Model Independent Review) confirmed: default = `codex`, `=off` is opt-out only, NOT default. AP-13 (advisory-as-gate) reconciled at Wave 6.5 (persona). AP-15 (amendment propagation) closed via auto-rerun (v4.5-Δ12 user-locked) + persona refresh + document amendment-driven re-DOCUMENT path.
+
+### Out of scope / deferred
+
+- F11 verify-fix retry loop deferred to v5.1.
+- F14 / F15 / F17 (test-strategy loader / PLAN test plan / Layer 0 /qa scope expansion) deferred per AP-04 watchdog (wire-in-without-root-cause-fix).
+- Backend plugin's stale duplicate cleanup remains scoped to backend release.
+- AST tooling for AP-T5 (snapshot-only) deferred to v5.1 (BUILD Layer 2 uses simplified line-only fallback in v5.0).
+
+### Migration notes
+
+Pre-v5.0 features: existing requirements.md prose-style files NOT retroactively migrated. New v5.0+ features adopt EARS within categorical prefixes from authoring-time.
+
+---
+
 ## v4.6.0 — Verify Against Real Systems
 
 **Released:** 2026-05-09
