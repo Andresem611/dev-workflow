@@ -238,7 +238,32 @@ Mode-propagation: Reduction: scan applies AP-T1 + AP-T2 + AP-T4 only (skip T3/T5
 
 Reference: `references/testing-anti-patterns.md`.
 
-### 3.5 Stage Artifact
+### 3.5 Test Authoring (TDD-first)
+
+After task files (Section 3.3) and wave files (Section 3.4) are emitted but BEFORE BUILD entry, DOCUMENT generates a test file per task under `<feature>/tests/T-NN.test.ts(x)`.
+
+**For each task in `<feature>/tasks/T-NN.md`:**
+
+1. Read the task's must_haves from the wave file's `## must_haves` block.
+2. Generate `<feature>/tests/T-NN.test.ts` matching the template at `references/test-file-template.md`. The frontmatter:
+   - `@feature: <feature-name>` from MANIFEST metadata.
+   - `@task: T-NN` from the task ID.
+   - `@must-haves: [<each truth as a string>]` JSON-array.
+   - `@sha256: <hash>` computed last over the file content with the `@sha256:` line itself replaced by an empty string (chicken-and-egg).
+   - `@locked-at: <ISO timestamp>` of generation.
+3. Generate one `it('...')` block per must-have truth, with `expect(/* TBD */).toBe(/* expected */)` placeholders. BUILD agents fill in the production-code-driven assertions later.
+4. Compute hash via `node` `crypto.createHash("sha256")` to ensure cross-tool parity with `shasum -a 256` and the tools.js verifier.
+
+**Strict-edit guardrail:** these files are locked. BUILD Layer 0 (Δ4 part 6) verifies the hash. BUILD agents must implement production code that satisfies the assertions; they MUST NOT edit the test file. If a test is provably wrong, run the override protocol at `references/test-immutability-protocol.md`.
+
+**Mode propagation:**
+- Reduction: skip Section 3.5 entirely (TDD-first overhead disproportionate to bug-fix-class features).
+- Hold: emit one test per task; one `it()` block per must-have.
+- Expansion: emit one test per task + a "negative case" test file per task (`<feature>/tests/T-NN.negative.test.ts`) covering the failure modes.
+
+**Acceptance:** Every task in `<feature>/tasks/` has a corresponding `<feature>/tests/T-NN.test.ts` with valid frontmatter that passes `verify-test-immutability`.
+
+### 3.6 Stage Artifact
 
 Write `docs/[Feature]/.dev/document/execute-docs-manifest.md` — lists ALL files produced:
 
