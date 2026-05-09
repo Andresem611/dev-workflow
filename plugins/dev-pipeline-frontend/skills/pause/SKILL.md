@@ -136,6 +136,14 @@ echo "$FILES_LIST" | while read -r f; do
 done
 ```
 
+After the WIP commit is created, capture the commit SHA and write it into `.dev/pause-handoff.md` so Step 7 (drift check on resume) has a fixed reference point:
+
+```bash
+# Capture the commit SHA so Step 7 can compute drift on resume
+PAUSE_SHA=$(git rev-parse HEAD)
+echo "pause-commit: $PAUSE_SHA" >> .dev/pause-handoff.md
+```
+
 Commit message format:
 
 ```
@@ -153,7 +161,7 @@ Co-Authored-By: Claude <noreply@anthropic.com>
 
 ### Step 7 — Artifact-vs-Code Consistency (warn, non-blocking)
 
-After environment freshness checks (Step 5/6) pass, run:
+This step runs ON RESUME, not at pause-time. After Step 6 (WIP Commit) writes the `pause-commit:` field to `.dev/pause-handoff.md`, on resume run:
 
 ```bash
 PAUSE_COMMIT=$(grep '^pause-commit:' .dev/pause-handoff.md | cut -d: -f2 | tr -d ' ')
