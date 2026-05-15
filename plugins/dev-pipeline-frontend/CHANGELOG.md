@@ -4,6 +4,76 @@ All notable changes to the `dev-pipeline-frontend` plugin are documented here. F
 
 ---
 
+## v5.1.0 — Design-Stack Primitives Integration
+
+**Released:** 2026-05-15
+
+Additive release integrating seven design-stack primitives across the pipeline phases: `PRODUCT.md` + `DESIGN.md` at repo root (impeccable convention), `thoven-designer` project-local enforcer, `impeccable` plugin opt-in quality layers (23 commands), 8 GSAP animation skills, `customer-obsession-design-thinking` for peak-moment framing, and the layered Design Stack Architecture model.
+
+All additions are **conditional or opt-in** — projects without these primitives are unaffected. The plugin remains usable in any frontend project; primitive presence enables progressively richer behavior.
+
+Three commits, applied under increasing discipline:
+- `81c8515` — `/dev:design` initial wiring (9 edits)
+- `8ead4e9` — `/dev:plan` + `/dev:build` forwarding gaps (5 edits)
+- `d7fb566` — `/dev:validate` under explicit dual discipline (3 edits)
+
+DOCUMENT and SHIP phases evaluated under the same framework and intentionally received zero edits (no real-problem gap surfaced for either).
+
+### Added — `/dev:design` (commit `81c8515`)
+
+- **Step 0 conditional reads** for `PRODUCT.md` and `DESIGN.md` at repo root. Echo-back template extended to state load status. Silently skipped when absent.
+- **Discuss HOW meta-question** — offers `customer-obsession-design-thinking` 11-star routing for peak-moment features (first-run, paywall, celebration, share, milestone).
+- **Architect Motion Routing table** — 8 GSAP skills mapped to interaction types (scroll-trigger → `gsap-scrolltrigger`, timeline → `gsap-timeline`, React → `gsap-react`, performance → `gsap-performance`, base → `gsap-core`, plugins → `gsap-plugins`, Next.js → `gsap-frameworks`, utils → `gsap-utils`). Named in `ui-designer` dispatch when motion in scope.
+- **Architect — Optional Project-Local Design Enforcer subsection** — conditional `thoven-designer` chaining when installed.
+- **Review — Optional Quality Layer subsection** — opt-in `/impeccable` menu (critique / audit / harden / onboard / polish / clarify / skip) before Gate 2. Never auto-invoked.
+- **Review — Voice & Copy Verification subsection** — when PRODUCT.md present, validates DESIGN_SPEC against project voice rules + anti-references.
+- **Brand Rules Reference — hybrid rewrite** — 6-row non-negotiables guardrail inline; DESIGN.md and PRODUCT.md become source-of-truth when present. Explicit precedence locked.
+- **5 new Common Mistakes rows** — DESIGN.md precedence, no auto-impeccable, motion routing not framer-motion default, 11-star prompt requirement, voice drift on error states.
+
+### Added — `references/codebase-context-block.md` (commit `81c8515`)
+
+- **Standard Context Block** — replaced inline "Design System (Thoven)" with conditional pointer to PRODUCT.md/DESIGN.md + concise non-negotiables. Lists GSAP + impeccable as optional layers.
+- **Phase-Specific DESIGN Additions** — expanded reference list to four tiers: strategic + visual context (PRODUCT/DESIGN), Thoven enforcer references, optional quality layer (impeccable), animation library (gsap-*), high-stakes peak moments (customer-obsession-design-thinking).
+
+### Added — `/dev:plan` (commit `8ead4e9`)
+
+- **Motion-Aware Task Assignment** — when DESIGN_SPEC has motion patterns, task Agent assignments route to the specific GSAP skill so BUILD dispatches the right specialist. Skip silently when no motion in spec.
+- **Architect Step 0 Design Stack guardrail** — verification checklist item: "Architecture decisions don't contradict DESIGN_SPEC constraints (responsive breakpoints, motion patterns, interactive state models, accessibility commitments)."
+
+### Added — `/dev:build` (commit `8ead4e9`)
+
+- **Step 0 Implementation-layer framing header** — orients orchestrator: "Design decisions are locked upstream; your job is code quality, test coverage, pattern adherence."
+- **Motion-Aware Subagent Context** — when wave tasks include `gsap-*` agents, prepends the GSAP skill reference to subagent prompts.
+- **Layer 4.5 Optional Impeccable Quality Pass** — opt-in menu (`polish` / `harden` / `audit` / skip) between Layer 4 (`/simplify`) and final commit. Never auto-invoked. Mirrors `/dev:design` Gate 2 discipline.
+
+### Added — `/dev:validate` (commit `d7fb566`, under dual discipline)
+
+- **Step 0 item 7** — conditional `PRODUCT.md` read for Layer V2 voice-check. Skipped silently if absent.
+- **Layer V1 (§ 3.6.5)** — Optional `/impeccable audit` deep technical pass. Covers animation-a11y intersection, real-world network throttling (4G/3G), complex widget keyboard nav (combobox, datepicker, modal stacks), `prefers-reduced-motion` override paths. Distinct namespace from BUILD Layer 4.5 (different artifacts, different timing).
+- **Layer V2 (§ 3.6.7)** — Voice & Copy Verification subagent. Scans wave's modified UI strings against PRODUCT.md voice rules + anti-references. Routes failures to `/impeccable clarify` if installed; else surfaces fix-now / defer / override decision.
+
+### Discipline framework
+
+This release introduces a dual-filter standard for future pipeline-skill patches:
+
+- **F1 — Anthropic minimalism** (`apply-anthropic-skill-best-practices`): no ADD without a real-problem gap. "Create evaluations BEFORE writing extensive documentation."
+- **F2 — RED-GREEN testability** (`customaize-agent:test-skill`): every ADD must have a concrete pressure scenario where a fresh agent fails without the addition.
+
+The v5.1.0 audit progression (9 → 5 → 3 edits per audit pass) reflects the discipline tightening. Future patches should default to this bar.
+
+### Fixed
+
+- **`.claude-plugin/marketplace.json` version drift** — was `2.1.0` while `plugin.json` was `5.0.0`. Brought into alignment at `5.1.0` in this release. Pre-existing inconsistency, not introduced by this release.
+
+### Unchanged
+
+- DOCUMENT skill (no real-problem gap surfaced for any primitive at synthesis time)
+- SHIP skill (workflow phase — no content surface for any primitive)
+- Hook scripts, validation tools, agent-prompt-template
+- Backward compatibility: all changes additive; projects without the new primitives behave identically to v5.0.0
+
+---
+
 ## v5.0.0 — Personas, TDD, Decomposition, Cross-Model
 
 **Released:** 2026-05-09

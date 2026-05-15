@@ -12,7 +12,7 @@
       "name": "dev-pipeline-frontend",
       "source": "./plugins/dev-pipeline-frontend",
       "description": "Frontend development pipeline — phased feature delivery from intake through ship",
-      "version": "2.1.0",
+      "version": "5.1.0",
       "author": { "name": "Thoven", "email": "andres@thoven.co" },
       "keywords": ["development", "pipeline", "frontend", "skills"]
     },
