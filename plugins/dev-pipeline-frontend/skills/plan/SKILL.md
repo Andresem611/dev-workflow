@@ -136,6 +136,7 @@ Before designing agent prompts, confirm:
 - [ ] DESIGN_SPEC was Read — component inventory and interaction patterns inform agent prompts
 - [ ] Execution mode from Decision Ledger determines agent depth (see mode-propagation-reference.md)
 - [ ] All LOCKED decisions addressed in architecture plan — none silently dropped
+- [ ] Architecture decisions don't contradict DESIGN_SPEC constraints (responsive breakpoints, motion patterns, interactive state models, accessibility commitments)
 
 This verification appears in the Orchestration Log under `Map compliance`.
 
@@ -151,7 +152,24 @@ This verification appears in the Orchestration Log under `Map compliance`.
 
 ### Decision Categories
 
-Subagents must address: component architecture, state management, API patterns, styling approach, routing, and dependencies.
+Subagents must address: component architecture, state management, API patterns, styling approach, routing, and dependencies. **If the DESIGN_SPEC identified animation/motion patterns**, also address motion (see Motion-Aware Task Assignment below).
+
+### Motion-Aware Task Assignment
+
+If the DESIGN_SPEC (read from the DESIGN bridge) identified animation/motion primitives, assign motion-implementation tasks to the specific GSAP specialist matching the interaction:
+
+| DESIGN_SPEC motion type | Task Agent assignment |
+|---|---|
+| Scroll-triggered reveals, parallax, pin/unpin | `gsap-scrolltrigger` |
+| Multi-step orchestrated sequences | `gsap-timeline` |
+| React-specific (useGSAP, context, cleanup) | `gsap-react` |
+| Performance budgets / will-change / FLIP | `gsap-performance` |
+| Base tweens / easings / stagger | `gsap-core` |
+| Plugin-specific (Flip, Draggable, MorphSVG) | `gsap-plugins` |
+| Next.js App Router / SSR-aware | `gsap-frameworks` |
+| Utility math (clamp, mapRange, interpolate) | `gsap-utils` |
+
+If no motion in DESIGN_SPEC, skip this section silently. If GSAP skills are not installed in the project, recommend installing the specific skill needed rather than falling back to framer-motion without surfacing the choice to the user.
 
 ### Success Criteria
 

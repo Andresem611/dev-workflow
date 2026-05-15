@@ -93,6 +93,8 @@ Before starting any wave, load `requirements.md` from the feature docs directory
 
 ### MANDATORY CONTEXT LOADING — Step 0 (Every Wave)
 
+> **You are orchestrating the Implementation layer of the design stack.** Design decisions are locked upstream (DESIGN bridge); your job is code quality, test coverage, and pattern adherence. Don't re-litigate design choices at code time — surface conflicts to the user instead.
+
 Use the Read tool on each file before this wave. Do not proceed until all reads complete.
 
 1. `Read(docs/[feature]/requirements.md)` → extract: must_haves for this wave's tasks, requirement IDs
@@ -282,6 +284,14 @@ Criteria:
 ### Codebase Context Block
 
 Every subagent prompt MUST include: architecture decisions from MANIFEST, relevant file paths and patterns, frontend coding rules (`lib/*-api.ts` for API calls, `amber-500` not `orange-*`, `font-display` only on `h1`/`h2`), and design system constraints if applicable.
+
+### Motion-Aware Subagent Context
+
+If the current wave's task list includes motion/animation tasks (look for `gsap-*` in the task Agent assignments from PLAN), prepend the corresponding GSAP skill reference to the subagent prompt:
+
+> **Animation Patterns:** Reference `.claude/skills/<gsap-skill-name>/SKILL.md` for canonical usage. Match its conventions for ref handling, cleanup, reduced-motion fallback, and timing/easing values.
+
+Skip silently if no motion tasks in this wave. If GSAP skills are not installed in the project, recommend the specific skill rather than auto-substituting framer-motion.
 
 ### Artifact
 
@@ -503,6 +513,21 @@ Report PASS/FAIL per must_have item with file:line evidence. Be skeptical — as
 4. If changes improve code: keep them. If /simplify introduces regressions or breaks must_haves: `git stash pop` to revert and log the reason
 
 **Why git stash:** /simplify may refactor working code into something that breaks type-check or must_haves. The stash provides a clean revert path without re-dispatching agents.
+
+### Layer 4.5: Optional Impeccable Quality Pass (if installed)
+
+If the `impeccable` plugin is installed AND the wave includes user-facing surfaces (not pure refactors or pure tests), offer via `AskUserQuestion`:
+
+"Want to run an opt-in impeccable quality pass on this wave's code?"
+
+| Option | Pass | When |
+|---|---|---|
+| A | `/impeccable polish` | Final pre-commit visual + interaction polish |
+| B | `/impeccable harden` | Edge cases, error states, i18n surface check |
+| C | `/impeccable audit` | Deep a11y + perf + responsive technical pass |
+| D | Skip | Proceed to commit |
+
+Multiple passes allowed. Each pass's output annotates the code; user re-approves after each. **If impeccable is NOT installed, skip this layer silently — recommend installing for future quality-pass capability.** This is opt-in, never auto-invoked, mirroring the same discipline as `/dev:design` Gate 2.
 
 ### Optional Additional Checks (User Decides in Discuss)
 
