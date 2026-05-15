@@ -36,14 +36,18 @@ State Management:
 - Legacy: Redux Toolkit (store/slices/bundleSlice only)
 - Do NOT add new Redux slices
 
-Design System (Thoven):
-- Primary color: amber-500 (NOT orange-500)
+Design System:
+- Strategic context: PRODUCT.md at repo root (if present) — register, users, principles, voice
+- Visual system: DESIGN.md at repo root (if present) — full tokens, components, motion presets
+- Primary color: amber-500 (NOT orange-500) — NEVER use orange-* Tailwind classes
 - Custom token: --color-thoven-orange: #ff8c1a
-- Headers: font-display (Fredoka)
-- Body/buttons: font-sans (Montserrat)
+- Headers: font-display (Fredoka) — h1/h2 ONLY
+- Body/buttons: font-sans (Montserrat) — buttons are font-sans font-bold
 - 3D buttons: shadow-[0_4px_0_0_rgb(217,119,6)], NO borders
 - Spring animations: { type: "spring", stiffness: 500, damping: 35, mass: 0.6 }
 - Floating panels: NO dark backdrop
+- Animation library: GSAP (if `.claude/skills/gsap-*` installed) — see Motion Routing in design/SKILL.md
+- Design quality layers: impeccable plugin (if installed) — opt-in critique/audit/polish/harden/onboard/clarify
 
 Key Directories:
 - Pages: app/[role]/ (parent, teacher, student, admin)
@@ -100,12 +104,34 @@ Validation Commands:
 
 ### For DESIGN agents (add to standard block):
 ```
-Design References:
+Strategic + Visual Context:
+- PRODUCT.md (repo root) — IF PRESENT: register, users, principles, voice, anti-references
+- DESIGN.md (repo root) — IF PRESENT: full token palette, typography, components, motion
+
+Thoven Project Design Enforcer (Thoven-only — chain through if installed):
 - Brand identity: .claude/skills/thoven-designer/references/brand-identity.md
 - Color palette: .claude/skills/thoven-designer/references/brand-colors.md
 - Typography: .claude/skills/thoven-designer/references/typography.md
 - Component patterns: .claude/skills/thoven-designer/references/component-patterns.md
 - Error messaging: .claude/skills/thoven-designer/references/error-messaging.md
+- Viewport constraints: .claude/skills/thoven-designer/references/viewport-constraint.md
+- Reusable inventory: .claude/skills/thoven-designer/references/reusable-inventory.md
+
+Optional Quality Layer (any project — install impeccable plugin to enable):
+- /impeccable critique — UX heuristic review
+- /impeccable audit — deep a11y + perf + responsive technical pass
+- /impeccable polish — pre-ship final pass
+- /impeccable harden — edge cases, errors, i18n
+- /impeccable onboard — first-run, empty states, peak moments
+- /impeccable clarify — voice/copy fixes (requires PRODUCT.md)
+
+Animation Library (any project — install gsap-* skills to enable):
+- gsap-core, gsap-react, gsap-scrolltrigger, gsap-timeline, gsap-plugins,
+  gsap-performance, gsap-frameworks, gsap-utils — see Motion Routing in design/SKILL.md
+
+High-Stakes Peak Moments:
+- customer-obsession-design-thinking skill — 11-star framework + peak-end rule
+  (offer at Discuss HOW for first-run / paywall / celebration / share features)
 
 Design Inspiration:
 - Duolingo: 3D depth, gamified progress

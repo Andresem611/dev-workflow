@@ -47,8 +47,10 @@ Use the Read tool on each file. Do not proceed to WHAT questions until all reads
 3. `Read(references/codebase-context-block.md)` → extract: design system rules, color palette, typography, 3D button pattern
 4. `Read(references/bridge-template.md)` → extract: structured bridge format, echo-back protocol
 5. `Read(references/decision-ledger-template.md)` → extract: ledger format, how to add OPEN entries for design decisions
+6. **CONDITIONAL — strategic context:** If `PRODUCT.md` exists at repo root, `Read(PRODUCT.md)` → extract: register, users, brand personality, anti-references, design principles, voice & copy rules. If absent, note "PRODUCT.md not present — proceeding with bridge context only; recommend `/impeccable teach` for future setup."
+7. **CONDITIONAL — design system:** If `DESIGN.md` exists at repo root, `Read(DESIGN.md)` → extract: full token palette, typography hierarchy, component patterns, motion presets, breakpoints. If absent, note "DESIGN.md not present — using inline Brand Rules Reference as fallback; recommend `/impeccable document` for future setup."
 
-If any file is missing, STOP and surface the gap to the user.
+If any of items 1-5 is missing, STOP and surface the gap to the user. Items 6-7 are optional and skipped silently when absent.
 
 **Echo-Back (v4.0):** After loading, echo back LOCKED decisions from the DISCOVER bridge:
 
@@ -58,6 +60,8 @@ Loaded context from DISCOVER:
 - Execution mode: [Expansion/Hold/Reduction]
 - Star target: [from Zone 2]
 - Scope IN items: [from Zone 3]
+- PRODUCT.md status: [loaded with N principles / not present]
+- DESIGN.md status: [loaded / not present — using inline fallback]
 ```
 
 If echo-back is incomplete → re-read bridge.
@@ -145,6 +149,7 @@ These let the user control execution depth and strategy:
 - "Want a dedup audit against existing components before we design?"
 - "How many creative options to explore — 2-3, or go straight to one direction?"
 - "Want a boardroom debate on creative direction, or do you already have a clear vision?"
+- "Is this a high-stakes peak moment (first-run, paywall, celebration/completion, share, recital, milestone)? If yes, I can route through the `customer-obsession-design-thinking` 11-star framework before mockups."
 - "Any design system docs I should pull in beyond the standard set?"
 
 ### Stage Artifact
@@ -196,10 +201,33 @@ Define each subagent using this structure:
 
 #### Phase-Specific Agents
 
-| Agent | Role | When |
-|-------|------|------|
-| **ui-designer** | Produce full DESIGN_SPEC with all visual details | Always — this is the core agent for DESIGN |
+| Agent / Skill | Role | When |
+|---|---|---|
+| **ui-designer** | Produce full DESIGN_SPEC with all visual details | Always — core agent for DESIGN |
 | **Explore** | Component dedup audit across existing codebase | Always — prevents duplicate component creation |
+| **GSAP specialist** (gsap-react, gsap-scrolltrigger, gsap-timeline, etc.) | Motion spec author | When Discuss flagged scroll animation / parallax / timeline / reveal — route to the specific GSAP skill matching the interaction (see Motion Routing below) |
+| **customer-obsession-design-thinking** | 11-star + peak-end framing | When Discuss flagged this as a peak moment (first-run, paywall, celebration, share, milestone) |
+
+#### Motion Routing (when animation is in scope)
+
+If Discuss locked any motion primitives, the Architect MUST name the specific GSAP skill in the ui-designer dispatch prompt:
+
+| Interaction | Route to (skill) |
+|---|---|
+| Scroll-triggered reveals, parallax, pin/unpin | `gsap-scrolltrigger` |
+| Multi-step orchestrated sequences | `gsap-timeline` |
+| React-specific patterns (useGSAP, context, cleanup) | `gsap-react` |
+| Performance budgets / will-change / FLIP transitions | `gsap-performance` |
+| Base tweens, easings, stagger | `gsap-core` |
+| Plugin-specific (Flip, Draggable, MorphSVG, SplitText) | `gsap-plugins` |
+| Next.js App Router / SSR-aware GSAP | `gsap-frameworks` |
+| Utility math (clamp, mapRange, interpolate) | `gsap-utils` |
+
+The DESIGN_SPEC must specify: which GSAP skill the motion conforms to, exact timing/easing values, reduced-motion fallback. **If GSAP skills are not installed in the project, recommend installing the specific skill needed; do not force framer-motion as fallback without surfacing the choice to the user.**
+
+#### Optional Project-Local Design Enforcer
+
+If the project has a `thoven-designer` skill installed (Thoven projects), chain the `ui-designer` dispatch through it so its references (`brand-identity.md`, `brand-colors.md`, `component-patterns.md`, `error-messaging.md`, `viewport-constraint.md`) override the inline brand defaults. See `codebase-context-block.md` Phase-Specific Context Additions for DESIGN for the full reference list.
 
 ### Spec Structure Definition
 
@@ -367,6 +395,38 @@ All five checks must pass. No exceptions.
 - Color contrast meets 4.5:1 minimum
 - Touch targets meet 44x44px minimum
 
+### Voice & Copy Verification (when PRODUCT.md present)
+
+If PRODUCT.md was loaded in Step 0, verify the DESIGN_SPEC against its Voice & Copy section:
+
+- [ ] All button labels, headings, microcopy match the project voice (encouraging, never accusatory)
+- [ ] No anti-references surfaced in copy (no streak-shaming, no SaaS jargon, no AI buzzwords)
+- [ ] Empty states framed positively per voice guidance
+- [ ] Error messages follow the project's error-tone rules (e.g., Thoven: amber not red, "let's try again" not "invalid")
+- [ ] Specific over generic ("Day 47 of practice" > "Great job!")
+
+If any item fails AND `impeccable` is installed: recommend `/impeccable clarify` before Gate 2.
+
+If PRODUCT.md not loaded, state "PRODUCT.md not present — voice check skipped; relying on inline brand rules only."
+
+### Optional Quality Layer (impeccable, if installed)
+
+If the `impeccable` plugin is installed, offer to route the spec through one or more opt-in passes BEFORE Gate 2. Present via `AskUserQuestion`:
+
+"Want to run any quality passes before final approval?"
+
+| Option | Pass | When |
+|---|---|---|
+| A | `/impeccable critique` | UX heuristic review (hierarchy, clarity, emotional resonance) |
+| B | `/impeccable audit` | Technical pass — a11y deep-check + perf + responsive |
+| C | `/impeccable harden` | Edge cases, errors, empty states, i18n |
+| D | `/impeccable onboard` | First-run, activation, peak moments |
+| E | `/impeccable polish` | Pre-ship final pass |
+| F | `/impeccable clarify` | Voice/copy rewrite (when PRODUCT.md present) |
+| G | Skip | Proceed to Gate 2 |
+
+Multiple passes allowed. Each pass's output annotates the spec; user re-approves after each. **If impeccable is NOT installed, skip this subsection silently — but for any future frontend project, recommend installing it as the opt-in design quality layer.**
+
 ### Final Design Approval (Gate 2 — MANDATORY)
 
 After all review checks pass (brand rules, dedup, responsive, accessibility, backend requirements), present the complete design to the user via `AskUserQuestion`:
@@ -469,24 +529,27 @@ State persists to disk (MANIFEST + stage artifacts). Nothing is lost on `/clear`
 
 ---
 
-## Thoven Brand Rules Reference
+## Brand Rules Reference
 
-Feed this section to the ui-designer agent. The Review checklist validates against these rules.
+This inline block is the **non-negotiable cheatsheet** for the `ui-designer` dispatch. It is the **fallback** when no project-level `DESIGN.md` exists.
+
+**Precedence (locked):**
+- **`DESIGN.md` present** → treat DESIGN.md as source-of-truth. This inline table becomes the must-not-violate guardrail set; pull deeper tokens, scales, and component patterns from DESIGN.md.
+- **`PRODUCT.md` present** → its design principles + voice rules govern intent; this block governs visual mechanics.
+- **Project-local design enforcer installed (e.g., `thoven-designer`)** → the enforcer's references override these inline defaults.
+
+### Non-Negotiables (always enforce)
 
 | Token | Value | Rule |
-|-------|-------|------|
-| Primary CTA | `amber-500` | NEVER `orange-*`. `amber-600` is hover-only, never resting state |
-| Light backgrounds | `amber-50`, `yellow-100` | NEVER `orange-50` |
-| Text | `text-slate-900`, `text-slate-600` | Slate palette |
-| Display font | Fredoka (`font-display`) | h1/h2 headings ONLY |
-| Body font | Montserrat (`font-sans`) | Everything else, including buttons (`font-sans font-bold`) |
-| Card base | `rounded-2xl shadow-lg` | No accent bars, no rainbow grids, icons only where functional |
-| Icons | Lucide React | Selective and functional, not decorative |
-| Spring animation | `{ type: "spring", stiffness: 500, damping: 35, mass: 0.6 }` | Floating panels: no dark backdrop |
-| 3D shadow color | `rgb(217,119,6)` | NEVER `rgb(194,65,12)` or `rgb(180,83,9)` |
-| Unselected states | `bg-white text-gray-600` | No 3D shadows on unselected items |
+|---|---|---|
+| Primary CTA accent | `amber-500` | NEVER `orange-*`. `amber-600` is hover-only |
+| Display font | Fredoka (`font-display`) | h1/h2 ONLY |
+| Body / button font | Montserrat (`font-sans`) | Buttons use `font-sans font-bold` — NEVER `font-display` |
+| 3D shadow RGB | `rgb(217,119,6)` | NEVER `rgb(194,65,12)` or `rgb(180,83,9)` |
+| 3D button borders | None | No borders on 3D buttons, ever |
+| Card base | `rounded-2xl shadow-lg` | No left-hand accent bars, no rainbow grids |
 
-### 3D Button Pattern
+### Reference 3D Button Pattern
 
 ```tsx
 className="bg-amber-500 hover:bg-amber-600 text-white font-sans font-bold
@@ -498,6 +561,11 @@ className="bg-amber-500 hover:bg-amber-600 text-white font-sans font-bold
 ```
 
 No borders. No `font-display`. Shadow uses `rgb(217,119,6)` exclusively.
+
+### For Everything Else
+
+- **`DESIGN.md`** (if present at repo root): full amber palette tokens, slate scale, typography sizes/weights, motion presets, responsive breakpoints, overlay system, skeuomorphic depth rules, reusable component inventory.
+- **`PRODUCT.md`** (if present at repo root): design principles (match tone to surface, trust before delight, design peaks not baselines, soft over alarming, handcrafted not templated, design for promoters, one metaphor per surface), voice & copy rules, anti-references.
 
 ---
 
@@ -518,6 +586,11 @@ No borders. No `font-display`. Shadow uses `rgb(217,119,6)` exclusively.
 | Skipping backend requirements check | Backend check is MANDATORY in DESIGN Review — missing endpoints not caught until BUILD otherwise |
 | Routing to DOCUMENT after DESIGN | v4.0: PLAN comes after DESIGN — Next Up must route to `/dev:plan` |
 | Not adding design decisions to ledger | Add OPEN entries for design decisions, promote to LOCKED in Review — otherwise PLAN can't reference them |
+| Ignoring DESIGN.md when present | If `DESIGN.md` loaded in Step 0, it IS source-of-truth; inline rules are guardrails only |
+| Auto-invoking impeccable | Impeccable passes are opt-in via menu at Review, never auto-applied |
+| Routing all motion to "framer-motion default" | Use the GSAP routing table — scroll → `gsap-scrolltrigger`, timeline → `gsap-timeline`, etc. |
+| Skipping 11-star prompt on peak moments | Discuss must offer `customer-obsession-design-thinking` for first-run, paywall, share, celebration features |
+| Voice drift on empty/error states | If PRODUCT.md present, Voice & Copy verification is MANDATORY before Gate 2 |
 
 ---
 
