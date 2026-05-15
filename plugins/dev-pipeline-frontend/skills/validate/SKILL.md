@@ -48,8 +48,9 @@ Use the Read tool on each file. Do not proceed until all reads complete.
 4. `Read(references/agent-prompt-template.md)` → extract: prompt structure for validation agent dispatches
 5. `Read(docs/[feature]/.dev/MANIFEST.md)` → extract: domains, Decision Ledger (ALL LOCKED entries), completed phases, execution mode
 6. `Read(references/mode-propagation-reference.md)` → extract: VALIDATE depth settings for current execution mode
+7. **CONDITIONAL — voice context:** If `PRODUCT.md` exists at repo root, `Read(PRODUCT.md)` → extract: voice & copy rules, anti-references. Required for Layer V2 voice-check (see Execute § 3.7). If absent, Layer V2 will skip silently.
 
-If any file is missing, STOP and surface the gap to the user.
+If any of items 1-6 is missing, STOP and surface the gap to the user. Item 7 is conditional and skipped silently when absent.
 
 **Echo-Back (v4.0):** After loading, echo back LOCKED decisions:
 ```
@@ -423,6 +424,41 @@ For each response, parse the status code line + top-level JSON keys. Diff agains
 - Expansion: + diff response body shape (recursive key check), not just top-level.
 
 **Why this gate:** F12 evidence — Pass 2 Homework had `video/webm` MIME mismatch and FE/BE type drift that no other gate caught. The Calendar webhook URL drift (W1→W4) would have surfaced here.
+
+### 3.6.5 Layer V1 — Optional `/impeccable audit` Deep Technical Pass (if installed)
+
+If the `impeccable` plugin is installed, offer via `AskUserQuestion` BEFORE proceeding to 3.7 Judge Scoring:
+
+"Want to run `/impeccable audit` for a deep technical pass before scoring?"
+
+| Option | Action |
+|---|---|
+| A | Run `/impeccable audit` — animation-a11y intersection, real-world network throttling (4G/3G), complex widget keyboard nav (combobox, datepicker, modal stacks), `prefers-reduced-motion` override paths |
+| B | Skip |
+
+**Distinct from existing gates:** `accessibility-check` (3.2 domain-triggered) covers static WCAG AA; `mobile-audit` covers breakpoints + perf budgets; `/qa --diff-aware` (3.0 Layer 0) covers test coverage. `/impeccable audit` adds the **animation + a11y intersection**, **real-world throttling**, and **complex-widget interaction** dimensions none of those cover. RED scenario: scroll-triggered animation that breaks under `prefers-reduced-motion` passes every existing gate but fails Layer V1.
+
+If `impeccable` is NOT installed, skip this layer silently — recommend installing for future deep-audit capability.
+
+**Naming note:** This is "Layer V1" (VALIDATE-1), distinct from BUILD's Layer 4.5 (`/impeccable polish | harden | audit` post-wave). Layer V1 operates on the *assembled feature* pre-ship; BUILD Layer 4.5 operates on *individual wave code* post-commit.
+
+### 3.6.7 Layer V2 — Voice & Copy Verification (when PRODUCT.md present)
+
+If `PRODUCT.md` exists at repo root (loaded in Step 0 item 7), dispatch a subagent to scan shipped UI strings against the project's voice & copy rules. Inputs:
+- PRODUCT.md Voice & Copy section + Anti-references list
+- The feature's modified files (filter to strings in JSX, button labels, error messages, empty state copy, microcopy)
+
+Subagent verifies:
+- [ ] No anti-reference language present (e.g., for Thoven: no "invalid", no streak-shaming, no engagement-bait phrasing)
+- [ ] Voice rules followed (e.g., for Thoven: human/encouraging/specific, never robotic/accusatory/generic)
+- [ ] Error messages soft-toned per PRODUCT.md error-handling rules (where applicable)
+- [ ] Empty states framed positively per voice guidance
+
+If any item fails, surface to user via `AskUserQuestion`: fix-now (route to `/impeccable clarify` if installed), defer to a follow-up, or override-with-rationale.
+
+**RED scenario:** Shipping copy "Invalid email format. Please correct your input." Type-check passes, lint passes, accessibility-check passes, /qa passes — none of them check tone. Layer V2 reads PRODUCT.md "Encouraging, never accusatory" rule and surfaces the violation before ship.
+
+If PRODUCT.md not present, skip silently with the note "PRODUCT.md not loaded — voice check skipped." Recommend running `/impeccable teach` to set up PRODUCT.md for future projects.
 
 ### 3.7 Optional Checks (If User Opted In)
 
