@@ -5,6 +5,18 @@ All notable changes to the dev-pipeline plugin marketplace will be documented in
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [team-kit 0.1.0] - 2026-05-21
+
+### Added — new `team-kit` plugin (standalone, repo-agnostic)
+- **New third plugin in the marketplace**, installable on its own (`claude plugin install team-kit@thoven-dev`), with no dependency on the dev-pipeline plugins. A durable home for curated third-party skills.
+- **Four skills ported from [Cursor's Team Kit](https://github.com/cursor/plugins)** (MIT, pinned to upstream `3347cba`, attributed in `plugins/team-kit/NOTICE`):
+  - `thermo-nuclear-code-quality-review` (skill + Task agent) — strict structural maintainability review: code-judo simplification, 1k-line file rule, spaghetti-condition detection, boundary/abstraction cleanliness. Skill is user-invoked; the agent auto-routes and is scoped to structural review (boundary vs `code-reviewer`).
+  - `deslop` — remove AI slop from the current branch's diff vs main (scoped to avoid collision with `code-simplifier`).
+  - `verify-this` — falsify a specific claim with baseline/treatment evidence → VERIFIED / NOT VERIFIED / INCONCLUSIVE.
+  - `weekly-review` — recap of authored commits grouped by bugfix / tech-debt / net-new.
+- **Not ported** (audited out): `ci-watcher`, `run-smoke-tests`, `what-did-i-get-done`, all PR-flow skills, and others — see `plugins/team-kit/NOTICE`.
+- Pipeline wrapping of these skills is tracked separately in `TODO-team-kit-pipeline-wiring.md`.
+
 ## [4.3.0] - 2026-04-06
 
 ### Added (Both Pipelines — DOCUMENT)
