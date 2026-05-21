@@ -5,7 +5,7 @@
     "email": "andres@thoven.co"
   },
   "metadata": {
-    "description": "Thoven development tools — phased feature pipelines for frontend and backend"
+    "description": "Thoven development tools — phased feature pipelines for frontend and backend, plus repo-agnostic team workflow skills"
   },
   "plugins": [
     {
@@ -23,6 +23,14 @@
       "version": "2.1.0",
       "author": { "name": "Thoven", "email": "andres@thoven.co" },
       "keywords": ["development", "pipeline", "backend", "rails", "skills"]
+    },
+    {
+      "name": "team-kit",
+      "source": "./plugins/team-kit",
+      "description": "Repo-agnostic team workflow skills (ported from Cursor Team Kit): thermo-nuclear structural review, deslop, verify-this, weekly-review",
+      "version": "0.1.0",
+      "author": { "name": "Thoven", "email": "andres@thoven.co" },
+      "keywords": ["code-review", "quality", "verification", "cleanup", "agnostic"]
     }
   ]
 }
