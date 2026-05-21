@@ -30,8 +30,11 @@ Local customizations (diff from upstream)
 - verify-this: added a one-line positioning note distinguishing it from the
   Thoven `verify` skill (pre-commit task-completion checks).
 - thermo-nuclear agent: renamed the plugin reference from "cursor-team-kit" to
-  "team-kit", and adapted the parent-orchestration note from Cursor's
-  subagent_type "shell"/"explore" to Claude Code's Bash + Read/Explore + Agent.
+  "team-kit"; adapted the parent-orchestration note from Cursor's subagent_type
+  "shell"/"explore" to Claude Code's Bash + Read/Explore + Agent; and scoped the
+  description to STRUCTURAL maintainability only, with an explicit boundary vs the
+  `code-reviewer` agent (correctness/security/requirements) so auto-routing on
+  description match does not collide.
 
 NOT ported (intentionally — see the plan / repo docs)
 -----------------------------------------------------
