@@ -1,6 +1,6 @@
 # thoven-dev Plugin Marketplace
 
-Phased feature development pipelines for Claude Code. Two plugins provide structured, requirements-driven workflows for frontend (TypeScript/React) and backend (Ruby on Rails) projects.
+Phased feature development pipelines for Claude Code, plus a repo-agnostic team workflow kit. Three plugins: structured, requirements-driven pipelines for frontend (TypeScript/React) and backend (Ruby on Rails), and **`team-kit`** — standalone, repo-agnostic skills curated from external sources (currently ports of Cursor's Team Kit).
 
 ## Structure
 
@@ -17,6 +17,12 @@ thoven-dev/
 │   │   ├── skills/                  # 10 phase skills
 │   │   ├── references/              # Templates, agent maps, checklists
 │   │   └── hooks/                   # Session context, doc staleness
+│   ├── team-kit/                    # Repo-agnostic team workflow skills (ported)
+│   │   ├── .claude-plugin/plugin.json
+│   │   ├── skills/                  # thermo-nuclear, deslop, verify-this, weekly-review
+│   │   ├── agents/                  # thermo-nuclear-code-quality-review
+│   │   ├── LICENSE / NOTICE         # MIT + upstream attribution (cursor/plugins)
+│   │   └── README.md
 │   └── shared/                      # Shared across plugins
 │       ├── tools/                   # dev-pipeline-tools.js
 │       └── references/              # inner-loop-reference.md
@@ -84,6 +90,27 @@ rm -rf ~/.claude/plugins/marketplaces/thoven-dev/plugins/dev-pipeline-frontend
 # Update to latest
 cd ~/.claude/plugins/marketplaces/thoven-dev && git pull origin main
 ```
+
+Or install individual plugins via the CLI (recommended):
+
+```bash
+claude plugin marketplace update thoven-dev
+claude plugin install dev-pipeline-frontend@thoven-dev   # frontend pipeline
+claude plugin install dev-pipeline-backend@thoven-dev    # backend pipeline
+claude plugin install team-kit@thoven-dev                # repo-agnostic team kit
+```
+
+### team-kit
+
+A standalone, repo-agnostic plugin (works in any repo, no dependency on the
+pipelines). Ships skills curated from external sources — currently four ports
+of [Cursor's Team Kit](https://github.com/cursor/plugins) (MIT, attributed in
+`plugins/team-kit/NOTICE`):
+
+- `thermo-nuclear-code-quality-review` — strict structural maintainability review (skill + Task agent)
+- `deslop` — remove AI slop from a branch diff
+- `verify-this` — falsify a claim with baseline/treatment evidence
+- `weekly-review` — commit recap by bugfix / tech-debt / net-new
 
 ## Quick Start
 
