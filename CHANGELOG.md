@@ -5,6 +5,19 @@ All notable changes to the dev-pipeline plugin marketplace will be documented in
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [5.3.0] - 2026-05-29
+
+### Changed — Frontend→Backend handoff redesign (frontend 5.3.0, backend 3.9.0)
+
+The FE→BE handoff is now requirements-only: the frontend never decides the API contract or backend architecture. Fixes two bugs — the FE authoring request/response shapes (boundary leak) and the backend treating the handoff as a locked spec (skip-to-planning). Full design: `FE_TO_BE_HANDOFF_REDESIGN.md`.
+
+- **FE feature brief replaces the contract stub** — requirements-only (data-needs + binding UX behaviors, no shapes); `validate-handoff-brief` hard-blocks schema/migration/shape/endpoint leaks (regex pre-filter + LLM-judge nuance pass).
+- **Backend routes `frontend handoff → DISCOVER`** (was PLAN / skip-DISCOVER) — audits what already exists, then designs the contract itself.
+- **Contract-surface competition** — backend reads allow-listed FE context (product/design/UX, never the FE API layer) and designs the FE contract via a clean-room (`rails-expert`) vs shape-aware (`api-documenter`) competition + `architecture-reviewer` judge.
+- **Shared decision ledger** — one FE-owned, git-backed, append-only cross-stack ledger (supersession + provenance) with the `ledger-validate` integrity guard; the backend writes its locked contract + a `CONTRACT-LANDED` marker to its own artifacts, and the FE transcribes + swaps local mocks on resume.
+- **Versions** — frontend 5.1.0 → 5.3.0, backend 3.6.0 → 3.9.0. 17/17 `dev-pipeline-tools` tests pass.
+- Marketplace backend version re-synced to the plugin's actual version (`marketplace.json` was stale at 2.1.0 vs the plugin's 3.x).
+
 ## [team-kit 0.1.0] - 2026-05-21
 
 ### Added — new `team-kit` plugin (standalone, repo-agnostic)
