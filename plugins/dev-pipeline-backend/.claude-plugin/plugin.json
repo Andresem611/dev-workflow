@@ -1,7 +1,7 @@
 {
   "name": "dev-pipeline-backend",
-  "description": "Backend development pipeline v3.6.0 — decision fidelity enforcement (verify-decision-coverage, two-tier LOCKED decisions, verbatim echo-back), runtime API verification, behavior-slice tasks",
-  "version": "3.6.0",
+  "description": "Backend development pipeline v3.8.0 — frontend handoff routes to DISCOVER, reads allow-listed FE context (product/design/UX, never the FE API layer), and designs the FE contract via a clean-room vs shape-aware competition + judge, and writes the locked contract + CONTRACT-LANDED marker to its own artifacts for the FE to transcribe (backend owns the contract, not the FE), decision fidelity enforcement (verify-decision-coverage, two-tier LOCKED decisions, verbatim echo-back), runtime API verification, behavior-slice tasks",
+  "version": "3.9.0",
   "author": {
     "name": "Thoven",
     "email": "andres@thoven.co"

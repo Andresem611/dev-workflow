@@ -423,6 +423,7 @@ Use `AskUserQuestion` for gaps. Present summary with:
 
 1. Update MANIFEST: PLAN = complete
 2. Write review artifact with bridge context for DOCUMENT
+3. **If this is a frontend-handoff feature (MANIFEST has `## Frontend Handoff`):** the FE-facing contract is now locked. Write the contract decisions to `<BE-feature>/.dev/be-contract-decisions.md` as ledger rows (Scope = contract, Status = ACTIVE, Changed By = BE, Reason = WHY) in the shared-decision-ledger row format, then append a `CONTRACT-LANDED` marker (date, By = BE, contract location = this review artifact). If a contract decision supersedes an FE assumption from the shared ledger, note it in the row's Reason — the FE transcribes it and flips the FE row to SUPERSEDED on resume. **Do NOT write the FE-owned canonical ledger** — writes stay worktree-local; the FE syncs on resume/monitor. Format: `${PLUGIN_ROOT}/../shared/references/shared-decision-ledger-template.md`. This is what lets the FE swap its local mocks for the real contract.
 
 **Dispatch Mandate for DOCUMENT (MANDATORY in context bridge):**
 

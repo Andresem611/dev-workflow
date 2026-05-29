@@ -62,7 +62,7 @@ INTAKE → DISCOVER → PERSONA → DESIGN → [BACKEND GATE] → PLAN → DOCUM
 
 **v5.0 sub-phase:** PERSONA runs between DISCOVER Zone 4 close and DESIGN entry. Three personas (Frontend Designer, Product, Backend opt-in for `Cross-Stack: backend`) grill the user one question at a time. Persona answers feed MANIFEST and Decision Ledger; DESIGN reads them on entry.
 
-**v4.0 ordering:** DESIGN runs before PLAN so architecture decisions are informed by the actual UI spec. The backend gate in DESIGN Review checks for missing API endpoints and produces a contract stub if needed.
+**v4.0 ordering:** DESIGN runs before PLAN so architecture decisions are informed by the actual UI spec. The backend gate in DESIGN Review checks for unmet backend data needs and produces a requirements-only feature brief if needed (the backend designs the contract — the FE never authors it).
 
 **Every phase runs the inner loop:** GROUND → Discuss → Architect → Execute → Review
 
@@ -195,8 +195,9 @@ Search for existing MANIFESTs: `docs/**/.dev/MANIFEST.md`
 1. Read MANIFEST to find: current phase, domains, last completed phase
 2. Read the latest `review-*.md` from the last completed phase directory
 3. If paused: also read `.dev/pause-handoff.md` for handoff context
-4. Present summary to user: "Resuming [feature] at [phase]. Last completed: [phase]."
-5. Load the current phase sub-file and continue
+4. **Backend-contract check (if awaiting one).** If DESIGN chose parallel-with-mocks and the shared decision ledger has no `CONTRACT-LANDED` marker yet: read the BE artifacts (`<BE-feature>/.dev/be-contract-decisions.md` + its `CONTRACT-LANDED` marker) via the allow-listed cross-repo read. If landed, **transcribe** the BE rows into the canonical ledger (flip any superseded FE rows to SUPERSEDED), run `ledger-validate docs/[feature] --plugin frontend`, then swap local provisional mocks → the landed contract before continuing. If not landed, keep building against mocks. (Writes stay worktree-local: the FE writes its own ledger; it never writes the BE repo.)
+5. Present summary to user: "Resuming [feature] at [phase]. Last completed: [phase]."
+6. Load the current phase sub-file and continue
 
 ---
 
@@ -261,7 +262,7 @@ docs/[Feature_Name]/.dev/
 │   ├── discuss-visual-direction.md
 │   ├── architect-design-plan.md
 │   ├── execute-design-spec.md
-│   ├── backend-contract-stub.md               ← v4.0: produced if endpoints missing
+│   ├── backend-feature-brief.md               ← produced if backend data needs are unmet (requirements-only)
 │   └── review-design-compliance.md
 ├── plan/
 │   ├── discuss-architecture-direction.md
@@ -356,6 +357,6 @@ Call these at the specified points. Tool location: `${PLUGIN_ROOT}/../shared/too
 | `references/requirements-template.md` | Requirement ID format and must_haves structure |
 | `references/decision-ledger-template.md` | Decision Ledger format, LOCKED/OPEN rules, violation detection (v4.0) |
 | `references/bridge-template.md` | Structured bridge format with echo-back protocol (v4.0) |
-| `references/backend-contract-stub-template.md` | Backend contract stub format for frontend→backend handoff (v4.0) |
+| `references/backend-feature-brief-template.md` | Requirements-only feature-brief format for frontend→backend handoff (no shapes; backend owns the contract) |
 | `references/discuss-zones-reference.md` | 4-Zone Discuss spec with techniques and exit conditions (v4.0) |
 | `references/mode-propagation-reference.md` | Expansion/Hold/Reduction depth matrix per phase (v4.0) |

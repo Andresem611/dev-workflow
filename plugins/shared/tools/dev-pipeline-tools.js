@@ -1512,11 +1512,159 @@ function cmdOverrideTest(args) {
   );
 }
 
+// --- validate-handoff-brief: leak guard for the FE→BE feature brief ---
+// Hard-blocks the handoff if the brief dictates backend internals (shapes, schema,
+// migrations, endpoints). Regex pre-filter only — the skill runs an LLM-judge pass
+// for nuance (naming a model in prose = OK; dictating its schema = leak).
+function cmdValidateHandoffBrief(args) {
+  const featureDir = args.positional[0];
+  if (!featureDir) {
+    error("Usage: validate-handoff-brief <feature-dir> --plugin backend|frontend");
+  }
+
+  const resolvedDir = resolvePath(args.cwd, featureDir);
+  const briefPath = path.join(resolvedDir, ".dev", "design", "backend-feature-brief.md");
+  const res = { valid: true, brief: briefPath, leaks: [], lines_checked: 0, note: "" };
+
+  const content = safeReadFile(briefPath);
+  if (content === null) {
+    res.valid = false;
+    res.leaks.push({ category: "missing", line: 0, snippet: "brief not found at " + briefPath });
+    output(res, args.raw, "FAIL: brief not found at " + briefPath);
+    return;
+  }
+
+  const lines = content.split("\n");
+  res.lines_checked = lines.length;
+
+  // Unambiguous backend-internal dictation (the backend owns all of this).
+  const LINE_PATTERNS = [
+    { category: "migration/schema", re: /\b(create_table|add_column|add_index|change_column|remove_column|add_reference|drop_table|change_table|t\.(string|integer|boolean|datetime|references|text|jsonb|json|decimal|bigint|float|uuid|index))\b/i },
+    { category: "model-association", re: /\b(belongs_to|has_many|has_one|has_and_belongs_to_many)\s+:/i },
+    { category: "response-interface", re: /(interface\s+\w+\s*\{|type\s+\w+\s*=\s*\{)/ },
+    { category: "endpoint-method-path", re: /\b(GET|POST|PUT|PATCH|DELETE)\s+\/\S/ },
+    { category: "endpoint-path", re: /\/api\/v?\d/i },
+    { category: "sql", re: /\b(SELECT\s+[\w*,\s]+\sFROM\s|INSERT\s+INTO\s|UPDATE\s+\w+\s+SET\s|DELETE\s+FROM\s)/i },
+    { category: "index-directive", re: /\b(index on|composite index|unique index)\b/i },
+  ];
+
+  const FENCE_BAD_TAGS = /^(json|ts|typescript|tsx|js|javascript|ruby|rb|sql|graphql|prisma)$/i;
+  let inFence = false;
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    const lineNo = i + 1;
+
+    const fenceMatch = line.match(/^\s*```(\w+)?/);
+    if (fenceMatch) {
+      if (!inFence) {
+        inFence = true;
+        const tag = (fenceMatch[1] || "").trim();
+        if (FENCE_BAD_TAGS.test(tag)) {
+          res.leaks.push({ category: "fenced-shape-block", line: lineNo, snippet: "```" + tag + " block — shapes/impl belong to the backend" });
+        }
+      } else {
+        inFence = false;
+      }
+      continue;
+    }
+
+    if (inFence) {
+      if (/["']\w+["']\s*:/.test(line) || /^\s*\w+\s*:\s*(string|number|boolean|integer|float|uuid|date|datetime)/i.test(line)) {
+        res.leaks.push({ category: "shape-in-fence", line: lineNo, snippet: line.trim().slice(0, 80) });
+      }
+      continue;
+    }
+
+    for (const p of LINE_PATTERNS) {
+      if (p.re.test(line)) {
+        res.leaks.push({ category: p.category, line: lineNo, snippet: line.trim().slice(0, 80) });
+        break;
+      }
+    }
+  }
+
+  res.valid = res.leaks.length === 0;
+  res.note = res.valid
+    ? "Regex pre-filter clean. Run the LLM-judge nuance pass (naming a model/endpoint in prose = OK; dictating its schema/shape/route = leak) before handing off."
+    : "Leaks found — rewrite to remove backend-internal dictation; the backend designs the contract.";
+
+  output(res, args.raw,
+    res.valid
+      ? "PASS: regex clean (" + res.lines_checked + " lines). " + res.note
+      : "FAIL: " + res.leaks.length + " leak(s):\n" + res.leaks.map((l) => "- L" + l.line + " [" + l.category + "] " + l.snippet).join("\n")
+  );
+}
+
+// --- ledger-validate: append-only + supersession integrity for the shared decision ledger ---
+function cmdLedgerValidate(args) {
+  const featureDir = args.positional[0];
+  if (!featureDir) {
+    error("Usage: ledger-validate <feature-dir> --plugin backend|frontend");
+  }
+
+  const resolvedDir = resolvePath(args.cwd, featureDir);
+  const ledgerPath = path.join(resolvedDir, ".dev", "shared-decision-ledger.md");
+  const res = { valid: true, ledger: ledgerPath, rows: 0, active: 0, superseded: 0, issues: [], warnings: [] };
+
+  const content = safeReadFile(ledgerPath);
+  if (content === null) {
+    res.valid = false;
+    res.issues.push("ledger not found at " + ledgerPath);
+    output(res, args.raw, "FAIL: ledger not found at " + ledgerPath);
+    return;
+  }
+
+  const SCOPES = ["product", "contract", "design"];
+  const seenIds = [];
+
+  for (const line of content.split("\n")) {
+    if (!/^\s*\|\s*SD-\d+\s*\|/.test(line)) continue; // only SD- rows (skips header/separator/CONTRACT-LANDED table)
+    const cells = line.split("|").map((c) => c.trim());
+    const id = cells[1];
+    const scope = (cells[3] || "").toLowerCase();
+    const status = (cells[4] || "").toUpperCase();
+    const supersededBy = cells[5] || "";
+    const changedBy = (cells[6] || "").toUpperCase();
+    const date = cells[7] || "";
+    const reason = cells[8] || "";
+
+    res.rows++;
+    if (seenIds.includes(id)) res.issues.push("Duplicate ID " + id);
+    seenIds.push(id);
+
+    if (!SCOPES.includes(scope)) res.warnings.push(id + ': scope "' + scope + '" not one of product/contract/design');
+
+    if (status === "ACTIVE") {
+      res.active++;
+    } else if (status === "SUPERSEDED") {
+      res.superseded++;
+      const missing = [];
+      if (!supersededBy || supersededBy === "—" || supersededBy === "-") missing.push("Superseded By");
+      if (!["FE", "BE"].includes(changedBy)) missing.push("Changed By (FE/BE)");
+      if (!date) missing.push("Date");
+      if (!reason) missing.push("Reason");
+      if (missing.length) res.issues.push(id + " is SUPERSEDED but missing: " + missing.join(", "));
+    } else {
+      res.issues.push(id + ': Status "' + status + '" must be ACTIVE or SUPERSEDED');
+    }
+  }
+
+  if (res.rows === 0) res.warnings.push("No SD- rows found (empty or uninitialized ledger)");
+
+  res.valid = res.issues.length === 0;
+  output(res, args.raw,
+    res.valid
+      ? "PASS: ledger ok — " + res.active + " active, " + res.superseded + " superseded (" + res.rows + " rows)" + (res.warnings.length ? "; warnings: " + res.warnings.join("; ") : "")
+      : "FAIL: " + res.issues.length + " issue(s):\n" + res.issues.map((i) => "- " + i).join("\n")
+  );
+}
+
 // --- CLI Router ---
 function main() {
   const argv = process.argv.slice(2);
   if (argv.length === 0) {
-    error("Usage: dev-pipeline-tools.js <command> [args] --plugin backend|frontend [--raw] [--wave N] [--scope wave|phase] [--task T-NN] [--reason \"<text>\"] [--attestation \"<text>\"]\nCommands: validate-stage-entry, validate-stage-output, checkpoint-state, validate-manifest, verify-must-haves, update-wave-tracking, verify-decision-coverage, verify-requirements-coverage, verify-test-immutability, override-test");
+    error("Usage: dev-pipeline-tools.js <command> [args] --plugin backend|frontend [--raw] [--wave N] [--scope wave|phase] [--task T-NN] [--reason \"<text>\"] [--attestation \"<text>\"]\nCommands: validate-stage-entry, validate-stage-output, checkpoint-state, validate-manifest, verify-must-haves, update-wave-tracking, verify-decision-coverage, verify-requirements-coverage, verify-test-immutability, override-test, validate-handoff-brief, ledger-validate");
   }
 
   const command = argv[0];
@@ -1573,10 +1721,16 @@ function main() {
     case "override-test":
       cmdOverrideTest(parsedArgs);
       break;
+    case "validate-handoff-brief":
+      cmdValidateHandoffBrief(parsedArgs);
+      break;
+    case "ledger-validate":
+      cmdLedgerValidate(parsedArgs);
+      break;
     default:
-      error(`Unknown command: ${command}. Valid: validate-stage-entry, validate-stage-output, checkpoint-state, validate-manifest, verify-must-haves, update-wave-tracking, verify-decision-coverage, verify-requirements-coverage, verify-test-immutability, override-test`);
+      error(`Unknown command: ${command}. Valid: validate-stage-entry, validate-stage-output, checkpoint-state, validate-manifest, verify-must-haves, update-wave-tracking, verify-decision-coverage, verify-requirements-coverage, verify-test-immutability, override-test, validate-handoff-brief, ledger-validate`);
   }
 }
 
-module.exports = { cmdValidateStageEntry, cmdValidateStageOutput, cmdCheckpointState, cmdValidateManifest, cmdVerifyMustHaves, cmdUpdateWaveTracking, cmdVerifyDecisionCoverage, cmdVerifyRequirementsCoverage, cmdVerifyTestImmutability, cmdOverrideTest, parseRoutesFile };
+module.exports = { cmdValidateStageEntry, cmdValidateStageOutput, cmdCheckpointState, cmdValidateManifest, cmdVerifyMustHaves, cmdUpdateWaveTracking, cmdVerifyDecisionCoverage, cmdVerifyRequirementsCoverage, cmdVerifyTestImmutability, cmdOverrideTest, cmdValidateHandoffBrief, cmdLedgerValidate, parseRoutesFile };
 if (require.main === module) main();

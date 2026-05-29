@@ -41,7 +41,7 @@ Mode is selected by the user during DISCOVER Zone 4 (HOW zone) and LOCKED in the
 | Discuss depth | Quick visual direction (2-3 questions) | Standard WHAT + HOW | Deep + wireframe skill (5 options) |
 | Execute agents | 1 agent (Explore for dedup) | 2 agents (Explore + ui-designer) | 2 agents + boardroom debate |
 | DESIGN_SPEC detail | Core components only, minimal states | All components, standard states | All components + all states + animation + responsive |
-| Backend check | List missing endpoints | Full Backend Requirements Check | Full check + contract stub |
+| Backend check | List unmet data needs | Full Backend Requirements Check | Full check + feature brief |
 
 ### PLAN Phase
 

@@ -63,7 +63,7 @@ Loaded context from DESIGN:
 - [N] LOCKED decisions: U-01 (description), U-02 (description), ...
 - Execution mode: [Expansion/Hold/Reduction]
 - Component inventory: [N] new, [N] reused, [N] extended
-- Backend status: [all exist / contract stub at .dev/design/backend-contract-stub.md]
+- Backend status: [all data needs served / feature brief at .dev/design/backend-feature-brief.md]
 - Design spec: .dev/design/execute-design-spec.md
 ```
 
@@ -177,7 +177,7 @@ Define what the combined Execute output must achieve:
 - Every decision has WHY + alternatives rejected (no exceptions)
 - Every confirmed requirement from DISCOVER has a corresponding task
 - Waves are logical — no circular dependencies, dependencies respected
-- Backend blockers identified and flagged with expected contracts
+- Backend blockers identified and flagged — unmet data needs captured in the feature brief (no contracts authored)
 - Task breakdown follows 30min-2.5hr sizing rule
 
 ### Task Breakdown Format
@@ -288,15 +288,17 @@ Tasks within a wave run in parallel. Waves run sequentially. One file = one task
 
 Overall feature done-definition: locked decisions implemented, API integrations handle loading/error/empty states, responsive, WCAG 2.1 AA compliant, plus feature-specific criteria from DISCOVER.
 
-#### 5. Backend Dependency Status
+#### 5. Backend Data Needs (NO contract authoring)
+
+The frontend does NOT author the API contract — no endpoints, methods, request/response shapes. Record only the **data needs** (prose) and whether they're served. The contract is the backend's to design; unmet needs were captured in `.dev/design/backend-feature-brief.md` during DESIGN and handed off to the backend (→ DISCOVER).
 
 ```markdown
-| Endpoint | Method | Expected Request | Expected Response | Status |
-|----------|--------|-----------------|-------------------|--------|
-| /api/v1/bookings | POST | { student_id, slot_id } | { booking: { id } } | MISSING |
+| Surface / data need (prose) | Already served? | Status |
+|-----------------------------|-----------------|--------|
+| "booking confirmation shows the slot time + student name" | NO | captured in feature brief, handed off |
 ```
 
-If ANY endpoint is MISSING: flag as blocker, record expected contracts, surface in Review for user decision (proceed with mocks vs PAUSE).
+If ANY need is unmet: PLAN builds against **local-only provisional mocks** (never shapes handed to the backend) and surfaces in Review (parallel-with-mocks vs PAUSE). Never write Expected Request/Response here — that's the leak this redesign removes.
 
 #### 6. Architecture Diagrams (D2 + ASCII)
 
@@ -359,7 +361,7 @@ Run each check. For each: evidence-based pass/fail.
 1. **Every decision has WHY + alternatives rejected** — scan decision log, reject entries missing either field
 2. **Every requirement from DISCOVER has a corresponding task** — cross-reference confirmed requirements against task list
 3. **Wave groupings are logical** — no circular dependencies, dependencies between waves respected, no two tasks in the same wave touching the same file
-4. **Backend blockers identified and flagged** — missing endpoints have expected contracts documented
+4. **Backend blockers identified and flagged** — unmet data needs captured in the feature brief (no contracts authored)
 5. **Task sizing** — no task estimated above 2.5hr, no task below 20min
 6. **Requirements artifact checks:**
    - [ ] `requirements.md` exists with checkable requirement IDs
@@ -415,7 +417,7 @@ Review the architecture decisions for backend dependencies:
 
 Cross-stack work does NOT block the frontend pipeline — it flags that backend work should be coordinated (either already done or needs a separate `/dev` run on the backend).
 
-**v4.0 note:** Backend status was already determined in DESIGN Review. If a contract stub exists at `.dev/design/backend-contract-stub.md`, PLAN should use it for mock data typing in the task breakdown.
+**Note:** Backend status was already determined in DESIGN Review. If a feature brief exists at `.dev/design/backend-feature-brief.md`, PLAN builds against **local-only provisional mocks** (the brief carries no shapes — the backend owns the contract). Swap mocks → real contract when the shared ledger marks it landed (`CONTRACT-LANDED`).
 
 ### Surface Gaps
 
@@ -594,7 +596,7 @@ Execute outputs:
   2. Task List (ID, files, acceptance criteria, wave, agent)
   3. Wave Groupings (parallel tasks, sequential waves)
   4. Acceptance Criteria (feature-level done-definition)
-  5. Backend Dependency Status (EXISTS/MISSING per endpoint)
+  5. Backend Data Needs (served / handed off via feature brief — NO contract authoring)
 
 PLAN always routes to DOCUMENT. No conditional skip.
 No tiers. No prompt-transitions/. review-*.md = context bridge.

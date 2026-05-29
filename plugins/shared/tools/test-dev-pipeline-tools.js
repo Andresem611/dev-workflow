@@ -834,6 +834,78 @@ function test13_overrideTestTypedAttestation() {
 }
 
 // ─────────────────────────────────────────────────
+// Test 14-15: ledger-validate (append-only + supersession)
+// ─────────────────────────────────────────────────
+function test14_ledgerValidatePass() {
+  const name = "ledger-validate pass";
+  const tmp = mktemp("t14");
+  try {
+    writeFile(tmp, ".dev/shared-decision-ledger.md",
+      "# Shared Decision Ledger: Test\n\n" +
+      "| ID | Decision | Scope | Status | Superseded By | Changed By | Date | Reason |\n" +
+      "|----|----------|-------|--------|---------------|------------|------|--------|\n" +
+      "| SD-01 | Card shows name + rating | product | ACTIVE | — | FE | 2026-05-29 | DESIGN spec |\n" +
+      "| SD-02 | On-demand fetch | contract | SUPERSEDED | SD-03 | BE | 2026-05-30 | reuse existing endpoint |\n" +
+      "| SD-03 | Reuse dashboard endpoint | contract | ACTIVE | — | BE | 2026-05-30 | supersedes SD-02 |\n");
+    const { stdout } = run(["ledger-validate", tmp, "--plugin", "frontend"], tmp);
+    report(name, stdout.includes('"valid": true'), "stdout: " + stdout.slice(0, 120));
+  } finally {
+    fs.rmSync(tmp, { recursive: true, force: true });
+  }
+}
+
+function test15_ledgerValidateFail() {
+  const name = "ledger-validate fail (superseded missing fields)";
+  const tmp = mktemp("t15");
+  try {
+    writeFile(tmp, ".dev/shared-decision-ledger.md",
+      "# Shared Decision Ledger: Test\n\n" +
+      "| ID | Decision | Scope | Status | Superseded By | Changed By | Date | Reason |\n" +
+      "|----|----------|-------|--------|---------------|------------|------|--------|\n" +
+      "| SD-01 | A decision | contract | SUPERSEDED | — | | | |\n");
+    const { stdout } = run(["ledger-validate", tmp, "--plugin", "frontend"], tmp);
+    report(name, stdout.includes('"valid": false'), "stdout: " + stdout.slice(0, 120));
+  } finally {
+    fs.rmSync(tmp, { recursive: true, force: true });
+  }
+}
+
+// ─────────────────────────────────────────────────
+// Test 16-17: validate-handoff-brief (leak guard)
+// ─────────────────────────────────────────────────
+function test16_validateHandoffBriefClean() {
+  const name = "validate-handoff-brief clean";
+  const tmp = mktemp("t16");
+  try {
+    writeFile(tmp, ".dev/design/backend-feature-brief.md",
+      "# Backend Feature Brief: Test\n\n" +
+      "## What the frontend needs (prose)\n" +
+      "- The review card needs the reviewer's first name, a star rating, a short quote, and the lesson date.\n\n" +
+      "## Existing backend systems this touches (names only)\n" +
+      "- Likely touches the Review and Booking models and the teacher dashboard endpoints — backend to confirm.\n");
+    const { stdout } = run(["validate-handoff-brief", tmp, "--plugin", "frontend"], tmp);
+    report(name, stdout.includes('"valid": true'), "stdout: " + stdout.slice(0, 160));
+  } finally {
+    fs.rmSync(tmp, { recursive: true, force: true });
+  }
+}
+
+function test17_validateHandoffBriefLeak() {
+  const name = "validate-handoff-brief leak";
+  const tmp = mktemp("t17");
+  try {
+    writeFile(tmp, ".dev/design/backend-feature-brief.md",
+      "# Backend Feature Brief: Test\n\n" +
+      "## Endpoints\n- GET /api/v1/reviews returns the list\n\n" +
+      "## Schema\ncreate_table :reviews do |t|\n  t.string :body\nend\n");
+    const { stdout } = run(["validate-handoff-brief", tmp, "--plugin", "frontend"], tmp);
+    report(name, stdout.includes('"valid": false'), "stdout: " + stdout.slice(0, 160));
+  } finally {
+    fs.rmSync(tmp, { recursive: true, force: true });
+  }
+}
+
+// ─────────────────────────────────────────────────
 // Run all tests
 // ─────────────────────────────────────────────────
 function main() {
@@ -851,6 +923,10 @@ function main() {
     test11_verifyTestImmutabilityPass,
     test12_verifyTestImmutabilityFail,
     test13_overrideTestTypedAttestation,
+    test14_ledgerValidatePass,
+    test15_ledgerValidateFail,
+    test16_validateHandoffBriefClean,
+    test17_validateHandoffBriefLeak,
   ];
 
   for (const testFn of tests) {

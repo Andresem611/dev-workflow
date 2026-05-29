@@ -14,7 +14,7 @@ in the shared reference. Read it first; this file only covers what differs.
 INTAKE -> DISCOVER -> DESIGN -> [BACKEND GATE] -> PLAN -> DOCUMENT -> BUILD -> VALIDATE -> SHIP
 ```
 
-**v4.0 change:** DESIGN runs BEFORE PLAN so architecture decisions are informed by the actual UI spec. The backend gate in DESIGN Review checks for missing API endpoints and produces a contract stub if needed.
+**v4.0 change:** DESIGN runs BEFORE PLAN so architecture decisions are informed by the actual UI spec. The backend gate in DESIGN Review checks for unmet backend data needs and produces a requirements-only feature brief if needed.
 
 **DESIGN always runs** (D15) -- it is not conditional on domain tags or feature type.
 Every frontend feature passes through DESIGN between DISCOVER and PLAN.
@@ -132,9 +132,9 @@ Mode can be upgraded mid-pipeline (never downgraded). LOCKED in Decision Ledger.
 
 ## Backend Gate (v4.0.0)
 
-DESIGN Review includes a Backend Requirements Check. When endpoints are MISSING, produces `backend-contract-stub.md` (requirements-only, no architecture). See `references/backend-contract-stub-template.md`.
+DESIGN Review includes a Backend Requirements Check. When backend data needs are unmet, produces `backend-feature-brief.md` (requirements-only — no shapes/architecture; validated by `validate-handoff-brief`). See `references/backend-feature-brief-template.md`. The backend designs the contract — the FE never authors it.
 
-User chooses: proceed with mocks / pause + handoff / both parallel.
+User chooses: parallel (local-only mocks + CONTRACT-LANDED monitor) / pause + handoff. The brief routes to the backend as "frontend handoff" → DISCOVER.
 
 ---
 
@@ -189,4 +189,4 @@ Every `architect-*.md` artifact includes an Orchestration Log with these mandato
 | D20 | **Echo-back.** Every Discuss stage must echo-back LOCKED decisions from the bridge before asking questions. Failed echo-back = re-read bridge. |
 | D21 | **4-Zone Discuss.** DISCOVER uses WHY/WHO/WHAT/HOW zones. Other phases use adapted versions. See `discuss-zones-reference.md`. |
 | D22 | **Mode-driven depth.** Execution mode set in DISCOVER Zone 4 propagates to all phases. Can upgrade, never downgrade. See `mode-propagation-reference.md`. |
-| D23 | **Backend gate.** DESIGN Review checks for missing backend endpoints and produces contract stub if needed. See `backend-contract-stub-template.md`. |
+| D23 | **Backend gate.** DESIGN Review checks for unmet backend data needs and produces a requirements-only feature brief if needed (FE never authors the contract). See `backend-feature-brief-template.md`. |

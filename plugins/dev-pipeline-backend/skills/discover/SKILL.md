@@ -47,6 +47,21 @@ Extract:
 - Requirements captured during INTAKE
 - Codebase scan findings (shallow)
 
+### 1b. Frontend Handoff — Read Allow-listed FE Context (CONDITIONAL)
+
+If MANIFEST has a `## Frontend Handoff` section (entry mode = frontend handoff), read the FE context to ground the contract design in product intent. Use the FE feature-dir absolute path from the MANIFEST.
+
+**ALLOW-LIST (read these):**
+- The feature brief: `<FE-path>/design/backend-feature-brief.md` (data-needs + binding UX behaviors)
+- `PRODUCT.md` at the FE repo root (product intent, voice, users) — if present
+- The FE design spec: `<FE-path>/design/execute-design-spec.md`
+- The FE `MANIFEST.md` and the shared decision ledger
+- `DESIGN.md` at the FE repo root — if present
+
+**NEVER read at the orchestrator level:** the FE API layer (`lib/*-api.ts`, `types/`, mocks). Reading FE-authored shapes here would poison the clean-room contract baseline. The FE API layer is read ONLY by the shape-aware competitor (Agent 2) in Execute — never by the orchestrator or the clean-room agent.
+
+Cross-repo read is allow-listed (`Read(//<thoven-root>/**)`); INTAKE ensured the grant. The brief states needs, not shapes — the contract is yours to design.
+
 ### Questioning Philosophy: Interrogation for Clarity
 
 **Do not check boxes. Interrogate.**
@@ -152,6 +167,7 @@ Use `/prompt-generator` to craft every subagent prompt. Prompt quality IS archit
 | rails-expert | agent | Produce design doc: business logic, data model, service boundaries, API design | Always |
 | master-backend-ai-rails | agent | Deep analysis of database schema, migration strategy, query patterns | When data model changes are involved |
 | architecture-reviewer | agent | Validate design against system architecture, assess coupling and scalability | COMBINATION+ complexity or new subsystems |
+| Contract competition (rails-expert clean-room + api-documenter shape-aware + architecture-reviewer judge) | agents | FE-facing contract surface for handoff features — see Execute step 2b | Frontend-handoff features |
 
 ### 3. Define Success Criteria
 
@@ -220,7 +236,30 @@ Dispatch with crafted prompt from Architect, Explore findings as input, and all 
 
 The rails-expert produces: business logic specification, data model design, service layer architecture (**D2 syntax preferred** for service dependency and data flow diagrams — render to SVG via `d2 <file>.d2 <file>.svg --layout=elk`, store in `docs/[Feature]/.dev/discover/diagrams/`, fallback to ASCII if `d2` unavailable), API endpoint contracts, error handling strategy, and authorization rules.
 
+**For frontend-handoff features, rails-expert does NOT author the FE-facing contract surface — that comes from the competition in step 2b.** rails-expert still produces business logic, data model, services, error handling, and authorization (the backend internals, which the FE has no opinion on).
+
 Collect results. Check against rails-expert success criteria from Architect.
+
+### 2b. Contract-Surface Competition (CONDITIONAL — frontend-handoff features only)
+
+For a frontend-handoff feature, the FE-facing **contract surface** (endpoints + serializer/response shapes) is NOT designed by a single agent. It comes from a competition + judge:
+
+**Agent 1 — clean-room contract designer (`rails-expert`):**
+- The orchestrator INJECTS into the prompt: the allow-listed product/UX context (Stage 1b) + the brief's data-needs + binding UX behaviors. Agent 1 gets NO FE feature path and is told it may NOT read the FE API layer.
+- It designs the contract surface from product intent + the backend's own codebase + REST/serializer best practice. Structurally unpoisonable — it cannot see FE-authored shapes.
+
+**Agent 2 — shape-aware contract designer (`api-documenter`):**
+- Given the FE feature-dir path AND permitted to read the FE API layer (`lib/*-api.ts`, `types/`, mocks) — "the suggestions" — plus the same product/UX context.
+- It designs the contract surface informed by what the FE already has.
+
+Dispatch Agent 1 and Agent 2 in PARALLEL.
+
+**Judge (`architecture-reviewer`):** Compares the two contract designs. Produces (a) a **recommended contract surface**, (b) an **agreement report** (where both converged = high confidence), (c) a **divergence report**.
+- **Attribute divergences carefully:** Agent 1 and Agent 2 differ in BOTH context (clean-room vs shape-aware) AND agent type (rails-expert vs api-documenter), so a divergence is NOT automatically "FE-shape pull." For each divergence the judge states the likely cause (FE-shape influence / capability-or-style difference / genuine trade-off) and picks the best-practice option. FE shapes inform, never dictate.
+
+**Scope:** ONLY the FE-shared contract surface. DB schema, models, migrations, internal services = normal full-context design (rails-expert / master-backend-ai-rails) — no competition there.
+
+The judge's recommended contract + reports go into the Execute design doc (replacing rails-expert's contract section for this feature) and bridge to PLAN, which locks the contract.
 
 ### 3. Dispatch master-backend-ai-rails Agent (CONDITIONAL)
 
@@ -382,6 +421,9 @@ State persists to disk (MANIFEST + stage artifacts). Nothing is lost on `/clear`
 | rails-expert | agent | Business logic design, service architecture, API contracts, data model | Always (Execute step 2) |
 | master-backend-ai-rails | agent | Schema analysis, migration strategy, query optimization, index planning | When data model changes are involved (Execute step 3) |
 | architecture-reviewer | agent | Architecture fit, coupling analysis, scalability, system alignment | COMBINATION+ complexity or new subsystems (Execute step 4) |
+| rails-expert (clean-room) | agent | Clean-room contract-surface designer — product/UX context only, no FE shapes | Frontend-handoff features (Execute step 2b) |
+| api-documenter | agent | Shape-aware contract-surface designer — reads the FE API layer ("suggestions") | Frontend-handoff features (Execute step 2b) |
+| architecture-reviewer (judge) | agent | Judges the two contract designs — recommended contract + divergence report | Frontend-handoff features (Execute step 2b) |
 
 ---
 
@@ -402,6 +444,8 @@ State persists to disk (MANIFEST + stage artifacts). Nothing is lost on `/clear`
 | Skipping stage entry validation | Run `validate-stage-entry` before every stage — no exceptions |
 | Continuing past Review without approval | Review requires explicit user acceptance before proceeding |
 | Mixing user and student auth patterns | Always check which auth system applies — dual auth is a common source of bugs |
+| Designing the FE contract with one agent on a handoff | Use the step 2b competition (clean-room rails-expert + shape-aware api-documenter + architecture-reviewer judge) for the FE-facing contract surface |
+| Orchestrator or clean-room agent reading the FE API layer | NEVER — it poisons the clean-room baseline. Only the shape-aware Agent 2 reads FE shapes (`lib/*-api.ts`, `types/`) |
 
 ---
 

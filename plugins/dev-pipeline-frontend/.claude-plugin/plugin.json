@@ -1,7 +1,7 @@
 {
   "name": "dev-pipeline-frontend",
-  "description": "Frontend development pipeline v5.1.0 — personas, TDD strict-edit guardrail, decomposition, cross-model review (Codex consult Hold+Expansion; configurable via DEV_PIPELINE_CROSS_MODEL), EARS-within-categorical-prefixes requirements, real-system verification (Two-Client Smoke, Live-BE Vitest, Curl Contract Gate), decision + requirement binding (verify-requirements-coverage, Phase Boundary Aggregation), MANIFEST Dependencies typed, visual QA, behavior-slice tasks, design mockup gates, design-stack primitives integration (PRODUCT.md, DESIGN.md, impeccable opt-in, GSAP motion routing)",
-  "version": "5.1.0",
+  "description": "Frontend development pipeline v5.3.0 — requirements-only backend handoff (feature brief, no API shapes; validate-handoff-brief leak guard; backend routes handoff to DISCOVER) + shared append-only cross-stack decision ledger (supersession + provenance) with CONTRACT-LANDED monitor, personas, TDD strict-edit guardrail, decomposition, cross-model review (Codex consult Hold+Expansion; configurable via DEV_PIPELINE_CROSS_MODEL), EARS-within-categorical-prefixes requirements, real-system verification (Two-Client Smoke, Live-BE Vitest, Curl Contract Gate), decision + requirement binding (verify-requirements-coverage, Phase Boundary Aggregation), MANIFEST Dependencies typed, visual QA, behavior-slice tasks, design mockup gates, design-stack primitives integration (PRODUCT.md, DESIGN.md, impeccable opt-in, GSAP motion routing)",
+  "version": "5.3.0",
   "author": {
     "name": "Thoven",
     "email": "andres@thoven.co"

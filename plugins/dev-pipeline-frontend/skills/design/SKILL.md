@@ -1,6 +1,6 @@
 ---
 name: design
-description: Creates visual specifications for a frontend feature. Reads DISCOVER bridge, performs backend requirements check, produces contract stubs when endpoints are missing AND MANIFEST Dependencies reconciliation against package.json. Produces full DESIGN_SPEC with Tailwind classes, typography, animation, responsive behavior, and accessibility. ALWAYS RUNS in frontend pipeline. Triggers on /dev:design or when /dev router advances past DISCOVER.
+description: Creates visual specifications for a frontend feature. Reads DISCOVER bridge, performs backend requirements check, produces a requirements-only feature brief when backend data needs are unmet AND MANIFEST Dependencies reconciliation against package.json. Produces full DESIGN_SPEC with Tailwind classes, typography, animation, responsive behavior, and accessibility. ALWAYS RUNS in frontend pipeline. Triggers on /dev:design or when /dev router advances past DISCOVER.
 ---
 
 # /dev:design — Visual Specification + Design System Compliance
@@ -333,37 +333,52 @@ Check Execute output against Architect's success criteria. Every check is eviden
 
 ### Backend Requirements Check (v4.0 — MANDATORY)
 
-After verifying the design spec, check all interactions in the DESIGN_SPEC for backend API dependencies.
+After verifying the design spec, check each interaction in the DESIGN_SPEC for backend **data needs** — what data the UI needs, NOT the endpoint or shape that should provide it. The frontend never authors the contract; it states needs and lets the backend design the contract (see `references/backend-feature-brief-template.md`).
 
-**Step 1: Derive API calls from design interactions**
+**Step 1: Derive data needs from design interactions**
 
-For each component interaction in the DESIGN_SPEC (button clicks, form submissions, data displays, real-time updates), identify what backend endpoint it requires.
+For each component interaction in the DESIGN_SPEC (button clicks, form submissions, data displays, real-time updates), describe **in prose** the data the surface needs to function plus the binding UX behavior — e.g. "the card shows the reviewer's first name, a star rating, a short quote, and the lesson date." Do NOT write endpoints, methods, or response shapes.
 
-**Step 2: Check endpoint status**
+**Step 2: Audit whether the need is already met**
 
-| Interaction | Endpoint Needed | Method | Status |
-|-------------|----------------|--------|--------|
-| [from DESIGN_SPEC] | [endpoint] | [GET/POST/etc] | EXISTS / MISSING |
+| Surface / data need (prose) | Already served? | Evidence |
+|-----------------------------|-----------------|----------|
+| [from DESIGN_SPEC] | YES / PARTIAL / NO | [lib/*-api.ts path or "not found"] |
 
-Check against `lib/*-api.ts` files and `docs/API_ENDPOINTS_REFERENCE.md` if available.
+Audit against `lib/*-api.ts` and `docs/API_ENDPOINTS_REFERENCE.md`. This is an audit ("does this exist?"), not a contract design.
 
-**Step 3: If any MISSING endpoints detected**
+**Step 3: If any need is unmet (PARTIAL/NO)**
 
-Produce `backend-contract-stub.md` using the template from `references/backend-contract-stub-template.md`. Place it at `.dev/design/backend-contract-stub.md`.
+Produce a requirements-only **feature brief** using `references/backend-feature-brief-template.md`. Place it at `.dev/design/backend-feature-brief.md`. It carries the FE feature-dir absolute path + the shared-ledger pointer, and contains NO API shapes — the backend designs the contract.
+
+Then validate it — this hard-blocks the handoff if any shape/schema/migration/endpoint dictation leaks in:
+
+```bash
+node ${PLUGIN_ROOT}/../shared/tools/dev-pipeline-tools.js validate-handoff-brief docs/[feature] --plugin frontend
+```
+
+If it fails, rewrite the brief to remove the flagged dictation and re-run. Never hand off a brief that fails the check.
+
+**Initialize the shared decision ledger.** If `<FE-feature>/.dev/shared-decision-ledger.md` does not exist, create it from `${PLUGIN_ROOT}/../shared/references/shared-decision-ledger-template.md` and seed it with the contract-affecting product/design decisions (Scope = product/design, Status = ACTIVE, Changed By = FE). Record its absolute path in the brief's `Shared decision ledger:` field. Validate with:
+
+```bash
+node ${PLUGIN_ROOT}/../shared/tools/dev-pipeline-tools.js ledger-validate docs/[feature] --plugin frontend
+```
+
+This ledger is the single source of truth for cross-stack decisions — append-only, with supersession + provenance. The FE owns it; the backend records its decisions in its own artifacts and the FE transcribes them on resume (see the shared-decision-ledger template).
 
 Present via AskUserQuestion:
 
-> "[N] backend endpoints needed for this design don't exist yet."
+> "[N] backend data needs for this design aren't served yet. The backend will design the contract from this brief."
 >
-> - **A) Proceed to PLAN with typed mocks** — Frontend builds against mock data. Swap for real API when backend delivers. Backend contract stub saved for handoff.
-> - **B) Pause frontend, hand off to backend** — Produce the contract stub and pause. Resume after backend `/dev:handover` delivers confirmed contract.
-> - **C) Both in parallel** — Frontend proceeds with mocks AND backend starts building from the contract stub.
+> - **A) Parallel (default)** — Hand the brief to the backend (`/dev` in the backend repo → "frontend handoff" → DISCOVER). The FE proceeds to PLAN building against **local-only provisional mocks** (never in the brief), and sets a monitor on the shared ledger for the `CONTRACT-LANDED` marker; swap mocks → real contract on resume.
+> - **B) Pause + handoff** — Produce the brief and pause the FE at DESIGN. Resume when the shared ledger marks the contract landed.
 
 Record the choice in the Decision Ledger as a LOCKED decision.
 
-**Step 4: If all endpoints exist**
+**Step 4: If all needs are already served**
 
-State: "All backend endpoints exist. No contract stub needed." Proceed to the brand rules checklist.
+State: "All backend data needs are already served. No feature brief needed." Proceed to the brand rules checklist.
 
 ### Thoven Brand Rules Checklist (MANDATORY)
 
@@ -431,7 +446,7 @@ Multiple passes allowed. Each pass's output annotates the spec; user re-approves
 
 After all review checks pass (brand rules, dedup, responsive, accessibility, backend requirements), present the complete design to the user via `AskUserQuestion`:
 
-"Design spec complete. Summary: [N components, responsive at 3 breakpoints, brand rules: all 5 pass, backend: all endpoints exist / N missing with contract stub]."
+"Design spec complete. Summary: [N components, responsive at 3 breakpoints, brand rules: all 5 pass, backend: all data needs served / N unmet → feature brief produced]."
 
 "Review the full spec at `.dev/design/execute-design-spec.md` and approve before advancing to PLAN."
   A) Approve — advance to PLAN
@@ -468,7 +483,7 @@ The next phase's Architect must address each listed agent — silent omission is
 
 This artifact IS the context bridge to the PLAN phase. It must follow `references/bridge-template.md` format. It must contain:
 - LOCKED decisions from Decision Ledger (including any new design decisions made in this phase)
-- Backend requirements status (all exist / contract stub produced)
+- Backend requirements status (all data needs served / feature brief produced)
 - Summary of what was designed (component inventory, visual direction)
 - Brand compliance verdict (all 5 checks with evidence)
 - Dedup decision and rationale
@@ -583,7 +598,8 @@ No borders. No `font-display`. Shadow uses `rgb(217,119,6)` exclusively.
 | Producing spec inline | Always dispatch ui-designer agent |
 | Missing responsive/a11y | Must specify all breakpoints + ARIA/focus/contrast/touch |
 | Reading plan bridge instead of discover | v4.0: DESIGN reads `.dev/discover/review-design-approval.md`, not PLAN bridge |
-| Skipping backend requirements check | Backend check is MANDATORY in DESIGN Review — missing endpoints not caught until BUILD otherwise |
+| Skipping backend requirements check | Backend check is MANDATORY in DESIGN Review — unmet data needs not caught until BUILD otherwise |
+| Authoring API shapes/endpoints in the brief | The brief is requirements-only — `validate-handoff-brief` hard-blocks shape/schema/migration leaks; the backend designs the contract |
 | Routing to DOCUMENT after DESIGN | v4.0: PLAN comes after DESIGN — Next Up must route to `/dev:plan` |
 | Not adding design decisions to ledger | Add OPEN entries for design decisions, promote to LOCKED in Review — otherwise PLAN can't reference them |
 | Ignoring DESIGN.md when present | If `DESIGN.md` loaded in Step 0, it IS source-of-truth; inline rules are guardrails only |

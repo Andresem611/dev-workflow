@@ -50,6 +50,13 @@ Use `AskUserQuestion` for EVERY question. One question at a time. NEVER batch mu
 
 If ANY cross-stack signal detected: tag MANIFEST metadata with `Cross-Stack: frontend` and document what the frontend needs in the classification artifact.
 
+**Frontend Handoff Capture (CONDITIONAL — when the input is a feature brief from FE `/dev:design`):**
+
+If this intake is a frontend handoff (the user pasted a `backend-feature-brief.md`):
+1. Extract from the brief header: the **FE feature-dir absolute path** and the **shared decision ledger** pointer.
+2. Record them in the MANIFEST under a `## Frontend Handoff` section (FE path, brief location, ledger pointer) so DISCOVER can read the allow-listed FE context. The brief is requirements-only — treat its data-needs + binding UX behaviors as inputs to architect from, NOT a contract to implement.
+3. **Ensure cross-repo read access.** DISCOVER reads the FE context by absolute path. Confirm the consuming repo's `.claude/settings.local.json` `permissions.allow` includes `Read(//<thoven-root>/**)` (e.g. `Read(//Users/<you>/thoven/**)`). The main backend repo already has it; a fresh backend worktree may not — add it, or approve the read when prompted. Read-only — writes stay worktree-local (`project_thoven_paired_worktree_layout`).
+
 **HOW meta-questions** — Execution strategy:
 - "How deep should classification go?"
 - "Want me to do a quick codebase scan first?"
@@ -118,8 +125,9 @@ node ${PLUGIN_ROOT}/../shared/tools/dev-pipeline-tools.js validate-stage-entry i
 The subagent:
 1. Creates `docs/[Feature_Name]/.dev/MANIFEST.md` using the template from `references/manifest-template.md`
 2. Populates: feature name, description, entry mode, domain tags, current phase, status (`active`), empty phase progress table (INTAKE = in progress, rest = pending)
-3. Creates the `.dev/intake/` directory structure
-4. Does NOT include any tier field (tiers removed — D05)
+3. If entry mode is `frontend handoff`: adds a `## Frontend Handoff` section with the FE feature-dir absolute path, the feature-brief location, and the shared-ledger pointer (captured in Discuss) — DISCOVER reads these for the allow-listed FE context
+4. Creates the `.dev/intake/` directory structure
+5. Does NOT include any tier field (tiers removed — D05)
 
 ### Artifact
 
@@ -252,11 +260,13 @@ node ${PLUGIN_ROOT}/../shared/tools/dev-pipeline-tools.js validate-stage-output 
 |------|--------|-----------|
 | **Idea dump** | Rough idea, exploratory language | DISCOVER |
 | **Tech spec** | PRD, spec doc, detailed requirements | PLAN (skip DISCOVER) |
-| **Frontend handoff** | "Frontend needs this API", endpoint requests | PLAN |
+| **Frontend handoff** | Frontend feature brief (requirements-only handoff from FE `/dev:design`) | DISCOVER |
 | **Bug/issue** | "broken", "error", stack traces | BUILD (investigate) |
 | **Kiro spec** | `.kiro/specs/` dir present, EARS requirements pasted (WHEN…SHALL lines), or "Kiro spec ready" | PLAN (skip DISCOVER) |
 | **CEK SDD spec** | `.specs/tasks/todo/` dir present, arc42 spec pasted, or "CEK spec ready" | PLAN (skip DISCOVER) |
 | **Resume** | Existing MANIFEST found | Current phase from MANIFEST |
+
+**Frontend handoff routes to DISCOVER, NOT PLAN.** A frontend feature brief is requirements-only — not a locked spec. The backend must run its own architecture decisions: audit what already exists, then design the API contract from its real codebase (the DISCOVER contract-surface competition). Treating the brief like a tech spec (skip-DISCOVER → PLAN) is the "went straight into planning" bug. The brief carries the FE feature-dir absolute path; the backend reads FE product/design/UX context (allow-listed cross-repo read) during DISCOVER. (Design rationale: FE→BE handoff redesign, D5.)
 
 ---
 
@@ -290,6 +300,7 @@ No `prompt-transitions/` directory. The `review-classification-confirmed.md` ser
 | Creating `prompt-transitions/` directory | v1.x pattern removed — `review-*.md` IS the context bridge |
 | Skipping codebase scan when user opts in | Dispatch Explore agent if user says yes during Discuss (D09) |
 | Missing data model context in Discuss | Ask about models, tables, and service boundaries early |
+| Routing a frontend handoff to PLAN (skip DISCOVER) | A feature brief is requirements-only, not a spec — route to DISCOVER so the backend audits existing systems and designs the contract itself |
 
 ---
 
@@ -304,7 +315,7 @@ Review: validate-manifest + user confirms -> review-classification-confirmed.md
 Entry Mode -> Target Phase:
   Idea dump        -> DISCOVER
   Tech spec        -> PLAN
-  Frontend handoff -> PLAN
+  Frontend handoff -> DISCOVER (backend designs the contract; never skip to planning)
   Bug/issue        -> BUILD (investigate)
   Kiro spec        -> PLAN (skip DISCOVER; spec artifacts seed architecture + acceptance criteria)
   CEK SDD spec     -> PLAN (skip DISCOVER; arc42 spec seeds architecture + acceptance criteria)

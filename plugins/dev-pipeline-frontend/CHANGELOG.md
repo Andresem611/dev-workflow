@@ -4,6 +4,46 @@ All notable changes to the `dev-pipeline-frontend` plugin are documented here. F
 
 ---
 
+## v5.3.0 — FE→BE Handoff Redesign (Phase 3: shared decision ledger + monitor)
+
+**Released:** 2026-05-29
+
+Phase 3 — the divergence layer. One canonical, FE-owned, git-backed, append-only **shared cross-stack decision ledger** (supersession + provenance) is the single source of truth for product/contract/design decisions both repos depend on. Companion `dev-pipeline-backend` v3.9.0.
+
+### Added
+- **`shared/references/shared-decision-ledger-template.md`** — append-only ledger format (Scope · Status ACTIVE/SUPERSEDED · Superseded By · Changed By · Date · Reason) + the `CONTRACT-LANDED` marker convention + the BE-writes-own / FE-transcribes write path.
+- **`ledger-validate`** in `shared/tools/dev-pipeline-tools.js` — append-only + supersession integrity check (every SUPERSEDED row has Superseded By + Changed By + Date + Reason; unique IDs; valid status/scope). Tested (17/17 tool tests pass).
+- **`/dev:design`** initializes the canonical ledger at the FE feature dir, seeds it with contract-affecting product/design decisions, and records its path in the brief.
+- **`/dev` resume — backend-contract check:** reads the BE `CONTRACT-LANDED` marker (allow-listed cross-repo read), transcribes BE rows into the canonical ledger (flips superseded FE rows), then swaps local provisional mocks → the landed contract.
+
+### Notes
+- Writes stay worktree-local (`project_thoven_paired_worktree_layout`): the FE writes its own ledger; the BE writes `be-contract-decisions.md` + the marker in its own repo; the FE transcribes on resume (small propagation-delay window, by design).
+- The "link" is logical (runtime path), not an OS symlink; an optional local gitignored convenience symlink may exist for browsing.
+
+---
+
+## v5.2.0 — Frontend→Backend Handoff Redesign (Phase 1)
+
+**Released:** 2026-05-29
+
+Phase 1 of the FE→BE handoff redesign. Stops two bugs: the frontend authoring the API contract (boundary leak — the FE was writing request/response shapes and even migration strategy) and the backend treating the handoff as a locked spec (skip-to-planning). Full design + phased build order: `FE_TO_BE_HANDOFF_REDESIGN.md`.
+
+### Changed
+- **`/dev:design` backend gate** now derives backend **data needs** (prose) instead of endpoints/shapes, audits whether each is already served, and on an unmet need produces a **requirements-only feature brief** (`backend-feature-brief.md`) — never an API contract. The brief carries the FE feature-dir absolute path + the shared-ledger pointer. The 3 stub-era options collapse to **parallel (local-only mocks + `CONTRACT-LANDED` monitor)** or **pause + handoff**.
+- **`/dev:plan`** no longer authors "Expected Request/Expected Response" — section 5 is now **Backend Data Needs** (prose, no shapes). PLAN builds against local-only provisional mocks; the backend owns the contract.
+
+### Added
+- **`references/backend-feature-brief-template.md`** — requirements-only feature-brief format (audit-framed asks; explicit NEVER list of backend internals; FE path + ledger pointer).
+- **`validate-handoff-brief`** in `shared/tools/dev-pipeline-tools.js` — hybrid leak guard that hard-blocks the handoff if the brief dictates shapes/schema/migrations/endpoints (regex pre-filter; the skill runs an LLM-judge nuance pass). Verified: catches fenced shape blocks, `create_table`/`t.string`, `GET /api/v1/...`; passes prose that merely names models/endpoints.
+
+### Removed
+- **`references/backend-contract-stub-template.md`** — replaced by the feature-brief template. The stub authored response shapes, which poisoned the backend's contract design (an AI agent rubber-stamps a suggested shape into the spec).
+
+### Companion
+- **`dev-pipeline-backend` v3.7.0** routes a frontend handoff to **DISCOVER** (was PLAN / skip-DISCOVER) so the backend audits what exists and designs the contract itself.
+
+---
+
 ## v5.1.0 — Design-Stack Primitives Integration
 
 **Released:** 2026-05-15
