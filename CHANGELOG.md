@@ -5,6 +5,20 @@ All notable changes to the dev-pipeline plugin marketplace will be documented in
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [5.4.0] - 2026-05-31
+
+### Changed — Backend→Frontend round-trip closure (backend 3.10.0)
+
+Closes the return leg of the cross-stack round-trip. After a FE-initiated feature finishes the backend pipeline, the contract now returns to the FE with provenance — BUILD-time drift is captured, the shared ledger is reconciled, and the FE gets a ready-to-paste prompt before the backend ships. Full design: `BE_TO_FE_RETURN_LEG.md`.
+
+- **VALIDATE conditional routing** — `validate/SKILL.md` §4.7 now reads MANIFEST at run-time: `Cross-Stack: frontend` → routes to `/dev:handover`; backend-only features route to `/dev:ship` unchanged. HANDOVER was previously dead code for round-trip features because nothing routed to it.
+- **HANDOVER ledger-aware** — Stage 1 reads `be-contract-decisions.md` (PLAN-time rows) + VALIDATE's runtime API evidence. Stage 3 adds a new `3f` contract delta computation subagent (`api-designer`) that compares PLAN-promised vs ship-time actual row by row, producing a delta report with unchanged/drifted/new-fact lists and shape-affecting flags.
+- **CONTRACT-LANDED re-stamped at ship-time** — Stage 4 Accept appends superseded + new ACTIVE rows to `be-contract-decisions.md` (append-only, per shared-decision-ledger rules), then appends a second `CONTRACT-LANDED` marker stamped with ship-time location + "Delta: N rows." The PLAN-time marker stays as history.
+- **FE Reconciliation Prompt always emitted to chat** — Stage 4 Accept prints a copy-pasteable block with: FE feature dir, superseded row IDs + 1-line summary each, affected artifacts to re-review (PLAN always; DESIGN_SPEC if shape-affecting), `/dev` resume command, and closing guidance. Zero-drift case still prints ("No drift — swap mocks and continue").
+- **Idempotence invariant** — Ledger writes happen ONLY on Accept. Retry HANDOVER re-computes delta from current VALIDATE evidence and supersedes prior delta rows; never double-writes.
+- **5 edge cases handled** — zero-drift, retry-after-accept, cross-stack tag added post-INTAKE, missing `be-contract-decisions.md` (pre-5.3.0), and VALIDATE missing runtime evidence (emits "delta unknown" warning).
+- **Versions** — backend 3.9.0 → 3.10.0. No FE plugin changes — `dev-pipeline-frontend/skills/dev/SKILL.md:198` already handles BE writes correctly.
+
 ## [5.3.0] - 2026-05-29
 
 ### Changed — Frontend→Backend handoff redesign (frontend 5.3.0, backend 3.9.0)
