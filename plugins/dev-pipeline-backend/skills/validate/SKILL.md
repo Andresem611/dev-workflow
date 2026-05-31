@@ -543,18 +543,50 @@ Move the Dev Tracker card to "Code Review". Reference `references/notion-integra
 
 Update MANIFEST phase to VALIDATE complete. Display and STOP:
 
+**Cross-stack routing (MANDATORY — check before displaying Next Up):**
+
+Read MANIFEST at run-time using the feature-dir resolved from MANIFEST.md path (do not rely on INTAKE classification alone):
+
+```bash
+# <feature-dir> is the directory containing .dev/MANIFEST.md
+grep -F "Cross-Stack: frontend" <feature-dir>/.dev/MANIFEST.md
+# Exit 0 = exact match found → HANDOVER
+# Exit 1 = no match      → SHIP
+# Exit 2 = file/read error → surface error to user and stop
+```
+
+Handle exit codes explicitly:
+- **Exit 2 (file error):** warn "Could not read MANIFEST — check feature-dir path" and stop. Do not route silently.
+- **Exit 1 (no match):** route to SHIP.
+- **Exit 0 (match):** verify matched line contains exactly `Cross-Stack: frontend` (not a partial like `Cross-Stack: frontend-only`). Route to HANDOVER only on exact match; otherwise route to SHIP.
+
+If `Cross-Stack: frontend` is present (feature originated in FE, backend contract must return):
+
 ```
 ---
-Next Up
+▶ Next Up
+
+Phase: HANDOVER — Reconcile contract delta + hand back to FE pipeline
+Invoke: /dev:handover
+
+/clear first — fresh context window
+```
+
+If `Cross-Stack: frontend` is NOT present (backend-only or BE-initiated feature):
+
+```
+---
+▶ Next Up
 
 Phase: SHIP — Changelog + commit + deployment
-/dev:ship
+Invoke: /dev:ship
+
 /clear first — fresh context window
 ```
 
 State persists to disk (MANIFEST + stage artifacts). Nothing is lost on `/clear`.
 
-**STOP.** Do not invoke SHIP. Do not offer "continue in same session".
+**STOP.** Do not invoke HANDOVER or SHIP. Do not offer "continue in same session".
 
 ---
 

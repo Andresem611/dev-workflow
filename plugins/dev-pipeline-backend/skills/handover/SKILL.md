@@ -22,8 +22,33 @@ Conditional phase of the /dev pipeline. Takes a validated backend feature and pr
 Read `.dev/validate/review-ship-readiness.md` for validation results, caveats, and what was validated.
 Read MANIFEST for `Cross-Stack` tag and domain tags.
 
+**Round-trip detection (MANDATORY for FE-initiated features):**
+
+Check MANIFEST at runtime for the `Cross-Stack: frontend` tag (same check used in VALIDATE §4.7 routing):
+
+```bash
+grep -F "Cross-Stack: frontend" <feature-dir>/.dev/MANIFEST.md
+```
+
+If this is a round-trip handover (exit 0, exact match), perform this additional read before proceeding:
+
+1. **Read `<BE-feature>/.dev/be-contract-decisions.md`** — the PLAN-time contract rows. Extract all rows and the initial `CONTRACT-LANDED` marker.
+   - If file **does not exist**: emit warning to chat and set `round_trip_ledger = unavailable`:
+     ```
+     ⚠️ be-contract-decisions.md not found — this feature predates the shared ledger (5.3.0).
+     Skipping ledger reconciliation. Will still produce prose handover + manual FE prompt.
+     ```
+   - If file exists: set `round_trip_ledger = available`, note current row count and highest SD-NN ID.
+
+2. **Check VALIDATE runtime API evidence in `review-ship-readiness.md`** for the "Runtime API Verification" section.
+   - If server was unavailable (flag: "skipping runtime API verification"): set `runtime_evidence = unavailable`.
+   - If runtime verification ran: set `runtime_evidence = available`.
+
+Record these flags in the Discuss artifact. They determine behavior in Stage 3 and Stage 4.
+
 ### WHAT Questions (AskUserQuestion, one at a time)
 
+- What is the absolute path to the FE feature directory? (e.g., `/Users/andresmartinez/thoven/frontend/docs/[Feature]`) — **required for the FE Reconciliation Prompt; save as `discuss.feFeatureDir`**
 - What frontend framework/repo will consume this API?
 - Any frontend-specific constraints (state management, routing, auth UI)?
 - Does the frontend need real-time features (WebSocket/Action Cable)?
@@ -147,13 +172,46 @@ Only if user opted in during Discuss:
 - Recommended data flow
 - Real-time update handling suggestions
 
+#### 3f. Contract Delta Computation (CONDITIONAL — round-trip features only)
+
+Runs when `round_trip_ledger = available` from Discuss. Runs **after** 3a/3b/3c/3d — requires 3a's mismatch report, 3c's auth table, and 3d's error catalog as inputs. The `technical-writer` (3d) produces the prose handover doc independently; 3f produces the structured delta artifact used only in Stage 4 Accept.
+
+**Agent:** `api-designer`
+
+**Task:** Compare PLAN-time contract rows in `be-contract-decisions.md` against the ship-time reality from:
+- VALIDATE's `review-ship-readiness.md` (endpoint-by-endpoint runtime evidence)
+- 3a api-designer mismatch report (structural contract diff)
+
+For each row in `be-contract-decisions.md` with `Scope = contract` and `Status = ACTIVE`:
+
+| Check | Input source |
+|-------|-------------|
+| Endpoint still exists | 3a mismatch report + VALIDATE `review-ship-readiness.md` routes evidence |
+| Response shape unchanged | 3a serializer output vs row's `Decision` value |
+| Auth type unchanged | 3c auth table vs row |
+| Error codes unchanged | 3d error catalog (from `FRONTEND_HANDOVER_PROMPT.md` Error Catalog section) vs row |
+| Status codes unchanged | 3a status code table vs row |
+
+**Output:** A delta report with three lists:
+1. **Unchanged rows** — PLAN-promised matches ship-time (no action needed)
+2. **Drifted rows** — one entry per drifted row:
+   - Original row ID (e.g., `SD-03`)
+   - What changed (e.g., "response shape: added `student_count` field")
+   - Proposed new ACTIVE row content (ID, Decision, Scope=contract, Status=ACTIVE, Changed By=BE, Date=today, Reason)
+   - Whether the drift is **shape-affecting** (changes FE component data needs) vs **additive/non-breaking**
+3. **New contract facts** (endpoints/behaviors that exist in the build but had no PLAN-time row)
+
+If `runtime_evidence = unavailable`: output all rows as "delta unknown — runtime verification skipped." Do not mark any row as drifted or unchanged.
+
+**Output stored in:** `.dev/handover/execute-contract-delta.md`
+
 ### Failure Handling
 
 If a subagent fails: log the failure, continue with remaining agents, surface all failures in Review.
 
 ### Artifact: `.dev/handover/execute-handover-results.md`
 
-Results from all dispatched subagents, mismatch report, generated document path.
+Results from all dispatched subagents, mismatch report, generated document path, and (if round-trip) path to `execute-contract-delta.md`.
 
 **Tool:** `validate-stage-output handover execute <feature-dir> --plugin backend`
 
@@ -203,7 +261,53 @@ Options: Accept / Retry Execute / Back to Architect / Back to Discuss
 
 1. **Update MANIFEST:** Set `HANDOVER = complete`
 
-2. **Notion Update:** Move card to "Frontend Dev". Reference `references/notion-integration.md` for property names and MCP tool patterns.
+2. **Ledger reconciliation (round-trip features only — MANDATORY before Notion update):**
+
+   **Only runs when `round_trip_ledger = available` (from Discuss). Skip entirely if `round_trip_ledger = unavailable`.**
+
+   Read `execute-contract-delta.md` produced in Stage 3f.
+
+   **a. Write superseded + new ACTIVE rows to `be-contract-decisions.md`:**
+
+   For each drifted row in the delta report:
+   - Start with the original row ID from the delta report (e.g., `SD-03`).
+   - **Traverse the supersession chain** to find the current ACTIVE row:
+     - Track visited IDs in a set (cycle detection).
+     - If the row has `Status = SUPERSEDED`: follow `Superseded By` to the next ID and repeat.
+     - Stop when `Status != SUPERSEDED` — this is the current ACTIVE row to supersede.
+     - If the chain exceeds 20 hops, or a referenced ID does not exist in the file, or a cycle is detected: log a clear error ("Supersession chain broken at ID [X] — skipping this delta entry") and skip that entry rather than writing inconsistent rows. Surface all skipped entries in the review artifact.
+   - Flip the located ACTIVE row's `Status` → `SUPERSEDED`, set `Superseded By` → next monotonic SD-NN.
+   - Append a new ACTIVE row using the proposed content from the delta report.
+
+   **If `runtime_evidence = unavailable`:** Structural-only adds are still safe to write. For rows where 3a's mismatch report detected a **new endpoint** (not present in PLAN-time rows), append those as new ACTIVE rows. Do NOT supersede any existing rows (cannot confirm drift without runtime evidence). All existing rows stay ACTIVE.
+
+   For each new contract fact (no prior row): append as a new ACTIVE row directly.
+
+   For unchanged rows: leave untouched.
+
+   Format per `${PLUGIN_ROOT}/../shared/references/shared-decision-ledger-template.md` row format:
+   ```
+   | SD-NN | [Decision] | contract | ACTIVE | — | BE | <today ISO> | [Reason from delta] |
+   ```
+
+   **b. Re-stamp the `CONTRACT-LANDED` marker:**
+
+   Append a new `CONTRACT-LANDED` row to the `## CONTRACT-LANDED` table in `be-contract-decisions.md`:
+   ```
+   | CONTRACT-LANDED | <today ISO> | BE | <BE-feature>/.dev/validate/review-ship-readiness.md | Delta: N rows superseded (ship-time) |
+   ```
+   Where N = count of drifted rows. If zero drift: "Delta: 0 rows — contract unchanged from PLAN."
+   If `runtime_evidence = unavailable`: "Delta: UNKNOWN — runtime verification was skipped."
+
+   The original PLAN-time marker row stays as history (append-only).
+
+   **c. Run `ledger-validate`:**
+   ```bash
+   node ${PLUGIN_ROOT}/../shared/tools/dev-pipeline-tools.js ledger-validate <feature-dir> --plugin backend
+   ```
+   If FAIL: surface errors to user before continuing. Do not block — warn and document in the review artifact.
+
+3. **Notion Update:** Move card to "Frontend Dev". Reference `references/notion-integration.md` for property names and MCP tool patterns.
 
    **If Notion MCP tools are unavailable or the update fails, warn but do NOT block the pipeline.**
 
@@ -214,7 +318,51 @@ Options: Accept / Retry Execute / Back to Architect / Back to Discuss
    - Display: `📋 Notion: Moved — "[Feature Name]" → Frontend Dev`
    - If Card ID is empty: warn "No Notion card ID in MANIFEST — skipping Notion update" and continue
 
-3. **Display Next Up:**
+4. **Emit FE Reconciliation Prompt to chat (MANDATORY — always print, even if zero drift):**
+
+   Populate the template below from the delta report and feature context. Print it as a visible chat message (not just an artifact) so it is immediately copy-pasteable.
+
+   ```
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   ▶ FE Reconciliation Required
+
+   Backend handover complete for: [Feature Name]
+   FE feature dir: [absolute path to FE feature dir from Discuss context]
+
+   Contract delta — [N rows superseded / No drift]:
+     [SD-NN] [one-line summary of what changed]
+     (repeat for each drifted row)
+     — or —
+     No drift — contract delivered exactly as planned.
+
+   Affected FE artifacts to re-review:
+     • ALWAYS: .dev/plan/review-plan-approval.md
+       (check locked decisions against the delta above)
+     [IF any delta row is shape-affecting:]
+     • DESIGN_SPEC sections: [list affected sections by name]
+
+   [IF round_trip_ledger = unavailable:]
+     ⚠️ LEDGER UNAVAILABLE (pre-5.3.0 feature). Manually compare
+     .dev/plan/ artifacts with FRONTEND_HANDOVER_PROMPT.md before swapping mocks.
+
+   [IF runtime_evidence = unavailable:]
+     ⚠️ VALIDATE runtime verification was skipped (server unavailable).
+     Treat all contract rows as unverified. Verify endpoints manually.
+
+   Resume command (run from inside the FE worktree):
+     /dev
+
+   The /dev resume protocol will:
+     1. Read be-contract-decisions.md and transcribe delta rows
+     2. Surface SUPERSEDED decisions with reasons
+     3. Prompt you to re-review PLAN before continuing
+
+   When reconciled: continue from PLAN → DOCUMENT, or resume BUILD
+   if no architecture changes are required.
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   ```
+
+5. **Display Next Up:**
 
 ```
 ▶ Next Up
@@ -260,6 +408,10 @@ If FAIL: update MANIFEST before ending session.
 | Mixing User and Student auth in endpoint docs | Thoven has dual auth — document which system each endpoint uses. NEVER say "requires auth" without specifying User JWT or Student JWT |
 | Orchestrator executing work inline | Execute stage MUST dispatch subagents. Orchestrator coordinates, never does the work |
 | Skipping `/prompt-generator` in Architect | D04 is mandatory. If unavailable, follow the fallback protocol and log it |
+| Writing ledger rows before Accept | Ledger writes happen ONLY on Accept — not in Execute, not on Retry |
+| Skipping FE prompt because delta is zero | Always emit the FE Reconciliation Prompt, even for zero-drift. FE still needs to know it can swap mocks |
+| Writing to the FE-owned canonical ledger | BE NEVER writes `<FE-feature>/.dev/shared-decision-ledger.md` — write to `be-contract-decisions.md` only |
+| Silently claiming no drift when runtime evidence is missing | If VALIDATE skipped runtime verification, delta is UNKNOWN — say so in the FE prompt |
 
 ---
 
@@ -275,3 +427,7 @@ If FAIL: update MANIFEST before ending session.
 - The `review-handover-complete.md` artifact is the context bridge to SHIP — no separate transition files
 - ALWAYS distinguish User auth vs Student auth in endpoint documentation
 - NEVER reference `prompt-transitions/`, `validate-entry`, or `reports/validation-report.md`
+- **Ledger writes ONLY on Accept.** Back to Architect / Back to Discuss / Retry Execute = no writes to `be-contract-decisions.md`. The ledger is never partially written.
+- **Idempotence on retry:** Re-running HANDOVER after a prior Accept re-computes the delta from the current VALIDATE evidence. On the next Accept, prior delta rows (already written as ACTIVE) are superseded again with a fresh supersession chain. Never double-write a row that is already ACTIVE for the same change.
+- **BE never writes the FE-owned canonical ledger.** All writes stay in `<BE-feature>/.dev/be-contract-decisions.md`. The FE transcribes on `/dev` resume.
+- **FE Reconciliation Prompt is always emitted on Accept** — even when delta is zero. Never silently skip it.
