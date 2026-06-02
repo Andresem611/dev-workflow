@@ -52,8 +52,13 @@ Status: not-started / in-progress / complete / skipped
 ## Decisions Log
 [Populated during PLAN phase — locked decisions with WHY + alternatives rejected]
 
-| ID | Decision | Choice | WHY | Alternatives Rejected |
-|----|----------|--------|-----|----------------------|
+| ID | Decision | Choice | WHY | Alternatives Rejected | Supersedes | Reason |
+|----|----------|--------|-----|----------------------|------------|--------|
+
+**Guard 1 + Guard 2 (v3.11 — lock-vs-lock reversal):** Before locking a new decision, check it against existing LOCKED decisions for contradiction.
+- If it reverses an **`Agent:*`** locked decision → record the supersession and continue.
+- If it reverses a **`User:*`** locked decision → emit a prominent `⚠ LOCK CONFLICT` banner naming BOTH IDs in the PLAN Review / handover output, then continue (WARN-and-continue, never silent). A USER lock can only be *unlocked* by the user saying "unlock <ID>".
+- Either way, the overriding decision MUST name the superseded ID in the **`Supersedes`** column with a one-line **`Reason`**. A reversal with empty `Supersedes`/`Reason` is a ledger error. This makes reversals structurally visible instead of buried in the `WHY` prose.
 
 ## Artifacts
 [Updated as phases complete]

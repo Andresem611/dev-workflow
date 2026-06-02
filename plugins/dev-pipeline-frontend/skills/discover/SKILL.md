@@ -34,6 +34,8 @@ Agent tool:
 
 Use GROUND findings to inform Discuss questions. Skip GROUND only if: PAUSE resume, DEV router override, or user explicitly says "skip ground".
 
+**Guard 4 — verified vs assumed findings (v5.4).** Every GROUND finding must be tagged **VERIFIED** (the Explore agent actually read the code and cites the exact file:line proving it) or **ASSUMED** (inferred, "appears to", "hints that", or about a system not in this repo — e.g. a backend endpoint's behavior). Any cross-stack claim about backend behavior that wasn't read in real code is **ASSUMED** and MUST carry a `BE-confirm` tag. Per `references/decision-ledger-template.md`, an ASSUMED / `BE-confirm` finding **may not be the justification for a LOCKED decision** until it is verified — it stays OPEN until confirmed. (This is the exact failure that let "the backend already accepts a `purpose` field" — never true — drive a locked route decision.)
+
 ---
 
 ## Stage 1: Discuss — 4-Zone Brainstorm (v4.0)

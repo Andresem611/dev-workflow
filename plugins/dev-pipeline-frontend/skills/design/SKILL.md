@@ -46,7 +46,7 @@ Use the Read tool on each file. Do not proceed to WHAT questions until all reads
 2. `Read(references/domain-agent-map.md)` → extract: agent assignments for DESIGN phase (ui-designer, Explore)
 3. `Read(references/codebase-context-block.md)` → extract: design system rules, color palette, typography, 3D button pattern
 4. `Read(references/bridge-template.md)` → extract: structured bridge format, echo-back protocol
-5. `Read(references/decision-ledger-template.md)` → extract: ledger format, how to add OPEN entries for design decisions
+5. `Read(references/decision-ledger-template.md)` → extract: ledger format (incl. the `Supersedes`/`Reason` columns), how to add OPEN entries for design decisions, and the **Decision-vs-Decision Conflict Check (Guard 1)** + **Unverified-assumption rule (Guard 4)** — both apply whenever a DESIGN decision is locked
 6. **CONDITIONAL — strategic context:** If `PRODUCT.md` exists at repo root, `Read(PRODUCT.md)` → extract: register, users, brand personality, anti-references, design principles, voice & copy rules. If absent, note "PRODUCT.md not present — proceeding with bridge context only; recommend `/impeccable teach` for future setup."
 7. **CONDITIONAL — design system:** If `DESIGN.md` exists at repo root, `Read(DESIGN.md)` → extract: full token palette, typography hierarchy, component patterns, motion presets, breakpoints. If absent, note "DESIGN.md not present — using inline Brand Rules Reference as fallback; recommend `/impeccable document` for future setup."
 
@@ -376,9 +376,31 @@ Present via AskUserQuestion:
 
 Record the choice in the Decision Ledger as a LOCKED decision.
 
+> **Guard 1 (lock-vs-lock):** Before locking ANY design decision here or below, run the Decision-vs-Decision Conflict Check from `references/decision-ledger-template.md`. If a new LOCKED decision contradicts an existing `User:*` LOCKED decision (e.g. a route/eligibility choice that drops a user-locked invariant), emit the `⚠ LOCK CONFLICT` banner naming both IDs and record `Supersedes`/`Reason` — never reverse a user lock silently. **Guard 4:** do not lock a decision whose rationale rests on an unverified `BE-confirm`/OPEN assumption.
+
 **Step 4: If all needs are already served**
 
 State: "All backend data needs are already served. No feature brief needed." Proceed to the brand rules checklist.
+
+### Journey-Intent Reconciliation (MANDATORY — Guard 3)
+
+**Why this exists:** the existing reconciliation (MANIFEST Dependencies, contract shapes) checks that *data shapes* match. It does NOT check that the **journey intent** survives. A feature can pass every contract check while a design decision silently drops a behavioral invariant from the DISCOVER flow — e.g. a writer flow designed as "enroll → then review" shipping as "review without enrolling." This check closes that gap. It reconciles **behavior**, not shape.
+
+Run this AFTER design decisions are made and BEFORE the DESIGN_SPEC / bridge is finalized. It also re-runs in VALIDATE.
+
+**Procedure:**
+1. Re-read each **user flow / journey** from the DISCOVER bridge (`.dev/discover/review-design-approval.md`) and the design-doc flows.
+2. For EACH flow, extract its **behavioral invariants** (the things that MUST be true for the flow to be correct — e.g. "the parent is enrolled before they can review", "review target is the teacher") and the **dependencies** each invariant relies on (e.g. the enroll step, a `class_id`, a server eligibility field).
+3. For EACH invariant, confirm the current DESIGN decisions **preserve it AND its dependencies**. Ask explicitly: did any DESIGN decision (route choice, gating choice, reuse choice) drop, bypass, or weaken this invariant or remove a step it depends on?
+4. Produce a short table in the DESIGN review artifact:
+
+   ```
+   | Flow | Invariant | Dependency | Preserved by DESIGN? | Evidence / decision ID |
+   |------|-----------|-----------|----------------------|------------------------|
+   | EP-A writer | parent enrolled before review (U-01) | enroll step + class_id | YES | D-xx reuses /invite enroll leg |
+   ```
+
+5. **A dropped or weakened invariant is a BLOCK** — DESIGN cannot advance to PLAN until it is either restored OR the user explicitly unlocks the underlying decision (which triggers Guard 1's `⚠ LOCK CONFLICT` recording).
 
 ### Thoven Brand Rules Checklist (MANDATORY)
 
