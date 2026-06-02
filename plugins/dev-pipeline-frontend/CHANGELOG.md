@@ -4,6 +4,24 @@ All notable changes to the `dev-pipeline-frontend` plugin are documented here. F
 
 ---
 
+## v5.4.0 — Divergence guards (journey-intent + lock-reversal)
+
+**Released:** 2026-06-02
+
+Closes the failure class behind the Teacher_Reviews_Ratings_v1 cold-parent divergence: BUILD faithfully shipped DESIGN/PLAN decisions that had already silently traded away a USER-locked behavior. Root cause — the pipeline locked and reconciled **contracts** (shapes, field names, the *presence* of decision text) but never **journey intent** (the behavioral invariant "enroll before reviewing"), and an agent-sourced LOCKED decision (P-23 "FE un-gated") reversed a user-sourced LOCKED decision (U-01 "enrolled-only") through a one-directional Violation Detection blind spot. Companion `dev-pipeline-backend` v3.11.0 mirrors Guards 1 & 2.
+
+### Added
+- **Guard 1 — Decision-vs-Decision Conflict Check (lock-vs-lock)** in `references/decision-ledger-template.md`, wired into `skills/design/SKILL.md` and `skills/plan/SKILL.md` at decision-promotion time. Before a decision is added/promoted to LOCKED it is checked against existing LOCKED decisions. Reversing an `Agent:*` lock → record supersession + continue. Reversing a `User:*` lock → emit a prominent `⚠ LOCK CONFLICT` banner naming both IDs, record `Supersedes`/`Reason`, then continue (WARN-and-continue — never silent).
+- **Guard 2 — `Supersedes` + `Reason` ledger columns** in the Decision Ledger format. Reversals are now structurally visible instead of buried in prose; a decision overriding another MUST name it.
+- **Guard 3 — Journey-Intent Reconciliation.** New MANDATORY section in `skills/design/SKILL.md` (re-walks each DISCOVER flow, asserts DESIGN preserves each behavioral invariant + its dependencies; dropped invariant = BLOCK) and a matching MANDATORY check in `skills/validate/SKILL.md` against shipped code (dropped/weakened invariant = FAIL even if all contract shapes match).
+- **Guard 4 — unverified assumptions may not be load-bearing.** `skills/discover/SKILL.md` GROUND findings are tagged VERIFIED vs ASSUMED/`BE-confirm`; a decision-ledger rule keeps any decision resting on an unverified assumption OPEN until confirmed.
+- **`references/divergence-guard-redteam.md`** — replay scenarios (P-23↔U-01, GROUND-#10 false `purpose`, separate-`/review`-route enroll-leg drop) each guard must fire on; acceptance scenarios for future guard edits.
+
+### Changed
+- Violation Detection (Review stage) now runs BOTH directions: output↔lock (existing) and lock↔lock (new, Guard 1).
+
+---
+
 ## v5.3.0 — FE→BE Handoff Redesign (Phase 3: shared decision ledger + monitor)
 
 **Released:** 2026-05-29

@@ -490,15 +490,16 @@ node ${PLUGIN_ROOT}/../shared/tools/dev-pipeline-tools.js validate-stage-output 
 ## Decision Log Format
 
 ```markdown
-| ID | Decision | Choice | WHY | Alternatives Rejected |
-|----|----------|--------|-----|----------------------|
-| D01 | Service pattern | Orchestrator + sub-services | Matches BookingService pattern, coordinates cleanly | Single service (500+ lines), inline controller (violates convention) |
+| ID | Decision | Choice | WHY | Alternatives Rejected | Supersedes | Reason |
+|----|----------|--------|-----|----------------------|------------|--------|
+| D01 | Service pattern | Orchestrator + sub-services | Matches BookingService pattern, coordinates cleanly | Single service (500+ lines), inline controller (violates convention) | — | — |
 ```
 
 - **WHY is mandatory.** No exceptions.
 - **Alternatives Rejected is mandatory.** Forces deliberate thinking.
 - **Cite codebase evidence** — reference real file paths as precedent.
 - Decisions LOCKED after Review. Changes require re-entering PLAN.
+- **Guard 1 (lock-vs-lock, v3.11):** before locking a new decision, run the conflict check from `references/manifest-template.md` Decisions Log. If it reverses an existing LOCKED decision, name that decision in the **`Supersedes`** column with a **`Reason`**. If the reversed decision's source is the **user** (`User:*`), emit a prominent `⚠ LOCK CONFLICT` banner naming both IDs in the Review/handover output and continue — never reverse a user lock silently.
 
 ---
 

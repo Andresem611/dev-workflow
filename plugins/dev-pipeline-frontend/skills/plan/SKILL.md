@@ -51,7 +51,7 @@ Use the Read tool on each file. Do not proceed to WHAT questions until all reads
 4. `Read(references/inner-loop-reference.md)` → extract: D04, D14, D15 decision rules
 5. `Read(references/codebase-context-block.md)` → extract: stack details, design system rules
 6. `Read(references/bridge-template.md)` → extract: structured bridge format, echo-back protocol
-7. `Read(references/decision-ledger-template.md)` → extract: ledger format, LOCKED decisions to respect
+7. `Read(references/decision-ledger-template.md)` → extract: ledger format (incl. `Supersedes`/`Reason` columns), LOCKED decisions to respect, and the **Decision-vs-Decision Conflict Check (Guard 1)** + **Unverified-assumption rule (Guard 4)** — both apply whenever a PLAN decision (P-XX) is locked or an A-XX is promoted to LOCKED
 8. `Read(references/mode-propagation-reference.md)` → extract: depth settings for current execution mode
 
 If any file is missing, STOP and surface the gap to the user.
@@ -136,6 +136,9 @@ Before designing agent prompts, confirm:
 - [ ] DESIGN_SPEC was Read — component inventory and interaction patterns inform agent prompts
 - [ ] Execution mode from Decision Ledger determines agent depth (see mode-propagation-reference.md)
 - [ ] All LOCKED decisions addressed in architecture plan — none silently dropped
+- [ ] **Guard 1 (lock-vs-lock):** every NEW P-XX (and any A-XX promoted to LOCKED) ran the Decision-vs-Decision Conflict Check. Any decision reversing a `User:*` lock has a `⚠ LOCK CONFLICT` banner + recorded `Supersedes`/`Reason` — no user lock reversed silently
+- [ ] **Guard 3 (journey-intent):** the DISCOVER flow invariants + their dependencies are still preserved by the PLAN architecture (re-check the DESIGN Journey-Intent Reconciliation table; a dropped invariant is a BLOCK)
+- [ ] **Guard 4:** no P-XX is locked on an unverified `BE-confirm`/OPEN assumption
 - [ ] Architecture decisions don't contradict DESIGN_SPEC constraints (responsive breakpoints, motion patterns, interactive state models, accessibility commitments)
 
 This verification appears in the Orchestration Log under `Map compliance`.

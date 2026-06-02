@@ -66,7 +66,16 @@ After running all validation checks, compare the built code against EVERY LOCKED
 - Is each LOCKED scope item (U-XX) implemented?
 - Does the implementation match the LOCKED decision's intent?
 - Were any LOCKED items silently dropped during BUILD?
+- **Lock-vs-lock (Guard 1):** scan the ledger for any decision that reverses a `User:*` LOCKED decision. If a reversal exists without a recorded `Supersedes`/`Reason` (and the user never unlocked the original), that is a violation — the user lock was overridden silently upstream.
 Report violations in the review artifact. A LOCKED violation is a FAIL regardless of other check results.
+
+**Journey-Intent Reconciliation Check (v5.4 — MANDATORY — Guard 3):**
+Contract/shape checks can pass while the *behavior* diverged from the DISCOVER intent. Re-run the journey reconciliation against the SHIPPED code:
+- Re-read each user flow / journey from the DISCOVER bridge and design-doc.
+- For each flow, list its behavioral invariants + dependencies (e.g. "parent enrolled before reviewing (U-01)" → depends on the enroll step).
+- Verify the BUILT code actually preserves each invariant AND its dependency (e.g. does the shipped flow really enroll before allowing a review, or did it ship an un-gated path?).
+- Reuse / extend the DESIGN Journey-Intent Reconciliation table, marking each invariant PRESERVED / DROPPED / WEAKENED with code evidence.
+A dropped or weakened invariant is a **FAIL** regardless of other check results — even if every contract shape matches.
 
 Goal-backward verification (from GSD):
 1. What must be TRUE for the feature to be done? → Check truths from must_haves

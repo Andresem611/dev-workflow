@@ -1,7 +1,7 @@
 {
   "name": "dev-pipeline-backend",
   "description": "Backend development pipeline v3.10.0 — closes the BE→FE round-trip: VALIDATE routes cross-stack features through HANDOVER before SHIP, HANDOVER reconciles the shared decision ledger with BUILD-time evidence and emits a ready-to-paste FE reconciliation prompt, CONTRACT-LANDED re-stamped at ship-time with delta count; frontend handoff routes to DISCOVER, contract competition, ledger-backed contract delivery, decision fidelity enforcement, runtime API verification, behavior-slice tasks",
-  "version": "3.10.0",
+  "version": "3.11.0",
   "author": {
     "name": "Thoven",
     "email": "andres@thoven.co"
