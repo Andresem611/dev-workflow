@@ -1,7 +1,7 @@
 {
   "name": "team-kit",
-  "description": "Repo-agnostic team workflow skills curated from external sources. v0.1.0 ports four Cursor Team Kit skills: thermo-nuclear-code-quality-review (strict structural maintainability review, skill + Task agent), deslop (remove AI slop from a branch diff), verify-this (falsify a claim with baseline/treatment evidence), weekly-review (commit recap by bugfix/tech-debt/net-new). Works in any repo (frontend or backend); no dependency on the dev-pipeline plugins.",
-  "version": "0.1.0",
+  "description": "Repo-agnostic team workflow skills curated from external sources. v0.2.0 adds thermo-nuclear-review (deep correctness/security branch audit) and thermos (parallel orchestrator for both thermo-nuclear reviews), ported from Cursor's standalone Thermos plugin. Also ports thermo-nuclear-code-quality-review (strict structural maintainability review, skill + Task agent), deslop (remove AI slop from a branch diff), verify-this (falsify a claim with baseline/treatment evidence), weekly-review (commit recap by bugfix/tech-debt/net-new). Works in any repo (frontend or backend); no dependency on the dev-pipeline plugins.",
+  "version": "0.2.0",
   "author": {
     "name": "Thoven",
     "email": "andres@thoven.co"
